@@ -1,0 +1,2 @@
+# gmt
+Go mailing tool
