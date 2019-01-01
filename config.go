@@ -24,15 +24,10 @@ import (
 	"github.com/go-ini/ini"
 )
 
-type Name struct {
-	First string
-	Middle []string
-	Last string
-}
-
 type Recipient struct {
 	Email string
-	Name
+	First string
+	Last string
 	Data map[string]string
 }
 
@@ -92,5 +87,9 @@ func NewConfig(bs []byte) (result General, err error) {
 		re := regexp.MustCompile("\\s*,\\s*")
 		result.Cc = re.Split(val, -1)
 	}
+	return
+}
+
+func ParseRecipients(cfg *ini.File) (rs []Recipient, err error) {
 	return
 }

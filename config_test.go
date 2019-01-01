@@ -19,11 +19,12 @@ package main
 import (
 	"testing"
 
+	"github.com/go-ini/ini"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestLoadDefault(t *testing.T) {
-	Convey("Load from good data sources", t, func() {
+	Convey("Load sample config, test general parts", t, func() {
 		cfg, err := NewConfig([]byte(`
 [general]
 mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
@@ -52,8 +53,9 @@ mm@gmail.com=02.pdf
 		So(len(cfg.Cc), ShouldEqual, 0)
 	})
 }
+
 func TestLoadFull(t *testing.T) {
-	Convey("Load from good data sources", t, func() {
+	Convey("Load full config, test general parts", t, func() {
 		cfg, err := NewConfig([]byte(`
 [general]
 mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
@@ -81,5 +83,52 @@ mm@gmail.com=02.pdf
 		So(cfg.SenderName, ShouldEqual, "Frodo Baggins")
 		So(len(cfg.Cc), ShouldEqual, 2)
 		So(cfg.Cc, ShouldResemble, []string{"weirdo@nsb.gov", "cc@example.com"})
+	})
+}
+func TestParseRecipients(t *testing.T) {
+	Convey("Load the recipients", t, func() {
+		cfg, err := ini.Load([]byte(`
+[general]
+mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
+attachment-path=/tmp
+encrypt-attachments=true
+sender-email=rts@example.com
+sender-name=Frodo Baggins
+Cc=weirdo@nsb.gov, cc@example.com
+[recipients]
+jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
+mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
+[attachments]
+jd@example.com=01.pdf
+mm@gmail.com=02.pdf
+`),
+		)
+		So(err, ShouldBeNil)
+		So(cfg, ShouldNotBeNil)
+
+		rs, rerr := ParseRecipients(cfg)
+		So(rerr, ShouldBeNil)
+		So(rs, ShouldNotBeNil)
+
+		// Validate values make sure all sources are loaded correctly
+		expected := []Recipient {
+			Recipient{
+				Email: "jd@example.com",
+				First: "John",
+				Last: "Doe Jr.",
+				Data: map[string]string {
+					"ORG": "EFF", "TITLE": "PhD",
+				},
+			},
+			Recipient{
+				Email: "mm@gmail.com",
+				First: "Mickey",
+				Last: "Mouse",
+				Data: map[string]string {
+					"ORG": "Disney",
+				},
+			},
+		}
+		So(rs, ShouldResemble, expected)
 	})
 }
