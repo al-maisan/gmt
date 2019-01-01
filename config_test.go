@@ -17,6 +17,7 @@
 package main
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/go-ini/ini"
@@ -106,9 +107,9 @@ mm@gmail.com=02.pdf
 		So(err, ShouldBeNil)
 		So(cfg, ShouldNotBeNil)
 
-		rs, rerr := ParseRecipients(cfg)
+		actual, rerr := ParseRecipients(cfg)
 		So(rerr, ShouldBeNil)
-		So(rs, ShouldNotBeNil)
+		So(actual, ShouldNotBeNil)
 
 		// Validate values make sure all sources are loaded correctly
 		expected := []Recipient {
@@ -129,6 +130,12 @@ mm@gmail.com=02.pdf
 				},
 			},
 		}
-		So(rs, ShouldResemble, expected)
+		sort.Slice(expected, func(i, j int) bool {
+			return expected[i].Email > expected[j].Email
+		})
+		sort.Slice(actual, func(i, j int) bool {
+			return actual[i].Email > actual[j].Email
+		})
+		So(actual, ShouldResemble, expected)
 	})
 }

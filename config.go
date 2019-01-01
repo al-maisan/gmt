@@ -90,6 +90,34 @@ func NewConfig(bs []byte) (result General, err error) {
 	return
 }
 
-func ParseRecipients(cfg *ini.File) (rs []Recipient, err error) {
+func ParseRecipients(cfg *ini.File) (recipients []Recipient, err error) {
+	sec, err := cfg.GetSection("recipients")
+	if err != nil {
+		return
+	}
+
+	re_pipe := regexp.MustCompile("\\s*\\|\\s*")
+	re_space := regexp.MustCompile("\\s+")
+	re_rdata := regexp.MustCompile("\\s*\\:-\\s*")
+	for k, v := range sec.KeysHash() {
+		// jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
+		recipientData := re_pipe.Split(v, -1)
+		if len(recipientData) < 1 {
+			continue
+		}
+		names := re_space.Split(recipientData[0], 2)
+		data := make(map[string]string)
+		for _, rdatum := range recipientData[1:] {
+			split_rdatum := re_rdata.Split(rdatum, 2)
+			data[split_rdatum[0]] = split_rdatum[1]
+		}
+		recipient := Recipient{
+			Email: k,
+			First: names[0],
+			Last: names[1],
+			Data: data,
+		}
+		recipients = append(recipients, recipient)
+	}
 	return
 }
