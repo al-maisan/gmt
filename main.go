@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
-	"fmt")
+	"fmt"
+	"github.com/go-ini/ini"
+)
 
 func main() {
 	configPath := flag.String("config-path", "", "path to the config file")
