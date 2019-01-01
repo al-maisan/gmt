@@ -17,6 +17,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"flag"
 	"fmt"
 )
@@ -47,6 +48,19 @@ func main() {
 	fmt.Println("templatePath: ", *templatePath)
 	fmt.Println("doSampleConfig: ", *doSampleConfig)
 	fmt.Println("doSampleTemplate: ", *doSampleTemplate)
+
+	if configPath != nil {
+		bytes, err := ioutil.ReadFile(*configPath)
+
+		if err == nil {
+			cfg, cerr := NewConfig(bytes)
+			if cerr != nil {
+				fmt.Println(cerr)
+			} else {
+				fmt.Println(cfg)
+			}
+		}
+	}
 }
 
 func sampleConfig() string {
