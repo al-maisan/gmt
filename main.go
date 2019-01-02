@@ -20,6 +20,8 @@ import (
 	"io/ioutil"
 	"flag"
 	"fmt"
+
+	"github.com/al-maisan/gmt/config"
 )
 
 func main() {
@@ -53,7 +55,7 @@ func main() {
 		bytes, err := ioutil.ReadFile(*configPath)
 
 		if err == nil {
-			cfg, cerr := NewConfig(bytes)
+			cfg, cerr := config.New(bytes)
 			if cerr != nil {
 				fmt.Println(cerr)
 			} else {

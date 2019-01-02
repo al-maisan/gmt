@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package main
+package config
 
 import (
 	"errors"
@@ -47,7 +47,7 @@ type General struct {
 	Attachments []Attachment
 }
 
-func NewConfig(bs []byte) (result General, err error) {
+func New(bs []byte) (result General, err error) {
 	var cfg *ini.File
 	cfg, err = ini.Load(bs)
 	if err != nil {
@@ -101,13 +101,13 @@ func ParseRecipients(cfg *ini.File) (recipients []Recipient, err error) {
 	re_rdata := regexp.MustCompile("\\s*\\:-\\s*")
 	for k, v := range sec.KeysHash() {
 		// jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
-		recipientData := re_pipe.Split(v, -1)
-		if len(recipientData) < 1 {
+		rdata := re_pipe.Split(v, -1)
+		if len(rdata) < 1 {
 			continue
 		}
-		names := re_space.Split(recipientData[0], 2)
+		names := re_space.Split(rdata[0], 2)
 		data := make(map[string]string)
-		for _, rdatum := range recipientData[1:] {
+		for _, rdatum := range rdata[1:] {
 			split_rdatum := re_rdata.Split(rdatum, 2)
 			data[split_rdatum[0]] = split_rdatum[1]
 		}
