@@ -32,6 +32,7 @@ mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 sender-email=rts@example.com
 sender-name=Frodo Baggins
 #Cc=weirdo@nsb.gov, cc@example.com
+subject=Hello %FN%!
 [recipients]
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
@@ -73,9 +74,10 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 }
 
 func TestLoadEmpty(t *testing.T) {
-	Convey("Load sample config, test general parts", t, func() {
+	Convey("Load sample config missing a 'mail-prog' definition", t, func() {
 		_, err := New([]byte(`
 [general]
+subject=Hello %FN%!
 `),
 		)
 		So(err, ShouldNotBeNil)
@@ -84,14 +86,27 @@ func TestLoadEmpty(t *testing.T) {
 }
 
 func TestLoadNoRecipients(t *testing.T) {
-	Convey("Load sample config, test general parts", t, func() {
+	Convey("Load sample config missing a 'recipients' section", t, func() {
+		_, err := New([]byte(`
+[general]
+mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
+subject=Hello %FN%!
+`),
+		)
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldEqual, "section 'recipients' does not exist")
+	})
+}
+
+func TestLoadNoSubject(t *testing.T) {
+	Convey("Load sample config missing a subject definition", t, func() {
 		_, err := New([]byte(`
 [general]
 mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 `),
 		)
 		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "section 'recipients' does not exist")
+		So(err.Error(), ShouldEqual, "'subject' not configured!")
 	})
 }
 
@@ -103,6 +118,7 @@ mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 sender-email=rts@example.com
 sender-name=Frodo Baggins
 Cc=weirdo@nsb.gov, cc@example.com
+subject=Hello %FN%!
 [recipients]
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
@@ -115,6 +131,7 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		So(cfg.SenderEmail, ShouldEqual, "rts@example.com")
 		So(cfg.SenderName, ShouldEqual, "Frodo Baggins")
 		So(len(cfg.Cc), ShouldEqual, 2)
+		So(cfg.Subject, ShouldEqual, "Hello %FN%!")
 		So(cfg.Cc, ShouldResemble, []string{"weirdo@nsb.gov", "cc@example.com"})
 		expected := []Recipient {
 			Recipient{

@@ -27,7 +27,6 @@ import (
 func main() {
 	configPath := flag.String("config-path", "", "path to the config file")
 	doDryRun := flag.Bool("dry-run", false, "show what would be done but execute no action")
-	subject := flag.String("subject", "", "email subject")
 	templatePath := flag.String("template-path", "", "path to the template file")
 	doSampleConfig := flag.Bool("sample-config", false, "output sample configuration to stdout")
 	doSampleTemplate := flag.Bool("sample-template", false, "output sample template to stdout")
@@ -46,7 +45,6 @@ func main() {
 
 	fmt.Println("configPath: ", *configPath)
 	fmt.Println("doDryRun: ", *doDryRun)
-	fmt.Println("subject: ", *subject)
 	fmt.Println("templatePath: ", *templatePath)
 	fmt.Println("doSampleConfig: ", *doSampleConfig)
 	fmt.Println("doSampleTemplate: ", *doSampleTemplate)
@@ -76,6 +74,7 @@ mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 sender-email=rts@example.com
 sender-name=Frodo Baggins
 #Cc=weirdo@nsb.gov, cc@example.com
+#subject=Hello %FN%!
 [recipients]
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!

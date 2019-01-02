@@ -35,6 +35,7 @@ type Config struct {
 	SenderEmail string
 	SenderName string
 	Cc []string
+	Subject string
 	Recipients []Recipient
 }
 
@@ -55,6 +56,12 @@ func New(bs []byte) (result Config, err error) {
 		result.MailProg = val
 	} else {
 		err = errors.New("'mail-prog' not configured!")
+		return
+	}
+	if val, ok := keys["subject"]; ok {
+		result.Subject = val
+	} else {
+		err = errors.New("'subject' not configured!")
 		return
 	}
 
