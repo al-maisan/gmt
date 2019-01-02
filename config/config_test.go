@@ -40,11 +40,35 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		So(err, ShouldBeNil)
 		So(cfg, ShouldNotBeNil)
 
-		// Validate values make sure all sources are loaded correctly
 		So(cfg.MailProg, ShouldEqual, "gnu-mail")
 		So(cfg.SenderEmail, ShouldEqual, "rts@example.com")
 		So(cfg.SenderName, ShouldEqual, "Frodo Baggins")
 		So(len(cfg.Cc), ShouldEqual, 0)
+		expected := []Recipient {
+			Recipient{
+				Email: "jd@example.com",
+				First: "John",
+				Last: "Doe Jr.",
+				Data: map[string]string {
+					"ORG": "EFF", "TITLE": "PhD",
+				},
+			},
+			Recipient{
+				Email: "mm@gmail.com",
+				First: "Mickey",
+				Last: "Mouse",
+				Data: map[string]string {
+					"ORG": "Disney",
+				},
+			},
+		}
+		sort.Slice(expected, func(i, j int) bool {
+			return expected[i].Email > expected[j].Email
+		})
+		sort.Slice(cfg.Recipients, func(i, j int) bool {
+			return cfg.Recipients[i].Email > cfg.Recipients[j].Email
+		})
+		So(cfg.Recipients, ShouldResemble, expected)
 	})
 }
 
@@ -55,9 +79,19 @@ func TestLoadEmpty(t *testing.T) {
 `),
 		)
 		So(err, ShouldNotBeNil)
-
-		// Validate values make sure all sources are loaded correctly
 		So(err.Error(), ShouldEqual, "'mail-prog' not configured!")
+	})
+}
+
+func TestLoadNoRecipients(t *testing.T) {
+	Convey("Load sample config, test general parts", t, func() {
+		_, err := New([]byte(`
+[general]
+mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
+`),
+		)
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldEqual, "section 'recipients' does not exist")
 	})
 }
 
@@ -77,12 +111,36 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		So(err, ShouldBeNil)
 		So(cfg, ShouldNotBeNil)
 
-		// Validate values make sure all sources are loaded correctly
 		So(cfg.MailProg, ShouldEqual, "gnu-mail")
 		So(cfg.SenderEmail, ShouldEqual, "rts@example.com")
 		So(cfg.SenderName, ShouldEqual, "Frodo Baggins")
 		So(len(cfg.Cc), ShouldEqual, 2)
 		So(cfg.Cc, ShouldResemble, []string{"weirdo@nsb.gov", "cc@example.com"})
+		expected := []Recipient {
+			Recipient{
+				Email: "jd@example.com",
+				First: "John",
+				Last: "Doe Jr.",
+				Data: map[string]string {
+					"ORG": "EFF", "TITLE": "PhD",
+				},
+			},
+			Recipient{
+				Email: "mm@gmail.com",
+				First: "Mickey",
+				Last: "Mouse",
+				Data: map[string]string {
+					"ORG": "Disney",
+				},
+			},
+		}
+		sort.Slice(expected, func(i, j int) bool {
+			return expected[i].Email > expected[j].Email
+		})
+		sort.Slice(cfg.Recipients, func(i, j int) bool {
+			return cfg.Recipients[i].Email > cfg.Recipients[j].Email
+		})
+		So(cfg.Recipients, ShouldResemble, expected)
 	})
 }
 func TestParseRecipients(t *testing.T) {
@@ -108,7 +166,6 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		actual := parseRecipients(recipients)
 		So(actual, ShouldNotBeNil)
 
-		// Validate values make sure all sources are loaded correctly
 		expected := []Recipient {
 			Recipient{
 				Email: "jd@example.com",
