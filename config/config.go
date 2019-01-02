@@ -69,15 +69,16 @@ func New(bs []byte) (result Config, err error) {
 		re := regexp.MustCompile("\\s*,\\s*")
 		result.Cc = re.Split(val, -1)
 	}
+
+	var recipients *ini.Section
+	recipients, err = cfg.GetSection("recipients")
+	if err == nil {
+		result.Recipients = parseRecipients(recipients)
+	}
 	return
 }
 
-func ParseRecipients(cfg *ini.File) (recipients []Recipient, err error) {
-	sec, err := cfg.GetSection("recipients")
-	if err != nil {
-		return
-	}
-
+func parseRecipients(sec *ini.Section) (recipients []Recipient) {
 	re_pipe := regexp.MustCompile("\\s*\\|\\s*")
 	re_space := regexp.MustCompile("\\s+")
 	re_rdata := regexp.MustCompile("\\s*\\:-\\s*")

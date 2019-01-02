@@ -48,6 +48,19 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 	})
 }
 
+func TestLoadEmpty(t *testing.T) {
+	Convey("Load sample config, test general parts", t, func() {
+		_, err := New([]byte(`
+[general]
+`),
+		)
+		So(err, ShouldNotBeNil)
+
+		// Validate values make sure all sources are loaded correctly
+		So(err.Error(), ShouldEqual, "'mail-prog' not configured!")
+	})
+}
+
 func TestLoadFull(t *testing.T) {
 	Convey("Load full config, test general parts", t, func() {
 		cfg, err := New([]byte(`
@@ -88,8 +101,11 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		So(err, ShouldBeNil)
 		So(cfg, ShouldNotBeNil)
 
-		actual, rerr := ParseRecipients(cfg)
-		So(rerr, ShouldBeNil)
+		var recipients *ini.Section
+		recipients, err = cfg.GetSection("recipients")
+		So(err, ShouldBeNil)
+
+		actual := parseRecipients(recipients)
 		So(actual, ShouldNotBeNil)
 
 		// Validate values make sure all sources are loaded correctly
