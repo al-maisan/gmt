@@ -127,6 +127,8 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 				},
 			},
 		}
+		// sort expected / actual so different element ordering does not break
+		// the test
 		sort.Slice(expected, func(i, j int) bool {
 			return expected[i].Email > expected[j].Email
 		})
