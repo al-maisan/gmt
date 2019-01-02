@@ -19,7 +19,6 @@ package config
 import (
 	"errors"
 	"regexp"
-	"strconv"
 
 	"github.com/go-ini/ini"
 )
@@ -31,23 +30,15 @@ type Recipient struct {
 	Data map[string]string
 }
 
-type Attachment struct {
-	Email string
-	Path string
-}
-
-type General struct {
+type Config struct {
 	MailProg string
-	AttachmentPath string
-	EncryptAttachments bool
 	SenderEmail string
 	SenderName string
 	Cc []string
 	Recipients []Recipient
-	Attachments []Attachment
 }
 
-func New(bs []byte) (result General, err error) {
+func New(bs []byte) (result Config, err error) {
 	var cfg *ini.File
 	cfg, err = ini.Load(bs)
 	if err != nil {
@@ -68,15 +59,6 @@ func New(bs []byte) (result General, err error) {
 	}
 
 	// optional keys
-	if val, ok := keys["attachment-path"]; ok {
-		result.AttachmentPath = val
-	}
-	if val, ok := keys["encrypt-attachments"]; ok {
-		result.EncryptAttachments, err = strconv.ParseBool(val)
-		if err != nil {
-			return
-		}
-	}
 	if val, ok := keys["sender-email"]; ok {
 		result.SenderEmail = val
 	}
