@@ -34,12 +34,12 @@ func main() {
 	flag.Parse()
 
 	if *doSampleConfig {
-		fmt.Println(sampleConfig())
+		fmt.Println(config.SampleConfig())
 		return
 	}
 
 	if *doSampleTemplate {
-		fmt.Println(sampleTemplate())
+		fmt.Println(config.SampleTemplate())
 		return
 	}
 
@@ -61,31 +61,4 @@ func main() {
 			}
 		}
 	}
-}
-
-func sampleConfig() string {
-	return `# anything that follows a hash is a comment
-# email address is to the left of the '=' sign, first word after is
-# the first name, the rest is the surname
-[general]
-mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
-#attachment-path=/tmp
-#encrypt-attachments=true
-sender-email=rts@example.com
-sender-name=Frodo Baggins
-#Cc=weirdo@nsb.gov, cc@example.com
-#subject=Hello %FN%!
-[recipients]
-jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
-mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
-[attachments]
-jd@example.com=01.pdf
-mm@gmail.com=02.pdf`
-}
-
-func sampleTemplate() string {
-	return `FN / LN / EA = first name / last name / email address
-
-Hello %FN% // %LN%, how are things going at %ORG%?
-this is your email * 2: %EA%%EA%.`
 }

@@ -30,7 +30,7 @@ type Recipient struct {
 	Data map[string]string
 }
 
-type Config struct {
+type Data struct {
 	MailProg string
 	SenderEmail string
 	SenderName string
@@ -39,7 +39,7 @@ type Config struct {
 	Recipients []Recipient
 }
 
-func New(bs []byte) (result Config, err error) {
+func New(bs []byte) (result Data, err error) {
 	var cfg *ini.File
 	cfg, err = ini.Load(bs)
 	if err != nil {
@@ -110,4 +110,26 @@ func parseRecipients(sec *ini.Section) (recipients []Recipient) {
 		recipients = append(recipients, recipient)
 	}
 	return
+}
+
+func SampleConfig() string {
+	return `# anything that follows a hash is a comment
+# email address is to the left of the '=' sign, first word after is
+# the first name, the rest is the surname
+[general]
+mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
+sender-email=rts@example.com
+sender-name=Frodo Baggins
+#Cc=weirdo@nsb.gov, cc@example.com
+subject=Hello %FN%!
+[recipients]
+jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
+mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!`
+}
+
+func SampleTemplate() string {
+	return `FN / LN / EA = first name / last name / email address
+
+Hello %FN% // %LN%, how are things going at %ORG%?
+this is your email * 2: %EA%%EA%.`
 }
