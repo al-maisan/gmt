@@ -59,7 +59,7 @@ func main() {
 			if cerr != nil {
 				fmt.Println(cerr)
 			} else {
-				fmt.Println(cfg)
+				fmt.Printf("%+v\n", cfg)
 			}
 		}
 	}
