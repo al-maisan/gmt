@@ -29,11 +29,11 @@ func GetConfig(input string) config.Data {
 }
 
 
-func TestGenBodies(t *testing.T) {
+func TestSubstVars(t *testing.T) {
 	Convey("generate email bodies for default config", t, func() {
 		cfg := GetConfig(config.SampleConfig())
 		template := config.SampleTemplate()
-		bodies := GenBodies(cfg, template)
+		bodies := SubstVars(cfg, template)
 
 		So(len(bodies), ShouldEqual, 2)
 		expected := `FN / LN / EA = first name / last name / email address

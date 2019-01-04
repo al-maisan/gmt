@@ -24,7 +24,7 @@ import (
 )
 
 
-func GenBodies(cfg config.Data, template string) (bodies map[string]string) {
+func SubstVars(cfg config.Data, template string) (bodies map[string]string) {
 	bodies = make(map[string]string)
 	for _, recipient := range cfg.Recipients {
 		body := strings.Replace(template, "%EA%", recipient.Email, -1)
