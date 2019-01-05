@@ -32,6 +32,7 @@ mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 sender-email=rts@example.com
 sender-name=Frodo Baggins
 #Cc=weirdo@nsb.gov, cc@example.com
+#Reply-to=John Doe <jd@mail.com>
 subject=Hello %FN%!
 [recipients]
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
@@ -118,6 +119,7 @@ mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 sender-email=rts@example.com
 sender-name=Frodo Baggins
 Cc=weirdo@nsb.gov, cc@example.com
+Reply-To=John Doe <jd@mail.com>
 subject=Hello %FN%!
 [recipients]
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
@@ -130,6 +132,7 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		So(cfg.MailProg, ShouldEqual, "gnu-mail")
 		So(cfg.SenderEmail, ShouldEqual, "rts@example.com")
 		So(cfg.SenderName, ShouldEqual, "Frodo Baggins")
+		So(cfg.ReplyTo, ShouldEqual, "John Doe <jd@mail.com>")
 		So(len(cfg.Cc), ShouldEqual, 2)
 		So(cfg.Subject, ShouldEqual, "Hello %FN%!")
 		So(cfg.Cc, ShouldResemble, []string{"weirdo@nsb.gov", "cc@example.com"})

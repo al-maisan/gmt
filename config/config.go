@@ -34,6 +34,7 @@ type Data struct {
 	MailProg string
 	SenderEmail string
 	SenderName string
+	ReplyTo string
 	Cc []string
 	Subject string
 	Recipients []Recipient
@@ -71,6 +72,9 @@ func New(bs []byte) (result Data, err error) {
 	}
 	if val, ok := keys["sender-name"]; ok {
 		result.SenderName = val
+	}
+	if val, ok := keys["Reply-To"]; ok {
+		result.ReplyTo = val
 	}
 	if val, ok := keys["Cc"]; ok {
 		re := regexp.MustCompile("\\s*,\\s*")
@@ -121,6 +125,7 @@ mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 sender-email=rts@example.com
 sender-name=Frodo Baggins
 #Cc=weirdo@nsb.gov, cc@example.com
+#Reply-To=John Doe <jd@mail.com>
 subject=Hello %FN%!
 [recipients]
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
