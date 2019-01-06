@@ -17,11 +17,15 @@
 package email
 
 import (
+	"strings"
 	"github.com/al-maisan/gmt/config"
 )
 
 
-func PrepMUAArgs(cfg config.Data) (args map[string]string) {
-	args = make(map[string]string)
+func PrepMUAArgs(cfg config.Data) (args []string) {
+	args = make([]string, 0)
+	if cfg.Cc != nil {
+		args = append(args, []string{"-c", strings.Join(cfg.Cc, ", ")}...)
+	}
 	return
 }
