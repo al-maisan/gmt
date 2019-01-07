@@ -39,6 +39,10 @@ func PrepMUAArgs(cfg config.Data) (args []string) {
 			}
 			args = append(args, []string{"-r", sender}...)
 		}
+		if cfg.ReplyTo != "" {
+			replyto := fmt.Sprintf("replyto='%s'", cfg.ReplyTo)
+			args = append(args, []string{"-S", replyto}...)
+		}
 	}
 	return
 }

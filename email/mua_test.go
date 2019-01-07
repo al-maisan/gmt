@@ -107,7 +107,7 @@ func TestPrepMUAArgsForMailxWithReplyTo(t *testing.T) {
 		args := PrepMUAArgs(cfg)
 
 		// So(len(args), ShouldEqual, 1)
-		expected := []string{"-S", "replyto='Hello Go <hello@go.go>'"}
+		expected := []string{"-S", "replyto='Ja Mann <ja@mango.go>'"}
 
 		So(args, ShouldResemble, expected)
 	})
