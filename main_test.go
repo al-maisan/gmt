@@ -56,7 +56,7 @@ func TestPipeCmdsWithCmd1Fail(t *testing.T) {
 		cmd2 := exec.Command("wc", "-l")
 		_, err = pipeCmds(cmd1, cmd2)
 		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "exit status 2")
+		So(err.Error(), ShouldEqual, "cmd1 wait failure ([ls -cdjkgfrgf] -- exit status 2)")
 	})
 }
 
@@ -70,6 +70,6 @@ func TestPipeCmdsWithCmd2Fail(t *testing.T) {
 		cmd2 := exec.Command("wc", "-dksvgdk")
 		_, err = pipeCmds(cmd1, cmd2)
 		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "exit status 1")
+		So(err.Error(), ShouldEqual, "cmd2 wait failure ([wc -dksvgdk] -- exit status 1)")
 	})
 }

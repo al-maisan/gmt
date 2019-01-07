@@ -18,6 +18,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -150,19 +151,23 @@ func pipeCmds(cmd1, cmd2 *exec.Cmd) (result string, err error) {
 	cmd2.Stdout = &buf
 
 	if err = cmd1.Start(); err != nil {
+		err = errors.New(fmt.Sprintf("cmd1 start failure (%s -- %s)", cmd1.Args, err.Error()))
 		log.Println(err)
 		return
 	}
 	if err = cmd2.Start(); err != nil {
+		err = errors.New(fmt.Sprintf("cmd2 start failure (%s -- %s)", cmd2.Args, err.Error()))
 		log.Println(err)
 		return
 	}
 	if err = cmd1.Wait(); err != nil {
+		err = errors.New(fmt.Sprintf("cmd1 wait failure (%s -- %s)", cmd1.Args, err.Error()))
 		log.Println(err)
 		return
 	}
 	writer.Close()
 	if err = cmd2.Wait(); err != nil {
+		err = errors.New(fmt.Sprintf("cmd2 wait failure (%s -- %s)", cmd2.Args, err.Error()))
 		log.Println(err)
 		return
 	}
