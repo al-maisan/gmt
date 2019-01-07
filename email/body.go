@@ -24,16 +24,29 @@ import (
 )
 
 
-func SubstVars(cfg config.Data, template string) (bodies map[string]string) {
-	bodies = make(map[string]string)
+type Data struct {
+	Subject string
+	Body string
+}
+
+
+func SubstVars(recipient config.Recipient, text string) (result string) {
+	result = strings.Replace(text, "%EA%", recipient.Email, -1)
+	result = strings.Replace(result, "%FN%", recipient.First, -1)
+	result = strings.Replace(result, "%LN%", recipient.Last, -1)
+	for k, v := range recipient.Data {
+		result = strings.Replace(result, fmt.Sprintf("%%%s%%", k), v, -1)
+	}
+	return
+}
+
+func PrepMails(cfg config.Data, template string) (mails map[string]Data) {
+	mails = make(map[string]Data)
 	for _, recipient := range cfg.Recipients {
-		body := strings.Replace(template, "%EA%", recipient.Email, -1)
-		body = strings.Replace(body, "%FN%", recipient.First, -1)
-		body = strings.Replace(body, "%LN%", recipient.Last, -1)
-		for k, v := range recipient.Data {
-			body = strings.Replace(body, fmt.Sprintf("%%%s%%", k), v, -1)
-		}
-		bodies[recipient.Email] = body
+		data := Data{}
+		data.Body = SubstVars(recipient, template)
+		data.Subject = SubstVars(recipient, cfg.Subject)
+		mails[recipient.Email] = data
 	}
 	return
 }

@@ -80,10 +80,10 @@ func main() {
 	args := email.PrepMUAArgs(cfg)
 	fmt.Println(args)
 
-	emails := email.SubstVars(cfg, string(bytes))
+	emails := email.PrepMails(cfg, string(bytes))
 	if *doDryRun == true {
-		for ea, body := range emails {
-			fmt.Fprintf(os.Stdout, "--\nTo: %s\n%s\n", ea, body)
+		for ea, mail := range emails {
+			fmt.Fprintf(os.Stdout, "--\nTo: %s\nSubject: %s\n%s\n", ea, mail.Subject, mail.Body)
 		}
 		os.Exit(0)
 	}

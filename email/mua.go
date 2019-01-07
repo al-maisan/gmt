@@ -61,8 +61,5 @@ func PrepMUAArgs(cfg config.Data) (args []string) {
 			args = append(args, []string{"-a", replyto}...)
 		}
 	}
-	if cfg.Subject != "" {
-		args = append(args, []string{"-s", fmt.Sprintf("'%s'", cfg.Subject)}...)
-	}
 	return
 }

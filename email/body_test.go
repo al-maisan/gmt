@@ -29,23 +29,26 @@ func GetConfig(input string) config.Data {
 }
 
 
-func TestSubstVars(t *testing.T) {
+func TestPrepBodies(t *testing.T) {
 	Convey("generate email bodies for default config", t, func() {
 		cfg := GetConfig(config.SampleConfig())
 		template := config.SampleTemplate()
-		bodies := SubstVars(cfg, template)
+		bodies := PrepMails(cfg, template)
 
 		So(len(bodies), ShouldEqual, 2)
 		expected := `FN / LN / EA = first name / last name / email address
 
 Hello John // Doe Jr., how are things going at EFF?
 this is your email * 2: jd@example.comjd@example.com.`
-		So(bodies["jd@example.com"], ShouldEqual, expected)
+		So(bodies["jd@example.com"].Body, ShouldEqual, expected)
+		So(bodies["jd@example.com"].Subject, ShouldEqual, "Hello John!")
+
 		expected = `FN / LN / EA = first name / last name / email address
 
 Hello Mickey // Mouse, how are things going at Disney?
 this is your email * 2: mm@gmail.commm@gmail.com.`
-		So(bodies["mm@gmail.com"], ShouldEqual, expected)
+		So(bodies["mm@gmail.com"].Body, ShouldEqual, expected)
+		So(bodies["mm@gmail.com"].Subject, ShouldEqual, "Hello Mickey!")
 	})
 }
 

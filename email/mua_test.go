@@ -147,7 +147,6 @@ func TestPrepMUAArgsForMailxWithAll(t *testing.T) {
 		expected := []string{"-c", "'ab@cd.org, ef@gh.com, ij@kl.net'"}
 		expected = append(expected, []string{"-r", "'Hello Go <hello@go.go>'"}...)
 		expected = append(expected, []string{"-S", "replyto='Ja Mann <ja@mango.go>'"}...)
-		expected = append(expected, []string{"-s", "'This is spam!'"}...)
 
 		So(args, ShouldResemble, expected)
 	})
@@ -271,14 +270,13 @@ func TestPrepMUAArgsForNonMailxWithAll(t *testing.T) {
 			SenderName: "Hello Go",
 			SenderEmail: "hello@go.go",
 			ReplyTo: "Ja Mann <ja@mango.go>",
-			Subject: "This is spam!",
+			Subject: "Hola %FN%!",
 		}
 		args := PrepMUAArgs(cfg)
 
 		expected := []string{"-a",  "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
 		expected = append(expected, []string{"-a", "'From: Hello Go <hello@go.go>'"}...)
 		expected = append(expected, []string{"-a", "'Reply-To: Ja Mann <ja@mango.go>'"}...)
-		expected = append(expected, []string{"-s", "'This is spam!'"}...)
 
 		So(args, ShouldResemble, expected)
 	})
