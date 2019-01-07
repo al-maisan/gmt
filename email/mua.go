@@ -28,12 +28,12 @@ func PrepMUAArgs(cfg config.Data) (args []string) {
 	args = make([]string, 0)
 	if cfg.MailProg == "mailx" {
 		if cfg.Cc != nil {
-			args = append(args, []string{"-c", strings.Join(cfg.Cc, ", ")}...)
+			args = append(args, []string{"-c", fmt.Sprintf("'%s'", strings.Join(cfg.Cc, ", "))}...)
 		}
 		if cfg.SenderEmail != "" {
 			var sender string
 			if cfg.SenderName != "" {
-				sender = fmt.Sprintf("%s <%s>", cfg.SenderName, cfg.SenderEmail)
+				sender = fmt.Sprintf("'%s <%s>'", cfg.SenderName, cfg.SenderEmail)
 			} else {
 				sender = cfg.SenderEmail
 			}
@@ -43,6 +43,9 @@ func PrepMUAArgs(cfg config.Data) (args []string) {
 			replyto := fmt.Sprintf("replyto='%s'", cfg.ReplyTo)
 			args = append(args, []string{"-S", replyto}...)
 		}
+	}
+	if cfg.Subject != "" {
+		args = append(args, []string{"-s", fmt.Sprintf("'%s'", cfg.Subject)}...)
 	}
 	return
 }
