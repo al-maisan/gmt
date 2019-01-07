@@ -26,18 +26,18 @@ import (
 type Recipient struct {
 	Email string
 	First string
-	Last string
-	Data map[string]string
+	Last  string
+	Data  map[string]string
 }
 
 type Data struct {
-	MailProg string
+	MailProg    string
 	SenderEmail string
-	SenderName string
-	ReplyTo string
-	Cc []string
-	Subject string
-	Recipients []Recipient
+	SenderName  string
+	ReplyTo     string
+	Cc          []string
+	Subject     string
+	Recipients  []Recipient
 }
 
 func New(bs []byte) (result Data, err error) {
@@ -108,8 +108,8 @@ func parseRecipients(sec *ini.Section) (recipients []Recipient) {
 		recipient := Recipient{
 			Email: k,
 			First: names[0],
-			Last: names[1],
-			Data: data,
+			Last:  names[1],
+			Data:  data,
 		}
 		recipients = append(recipients, recipient)
 	}

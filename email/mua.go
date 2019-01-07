@@ -23,7 +23,6 @@ import (
 	"github.com/al-maisan/gmt/config"
 )
 
-
 func PrepMUAArgs(cfg config.Data) (args []string) {
 	args = make([]string, 0)
 	if cfg.MailProg == "mailx" {

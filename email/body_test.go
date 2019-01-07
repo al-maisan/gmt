@@ -28,7 +28,6 @@ func GetConfig(input string) config.Data {
 	return cfg
 }
 
-
 func TestPrepBodies(t *testing.T) {
 	Convey("generate email bodies for default config", t, func() {
 		cfg := GetConfig(config.SampleConfig())
@@ -51,4 +50,3 @@ this is your email * 2: mm@gmail.commm@gmail.com.`
 		So(bodies["mm@gmail.com"].Subject, ShouldEqual, "Hello Mickey!")
 	})
 }
-

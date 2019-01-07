@@ -17,9 +17,9 @@
 package main
 
 import (
-	"io/ioutil"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/al-maisan/gmt/config"
@@ -37,12 +37,12 @@ func main() {
 
 	if *doSampleConfig {
 		fmt.Println(config.SampleConfig())
-		return
+		os.Exit(0)
 	}
 
 	if *doSampleTemplate {
 		fmt.Println(config.SampleTemplate())
-		return
+		os.Exit(0)
 	}
 
 	if *configPath == "" {
@@ -54,6 +54,7 @@ func main() {
 		os.Exit(2)
 	}
 
+	// read the config file
 	bytes, err := ioutil.ReadFile(*configPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to read config file!")
@@ -61,8 +62,8 @@ func main() {
 		os.Exit(3)
 	}
 
+	// parse the config file
 	var cfg config.Data
-
 	cfg, err = config.New(bytes)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error in config file!")
@@ -70,9 +71,7 @@ func main() {
 		os.Exit(4)
 	}
 
-	args := email.PrepMUAArgs(cfg)
-	fmt.Println(args)
-
+	// read the template file
 	bytes, err = ioutil.ReadFile(*templatePath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to read template file!")
@@ -80,11 +79,18 @@ func main() {
 		os.Exit(5)
 	}
 
+	// prepare the emails, substitute vars in subject & body
 	emails := email.PrepMails(cfg, string(bytes))
+
+	// is this a dry run? print what would be done if so and exit
 	if *doDryRun == true {
 		for ea, mail := range emails {
 			fmt.Fprintf(os.Stdout, "--\nTo: %s\nSubject: %s\n%s\n", ea, mail.Subject, mail.Body)
 		}
 		os.Exit(0)
 	}
+
+	// prepare the command line args for the mail user agent (MUA)
+	args := email.PrepMUAArgs(cfg)
+	fmt.Println(args)
 }

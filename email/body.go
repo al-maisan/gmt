@@ -23,12 +23,10 @@ import (
 	"github.com/al-maisan/gmt/config"
 )
 
-
 type Data struct {
 	Subject string
-	Body string
+	Body    string
 }
-
 
 func SubstVars(recipient config.Recipient, text string) (result string) {
 	result = strings.Replace(text, "%EA%", recipient.Email, -1)

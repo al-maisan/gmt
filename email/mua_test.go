@@ -41,12 +41,12 @@ func TestPrepMUAArgsForMailxWithCc(t *testing.T) {
 	Convey("command line args, mailx [Cc]", t, func() {
 		cfg := config.Data{
 			MailProg: "mailx",
-			Cc: []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
 		}
 		args := PrepMUAArgs(cfg)
 
 		// So(len(args), ShouldEqual, 1)
-		expected := []string{"-c",  "'ab@cd.org, ef@gh.com, ij@kl.net'"}
+		expected := []string{"-c", "'ab@cd.org, ef@gh.com, ij@kl.net'"}
 
 		So(args, ShouldResemble, expected)
 	})
@@ -55,8 +55,8 @@ func TestPrepMUAArgsForMailxWithCc(t *testing.T) {
 func TestPrepMUAArgsForMailxWithSender(t *testing.T) {
 	Convey("command line args, mailx [Sender*]", t, func() {
 		cfg := config.Data{
-			MailProg: "mailx",
-			SenderName: "Hello Go",
+			MailProg:    "mailx",
+			SenderName:  "Hello Go",
 			SenderEmail: "hello@go.go",
 		}
 		args := PrepMUAArgs(cfg)
@@ -71,7 +71,7 @@ func TestPrepMUAArgsForMailxWithSender(t *testing.T) {
 func TestPrepMUAArgsForMailxWithSenderAndNoName(t *testing.T) {
 	Convey("command line args, mailx [Sender*]", t, func() {
 		cfg := config.Data{
-			MailProg: "mailx",
+			MailProg:    "mailx",
 			SenderEmail: "hello@go.go",
 		}
 		args := PrepMUAArgs(cfg)
@@ -86,7 +86,7 @@ func TestPrepMUAArgsForMailxWithSenderAndNoName(t *testing.T) {
 func TestPrepMUAArgsForMailxWithSenderAndNoEmail(t *testing.T) {
 	Convey("command line args, mailx [SenderName]", t, func() {
 		cfg := config.Data{
-			MailProg: "mailx",
+			MailProg:   "mailx",
 			SenderName: "Hello Go",
 		}
 		args := PrepMUAArgs(cfg)
@@ -102,7 +102,7 @@ func TestPrepMUAArgsForMailxWithReplyTo(t *testing.T) {
 	Convey("command line args, mailx [Reply-To]", t, func() {
 		cfg := config.Data{
 			MailProg: "mailx",
-			ReplyTo: "Ja Mann <ja@mango.go>",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
 		}
 		args := PrepMUAArgs(cfg)
 
@@ -116,9 +116,9 @@ func TestPrepMUAArgsForMailxWithReplyTo(t *testing.T) {
 func TestPrepMUAArgsForMailxWithCcAndSender(t *testing.T) {
 	Convey("command line args, mailx [Cc, Sender*]", t, func() {
 		cfg := config.Data{
-			MailProg: "mailx",
-			Cc: []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
-			SenderName: "Hello Go",
+			MailProg:    "mailx",
+			Cc:          []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			SenderName:  "Hello Go",
 			SenderEmail: "hello@go.go",
 		}
 		args := PrepMUAArgs(cfg)
@@ -134,12 +134,12 @@ func TestPrepMUAArgsForMailxWithCcAndSender(t *testing.T) {
 func TestPrepMUAArgsForMailxWithAll(t *testing.T) {
 	Convey("command line args, mailx [Reply-To, Cc, Sender*]", t, func() {
 		cfg := config.Data{
-			MailProg: "mailx",
-			Cc: []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
-			SenderName: "Hello Go",
+			MailProg:    "mailx",
+			Cc:          []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			SenderName:  "Hello Go",
 			SenderEmail: "hello@go.go",
-			ReplyTo: "Ja Mann <ja@mango.go>",
-			Subject: "This is spam!",
+			ReplyTo:     "Ja Mann <ja@mango.go>",
+			Subject:     "This is spam!",
 		}
 		args := PrepMUAArgs(cfg)
 
@@ -172,12 +172,12 @@ func TestPrepMUAArgsForNonMailxWithCc(t *testing.T) {
 	Convey("command line args, gnu-mail [Cc]", t, func() {
 		cfg := config.Data{
 			MailProg: "gnu-mail",
-			Cc: []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
 		}
 		args := PrepMUAArgs(cfg)
 
 		// So(len(args), ShouldEqual, 1)
-		expected := []string{"-a",  "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
+		expected := []string{"-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
 
 		So(args, ShouldResemble, expected)
 	})
@@ -186,8 +186,8 @@ func TestPrepMUAArgsForNonMailxWithCc(t *testing.T) {
 func TestPrepMUAArgsForNonMailxWithSender(t *testing.T) {
 	Convey("command line args, gnu-mail [Sender*]", t, func() {
 		cfg := config.Data{
-			MailProg: "gnu-mail",
-			SenderName: "Hello Go",
+			MailProg:    "gnu-mail",
+			SenderName:  "Hello Go",
 			SenderEmail: "hello@go.go",
 		}
 		args := PrepMUAArgs(cfg)
@@ -202,7 +202,7 @@ func TestPrepMUAArgsForNonMailxWithSender(t *testing.T) {
 func TestPrepMUAArgsForNonMailxWithSenderAndNoName(t *testing.T) {
 	Convey("command line args, gnu-mail [Sender*]", t, func() {
 		cfg := config.Data{
-			MailProg: "gnu-mail",
+			MailProg:    "gnu-mail",
 			SenderEmail: "hello@go.go",
 		}
 		args := PrepMUAArgs(cfg)
@@ -217,7 +217,7 @@ func TestPrepMUAArgsForNonMailxWithSenderAndNoName(t *testing.T) {
 func TestPrepMUAArgsForNonMailxWithSenderAndNoEmail(t *testing.T) {
 	Convey("command line args, gnu-mail [SenderName]", t, func() {
 		cfg := config.Data{
-			MailProg: "gnu-mail",
+			MailProg:   "gnu-mail",
 			SenderName: "Hello Go",
 		}
 		args := PrepMUAArgs(cfg)
@@ -233,7 +233,7 @@ func TestPrepMUAArgsForNonMailxWithReplyTo(t *testing.T) {
 	Convey("command line args, gnu-mail [Reply-To]", t, func() {
 		cfg := config.Data{
 			MailProg: "gnu-mail",
-			ReplyTo: "Ja Mann <ja@mango.go>",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
 		}
 		args := PrepMUAArgs(cfg)
 
@@ -247,15 +247,15 @@ func TestPrepMUAArgsForNonMailxWithReplyTo(t *testing.T) {
 func TestPrepMUAArgsForNonMailxWithCcAndSender(t *testing.T) {
 	Convey("command line args, gnu-mail [Cc, Sender*]", t, func() {
 		cfg := config.Data{
-			MailProg: "gnu-mail",
-			Cc: []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
-			SenderName: "Hello Go",
+			MailProg:    "gnu-mail",
+			Cc:          []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			SenderName:  "Hello Go",
 			SenderEmail: "hello@go.go",
 		}
 		args := PrepMUAArgs(cfg)
 
 		// So(len(args), ShouldEqual, 1)
-		expected := []string{"-a",  "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
+		expected := []string{"-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
 		expected = append(expected, []string{"-a", "'From: Hello Go <hello@go.go>'"}...)
 
 		So(args, ShouldResemble, expected)
@@ -265,16 +265,16 @@ func TestPrepMUAArgsForNonMailxWithCcAndSender(t *testing.T) {
 func TestPrepMUAArgsForNonMailxWithAll(t *testing.T) {
 	Convey("command line args, gnu-mail [Reply-To, Cc, Sender*]", t, func() {
 		cfg := config.Data{
-			MailProg: "gnu-mail",
-			Cc: []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
-			SenderName: "Hello Go",
+			MailProg:    "gnu-mail",
+			Cc:          []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			SenderName:  "Hello Go",
 			SenderEmail: "hello@go.go",
-			ReplyTo: "Ja Mann <ja@mango.go>",
-			Subject: "Hola %FN%!",
+			ReplyTo:     "Ja Mann <ja@mango.go>",
+			Subject:     "Hola %FN%!",
 		}
 		args := PrepMUAArgs(cfg)
 
-		expected := []string{"-a",  "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
+		expected := []string{"-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
 		expected = append(expected, []string{"-a", "'From: Hello Go <hello@go.go>'"}...)
 		expected = append(expected, []string{"-a", "'Reply-To: Ja Mann <ja@mango.go>'"}...)
 

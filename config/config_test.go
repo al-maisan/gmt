@@ -46,20 +46,20 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		So(cfg.SenderEmail, ShouldEqual, "rts@example.com")
 		So(cfg.SenderName, ShouldEqual, "Frodo Baggins")
 		So(len(cfg.Cc), ShouldEqual, 0)
-		expected := []Recipient {
-			Recipient{
+		expected := []Recipient{
+			{
 				Email: "jd@example.com",
 				First: "John",
-				Last: "Doe Jr.",
-				Data: map[string]string {
+				Last:  "Doe Jr.",
+				Data: map[string]string{
 					"ORG": "EFF", "TITLE": "PhD",
 				},
 			},
-			Recipient{
+			{
 				Email: "mm@gmail.com",
 				First: "Mickey",
-				Last: "Mouse",
-				Data: map[string]string {
+				Last:  "Mouse",
+				Data: map[string]string{
 					"ORG": "Disney",
 				},
 			},
@@ -136,20 +136,20 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		So(len(cfg.Cc), ShouldEqual, 2)
 		So(cfg.Subject, ShouldEqual, "Hello %FN%!")
 		So(cfg.Cc, ShouldResemble, []string{"weirdo@nsb.gov", "cc@example.com"})
-		expected := []Recipient {
-			Recipient{
+		expected := []Recipient{
+			{
 				Email: "jd@example.com",
 				First: "John",
-				Last: "Doe Jr.",
-				Data: map[string]string {
+				Last:  "Doe Jr.",
+				Data: map[string]string{
 					"ORG": "EFF", "TITLE": "PhD",
 				},
 			},
-			Recipient{
+			{
 				Email: "mm@gmail.com",
 				First: "Mickey",
-				Last: "Mouse",
-				Data: map[string]string {
+				Last:  "Mouse",
+				Data: map[string]string{
 					"ORG": "Disney",
 				},
 			},
@@ -186,20 +186,20 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		actual := parseRecipients(recipients)
 		So(actual, ShouldNotBeNil)
 
-		expected := []Recipient {
-			Recipient{
+		expected := []Recipient{
+			{
 				Email: "jd@example.com",
 				First: "John",
-				Last: "Doe Jr.",
-				Data: map[string]string {
+				Last:  "Doe Jr.",
+				Data: map[string]string{
 					"ORG": "EFF", "TITLE": "PhD",
 				},
 			},
-			Recipient{
+			{
 				Email: "mm@gmail.com",
 				First: "Mickey",
-				Last: "Mouse",
-				Data: map[string]string {
+				Last:  "Mouse",
+				Data: map[string]string{
 					"ORG": "Disney",
 				},
 			},
