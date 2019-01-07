@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 
 	"github.com/al-maisan/gmt/config"
@@ -92,5 +93,5 @@ func main() {
 
 	// prepare the command line args for the mail user agent (MUA)
 	args := email.PrepMUAArgs(cfg)
-	fmt.Println(args)
+	log.Println(args)
 }
