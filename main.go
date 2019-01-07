@@ -109,7 +109,8 @@ func Send(mails map[string]email.Data, cmdline []string) (sent int, err error) {
 		}
 		defer os.Remove(file)
 		cmd1 := exec.Command("cat", file)
-		cmd2 := exec.Command(cmdline[0], append(cmdline[1:], []string{"-s", data.Subject, addr}...)...)
+		cmd2args := append(cmdline[1:], []string{"-s", data.Subject, addr}...)
+		cmd2 := exec.Command(cmdline[0], cmd2args...)
 		if _, err = pipeCmds(cmd1, cmd2); err != nil {
 			log.Fatal(err)
 		} else {
