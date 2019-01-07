@@ -17,11 +17,14 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 
 	"github.com/al-maisan/gmt/config"
 	"github.com/al-maisan/gmt/email"
@@ -94,4 +97,58 @@ func main() {
 	// prepare the command line args for the mail user agent (MUA)
 	args := email.PrepMUAArgs(cfg)
 	log.Println(args)
+}
+
+func tempFile(content []byte) (name string, err error) {
+	tmpfile, err := ioutil.TempFile("", "gmt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if _, err := tmpfile.Write(content); err != nil {
+		log.Fatal(err)
+	}
+	if err := tmpfile.Close(); err != nil {
+		log.Fatal(err)
+	}
+	return tmpfile.Name(), err
+}
+
+func Send(mails map[string]email.Data, cmdline []string) (sent int, err error) {
+	return
+}
+
+func PipeCmds(cmd1, cmd2 *exec.Cmd) (result string, err error) {
+	reader, writer := io.Pipe()
+
+	// push first command output to writer
+	cmd1.Stdout = writer
+
+	// read from first command output
+	cmd2.Stdin = reader
+
+	// prepare a buffer to capture the output
+	// after second command finished executing
+	var buf bytes.Buffer
+	cmd2.Stdout = &buf
+
+	if err = cmd1.Start(); err != nil {
+		log.Println(err)
+		return
+	}
+	if err = cmd2.Start(); err != nil {
+		log.Println(err)
+		return
+	}
+	if err = cmd1.Wait(); err != nil {
+		log.Println(err)
+		return
+	}
+	writer.Close()
+	if err = cmd2.Wait(); err != nil {
+		log.Println(err)
+		return
+	}
+
+	result = buf.String()
+	return
 }
