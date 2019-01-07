@@ -43,6 +43,23 @@ func PrepMUAArgs(cfg config.Data) (args []string) {
 			replyto := fmt.Sprintf("replyto='%s'", cfg.ReplyTo)
 			args = append(args, []string{"-S", replyto}...)
 		}
+	} else {
+		if cfg.Cc != nil {
+			args = append(args, []string{"-a", fmt.Sprintf("'Cc: %s'", strings.Join(cfg.Cc, ", "))}...)
+		}
+		if cfg.SenderEmail != "" {
+			var sender string
+			if cfg.SenderName != "" {
+				sender = fmt.Sprintf("'From: %s <%s>'", cfg.SenderName, cfg.SenderEmail)
+			} else {
+				sender = fmt.Sprintf("'From: %s'", cfg.SenderEmail)
+			}
+			args = append(args, []string{"-a", sender}...)
+		}
+		if cfg.ReplyTo != "" {
+			replyto := fmt.Sprintf("'Reply-To: %s'", cfg.ReplyTo)
+			args = append(args, []string{"-a", replyto}...)
+		}
 	}
 	if cfg.Subject != "" {
 		args = append(args, []string{"-s", fmt.Sprintf("'%s'", cfg.Subject)}...)

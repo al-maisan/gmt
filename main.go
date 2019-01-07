@@ -20,8 +20,10 @@ import (
 	"io/ioutil"
 	"flag"
 	"fmt"
+	"os"
 
 	"github.com/al-maisan/gmt/config"
+	"github.com/al-maisan/gmt/email"
 )
 
 func main() {
@@ -43,22 +45,38 @@ func main() {
 		return
 	}
 
-	fmt.Println("configPath: ", *configPath)
-	fmt.Println("doDryRun: ", *doDryRun)
-	fmt.Println("templatePath: ", *templatePath)
-	fmt.Println("doSampleConfig: ", *doSampleConfig)
-	fmt.Println("doSampleTemplate: ", *doSampleTemplate)
+	fmt.Fprintf(os.Stderr, "configPath: %#v\n", *configPath)
+	fmt.Fprintf(os.Stderr, "doDryRun: %#v\n", *doDryRun)
+	fmt.Fprintf(os.Stderr, "templatePath: %#v\n", *templatePath)
+	fmt.Fprintf(os.Stderr, "doSampleConfig: %#v\n", *doSampleConfig)
+	fmt.Fprintf(os.Stderr, "doSampleTemplate: %#v\n", *doSampleTemplate)
 
-	if configPath != nil {
-		bytes, err := ioutil.ReadFile(*configPath)
-
-		if err == nil {
-			cfg, cerr := config.New(bytes)
-			if cerr != nil {
-				fmt.Println(cerr)
-			} else {
-				fmt.Printf("%+v\n", cfg)
-			}
-		}
+	if *configPath == "" {
+		fmt.Fprintln(os.Stderr, "Please specify config file!")
+		os.Exit(1)
 	}
+	if *templatePath == "" {
+		fmt.Fprintln(os.Stderr, "Please specify template file!")
+		os.Exit(2)
+	}
+
+	bytes, err := ioutil.ReadFile(*configPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Failed to read config file!")
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(3)
+	}
+
+	var cfg config.Data
+
+	cfg, err = config.New(bytes)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error in config file!")
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(4)
+	}
+
+	args := email.PrepMUAArgs(cfg)
+
+	fmt.Println(cfg.MailProg, args)
 }
