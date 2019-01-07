@@ -95,8 +95,29 @@ func main() {
 	}
 
 	// prepare the command line args for the mail user agent (MUA)
-	args := email.PrepMUAArgs(cfg)
+	args := []string{cfg.MailProg}
+	args = append(args, email.PrepMUAArgs(cfg)...)
 	log.Println(args)
+	Send(emails, args)
+}
+
+func Send(mails map[string]email.Data, cmdline []string) (sent int, err error) {
+	for addr, data := range mails {
+		file, err := tempFile([]byte(data.Body))
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer os.Remove(file)
+		cmd1 := exec.Command("cat", file)
+		cmd2 := exec.Command(cmdline[0], append(cmdline[1:], []string{"-s", data.Subject, addr}...)...)
+		if _, err = pipeCmds(cmd1, cmd2); err != nil {
+			log.Fatal(err)
+		} else {
+			sent++
+			fmt.Fprintf(os.Stdout, "-> %s\n", addr)
+		}
+	}
+	return
 }
 
 func tempFile(content []byte) (name string, err error) {
@@ -113,11 +134,7 @@ func tempFile(content []byte) (name string, err error) {
 	return tmpfile.Name(), err
 }
 
-func Send(mails map[string]email.Data, cmdline []string) (sent int, err error) {
-	return
-}
-
-func PipeCmds(cmd1, cmd2 *exec.Cmd) (result string, err error) {
+func pipeCmds(cmd1, cmd2 *exec.Cmd) (result string, err error) {
 	reader, writer := io.Pipe()
 
 	// push first command output to writer
