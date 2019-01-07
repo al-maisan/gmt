@@ -48,13 +48,9 @@ func TestPipeCmds(t *testing.T) {
 
 func TestPipeCmdsWithCmd1Fail(t *testing.T) {
 	Convey("Test pipeCmds() with  cmd1 failure", t, func() {
-		fname, err := tempFile([]byte("line1\nline2\nline3\n"))
-		So(err, ShouldBeNil)
-
-		defer os.Remove(fname)
 		cmd1 := exec.Command("ls", "-cdjkgfrgf")
 		cmd2 := exec.Command("wc", "-l")
-		_, err = pipeCmds(cmd1, cmd2)
+		_, err := pipeCmds(cmd1, cmd2)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldEqual, "cmd1 wait failure ([ls -cdjkgfrgf] -- exit status 2)")
 	})
@@ -62,13 +58,9 @@ func TestPipeCmdsWithCmd1Fail(t *testing.T) {
 
 func TestPipeCmdsWithCmd2Fail(t *testing.T) {
 	Convey("Test pipeCmds() with  cmd2 failure", t, func() {
-		fname, err := tempFile([]byte("line1\nline2\nline3\n"))
-		So(err, ShouldBeNil)
-
-		defer os.Remove(fname)
 		cmd1 := exec.Command("ls", "-l")
 		cmd2 := exec.Command("wc", "-dksvgdk")
-		_, err = pipeCmds(cmd1, cmd2)
+		_, err := pipeCmds(cmd1, cmd2)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldEqual, "cmd2 wait failure ([wc -dksvgdk] -- exit status 1)")
 	})
