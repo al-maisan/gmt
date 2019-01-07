@@ -68,6 +68,21 @@ func TestPrepMUAArgsForMailxWithSender(t *testing.T) {
 	})
 }
 
+func TestPrepMUAArgsForMailxWithSenderAndNoName(t *testing.T) {
+	Convey("command line args, mailx [Sender*]", t, func() {
+		cfg := config.Data{
+			MailProg: "mailx",
+			SenderEmail: "hello@go.go",
+		}
+		args := PrepMUAArgs(cfg)
+
+		// So(len(args), ShouldEqual, 1)
+		expected := []string{"-r", "hello@go.go"}
+
+		So(args, ShouldResemble, expected)
+	})
+}
+
 func TestPrepMUAArgsForMailxWithSenderAndNoEmail(t *testing.T) {
 	Convey("command line args, mailx [SenderName]", t, func() {
 		cfg := config.Data{

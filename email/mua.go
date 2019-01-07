@@ -17,15 +17,28 @@
 package email
 
 import (
+	"fmt"
 	"strings"
+
 	"github.com/al-maisan/gmt/config"
 )
 
 
 func PrepMUAArgs(cfg config.Data) (args []string) {
 	args = make([]string, 0)
-	if cfg.Cc != nil {
-		args = append(args, []string{"-c", strings.Join(cfg.Cc, ", ")}...)
+	if cfg.MailProg == "mailx" {
+		if cfg.Cc != nil {
+			args = append(args, []string{"-c", strings.Join(cfg.Cc, ", ")}...)
+		}
+		if cfg.SenderEmail != "" {
+			var sender string
+			if cfg.SenderName != "" {
+				sender = fmt.Sprintf("%s <%s>", cfg.SenderName, cfg.SenderEmail)
+			} else {
+				sender = cfg.SenderEmail
+			}
+			args = append(args, []string{"-r", sender}...)
+		}
 	}
 	return
 }
