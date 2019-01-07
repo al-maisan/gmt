@@ -123,17 +123,19 @@ func Send(mails map[string]email.Data, cmdline []string) (sent int, err error) {
 }
 
 func tempFile(content []byte) (name string, err error) {
-	tmpfile, err := ioutil.TempFile("", "gmt")
+	var tmpfile *os.File
+	tmpfile, err = ioutil.TempFile("", "gmt")
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
-	if _, err := tmpfile.Write(content); err != nil {
-		log.Fatal(err)
+	if _, err = tmpfile.Write(content); err != nil {
+		return
 	}
-	if err := tmpfile.Close(); err != nil {
-		log.Fatal(err)
+	if err = tmpfile.Close(); err != nil {
+		return
 	}
-	return tmpfile.Name(), err
+	name = tmpfile.Name()
+	return
 }
 
 func pipeCmds(cmd1, cmd2 *exec.Cmd) (result string, err error) {
@@ -152,23 +154,19 @@ func pipeCmds(cmd1, cmd2 *exec.Cmd) (result string, err error) {
 
 	if err = cmd1.Start(); err != nil {
 		err = errors.New(fmt.Sprintf("cmd1 start failure (%s -- %s)", cmd1.Args, err.Error()))
-		log.Println(err)
 		return
 	}
 	if err = cmd2.Start(); err != nil {
 		err = errors.New(fmt.Sprintf("cmd2 start failure (%s -- %s)", cmd2.Args, err.Error()))
-		log.Println(err)
 		return
 	}
 	if err = cmd1.Wait(); err != nil {
 		err = errors.New(fmt.Sprintf("cmd1 wait failure (%s -- %s)", cmd1.Args, err.Error()))
-		log.Println(err)
 		return
 	}
 	writer.Close()
 	if err = cmd2.Wait(); err != nil {
 		err = errors.New(fmt.Sprintf("cmd2 wait failure (%s -- %s)", cmd2.Args, err.Error()))
-		log.Println(err)
 		return
 	}
 
