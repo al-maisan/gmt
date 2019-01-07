@@ -45,12 +45,6 @@ func main() {
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "configPath: %#v\n", *configPath)
-	fmt.Fprintf(os.Stderr, "doDryRun: %#v\n", *doDryRun)
-	fmt.Fprintf(os.Stderr, "templatePath: %#v\n", *templatePath)
-	fmt.Fprintf(os.Stderr, "doSampleConfig: %#v\n", *doSampleConfig)
-	fmt.Fprintf(os.Stderr, "doSampleTemplate: %#v\n", *doSampleTemplate)
-
 	if *configPath == "" {
 		fmt.Fprintln(os.Stderr, "Please specify config file!")
 		os.Exit(1)
@@ -76,7 +70,21 @@ func main() {
 		os.Exit(4)
 	}
 
-	args := email.PrepMUAArgs(cfg)
+	bytes, err = ioutil.ReadFile(*templatePath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Failed to read template file!")
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(5)
+	}
 
-	fmt.Println(cfg.MailProg, args)
+	args := email.PrepMUAArgs(cfg)
+	fmt.Println(args)
+
+	emails := email.SubstVars(cfg, string(bytes))
+	if *doDryRun == true {
+		for ea, body := range emails {
+			fmt.Fprintf(os.Stdout, "--\nTo: %s\n%s\n", ea, body)
+		}
+		os.Exit(0)
+	}
 }
