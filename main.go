@@ -70,15 +70,15 @@ func main() {
 		os.Exit(4)
 	}
 
+	args := email.PrepMUAArgs(cfg)
+	fmt.Println(args)
+
 	bytes, err = ioutil.ReadFile(*templatePath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to read template file!")
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(5)
 	}
-
-	args := email.PrepMUAArgs(cfg)
-	fmt.Println(args)
 
 	emails := email.PrepMails(cfg, string(bytes))
 	if *doDryRun == true {
