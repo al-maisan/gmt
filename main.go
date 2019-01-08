@@ -26,12 +26,19 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/al-maisan/gmt/config"
 	"github.com/al-maisan/gmt/email"
 )
 
+func help() {
+	fmt.Fprintf(flag.CommandLine.Output(), "\n%s sends emails in bulk based on a template and a config file\n\n", filepath.Base(os.Args[0]))
+	flag.PrintDefaults()
+}
+
 func main() {
+	flag.Usage = help
 	configPath := flag.String("config-path", "", "path to the config file")
 	doDryRun := flag.Bool("dry-run", false, "show what would be done but execute no action")
 	templatePath := flag.String("template-path", "", "path to the template file")
@@ -51,11 +58,13 @@ func main() {
 	}
 
 	if *configPath == "" {
-		fmt.Fprintln(os.Stderr, "Please specify config file!")
+		fmt.Fprintln(os.Stderr, "*** Error: please specify config file!")
+		flag.Usage()
 		os.Exit(1)
 	}
 	if *templatePath == "" {
-		fmt.Fprintln(os.Stderr, "Please specify template file!")
+		fmt.Fprintln(os.Stderr, "*** Error: please specify template file!")
+		flag.Usage()
 		os.Exit(2)
 	}
 
