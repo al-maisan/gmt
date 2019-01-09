@@ -10,6 +10,30 @@ Running `gmt` requires a running mail transfer agent (MTA) e.g. [postfix](http:/
 ## Using `gmt`
 The easiest way to use the tool is to generate a sample configuration (`-sample-config`) and a template file (`-sample-template`) and take it from there.
 
+    $ go build
+    $ ./gmt -sample-config > /tmp/sc.ini
+    $ ./gmt -sample-template > /tmp/st.eml
+    $ ./gmt -dry-run -config-path /tmp/sc.ini  -template-path /tmp/st.eml
+    --
+    To: jd@example.com
+    Subject: Hello John!
+    FN / LN / EA = first name / last name / email address
+
+    Hello John // Doe Jr., how are things going at EFF?
+    this is your email * 2: jd@example.comjd@example.com.
+
+    --
+    To: mm@gmail.com
+    Subject: Hello Mickey!
+    FN / LN / EA = first name / last name / email address
+
+    Hello Mickey // Mouse, how are things going at Disney?
+    this is your email * 2: mm@gmail.commm@gmail.com.
+
+
+Last but not least use `-h` to see all the options:
+
+
     $ ./gmt -h
 
      gmt sends emails in bulk based on a template and a config file
