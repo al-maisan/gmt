@@ -8,7 +8,7 @@ It was written in [Go](https://golang.org/) and used mainly on linux systems lik
 Running `gmt` requires a running mail transfer agent (MTA) e.g. [postfix](http://www.postfix.org/) and the [GNU mailutils](https://www.gnu.org/software/mailutils/mailutils.html) software (Arch Linux: [`pacman -S mailutils`](https://www.archlinux.org/packages/?sort=&q=mailutils&maintainer=&flagged=), Ubuntu: [`apt-get install mailutils`](http://packages.ubuntu.com/search?keywords=mailutils)). For Fedora etc. you are all set since `mailx` is installed by default.
 
 ## Using `gmt`
-The easiest way to use the tool is to generate a sample configuration (`--sample-config`) and a template file (`--sample-template`) and take it from there.
+The easiest way to use the tool is to generate a sample configuration (`-sample-config`) and a template file (`-sample-template`) and take it from there.
 
     $ ./gmt -h
 
