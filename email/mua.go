@@ -36,7 +36,8 @@ func PrepMUAArgs(cfg config.Data) (args []string) {
 			} else {
 				sender = cfg.SenderEmail
 			}
-			args = append(args, []string{"-r", sender}...)
+			from := fmt.Sprintf("from=%s", sender)
+			args = append(args, []string{"-S", from}...)
 		}
 		if cfg.ReplyTo != "" {
 			replyto := fmt.Sprintf("replyto='%s'", cfg.ReplyTo)
