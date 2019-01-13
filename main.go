@@ -112,23 +112,34 @@ func main() {
 }
 
 func Send(mails map[string]email.Data, cmdline []string) (sent int, err error) {
+	ch := make(chan string)
 	for addr, data := range mails {
-		file, err := tempFile([]byte(data.Body))
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer os.Remove(file)
-		cmd1 := exec.Command("cat", file)
-		cmd2args := append(cmdline[1:], []string{"-s", data.Subject, addr}...)
-		cmd2 := exec.Command(cmdline[0], cmd2args...)
-		if _, err = pipeCmds(cmd1, cmd2); err != nil {
-			log.Fatal(err)
-		} else {
-			sent++
-			fmt.Fprintf(os.Stdout, "-> %s\n", addr)
-		}
+		go sendEmail(addr, data, cmdline, ch)
+	}
+	fmt.Println("\nSending emails now..")
+	for i := len(mails); i > 0; i-- {
+		msg := <-ch
+		fmt.Println(msg)
 	}
 	return
+}
+
+func sendEmail(addr string, data email.Data, cmdline []string, ch chan string) {
+	file, err := tempFile([]byte(data.Body))
+	if err != nil {
+		ch <- fmt.Sprintf("!! Error sending to %s (%s)", addr, err.Error())
+		return
+	}
+	defer os.Remove(file)
+	cmd1 := exec.Command("cat", file)
+	cmd2args := append(cmdline[1:], []string{"-s", data.Subject, addr}...)
+	cmd2 := exec.Command(cmdline[0], cmd2args...)
+	if _, err = pipeCmds(cmd1, cmd2); err != nil {
+		ch <- fmt.Sprintf("!! Error sending to %s (%s)", addr, err.Error())
+		return
+	} else {
+		ch <- fmt.Sprintf("-> %s", addr)
+	}
 }
 
 func tempFile(content []byte) (name string, err error) {
