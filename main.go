@@ -132,7 +132,7 @@ func sendEmail(addr string, data email.Data, cmdline []string, ch chan string) {
 	}
 	defer os.Remove(file)
 	cmd1 := exec.Command("cat", file)
-	cmd2args := append(cmdline[1:], []string{"-s", data.Subject, addr}...)
+	cmd2args := append(cmdline[1:], "-s", data.Subject, addr)
 	cmd2 := exec.Command(cmdline[0], cmd2args...)
 	if _, err = pipeCmds(cmd1, cmd2); err != nil {
 		ch <- fmt.Sprintf("!! Error sending to %s (%s)", addr, err.Error())
