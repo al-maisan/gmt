@@ -24,7 +24,7 @@ import (
 )
 
 func PrepMUAArgs(cfg config.Data) (args []string) {
-	args = make([]string, 0)
+	args = []string{cfg.MailProg}
 	if cfg.MailProg == "mailx" {
 		if cfg.Cc != nil {
 			args = append(args, "-c", fmt.Sprintf("'%s'", strings.Join(cfg.Cc, ", ")))

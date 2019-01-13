@@ -105,8 +105,7 @@ func main() {
 	}
 
 	// prepare the command line args for the mail user agent (MUA)
-	args := []string{cfg.MailProg}
-	args = append(args, email.PrepMUAArgs(cfg)...)
+	args := email.PrepMUAArgs(cfg)
 	log.Println(args)
 	Send(emails, args)
 }
