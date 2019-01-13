@@ -125,7 +125,7 @@ func TestPrepMUAArgsForMailxWithCcAndSender(t *testing.T) {
 
 		// So(len(args), ShouldEqual, 1)
 		expected := []string{"-c", "'ab@cd.org, ef@gh.com, ij@kl.net'"}
-		expected = append(expected, []string{"-S", "from='Hello Go <hello@go.go>'"}...)
+		expected = append(expected, "-S", "from='Hello Go <hello@go.go>'")
 
 		So(args, ShouldResemble, expected)
 	})
@@ -145,8 +145,8 @@ func TestPrepMUAArgsForMailxWithAll(t *testing.T) {
 
 		// So(len(args), ShouldEqual, 1)
 		expected := []string{"-c", "'ab@cd.org, ef@gh.com, ij@kl.net'"}
-		expected = append(expected, []string{"-S", "from='Hello Go <hello@go.go>'"}...)
-		expected = append(expected, []string{"-S", "replyto='Ja Mann <ja@mango.go>'"}...)
+		expected = append(expected, "-S", "from='Hello Go <hello@go.go>'")
+		expected = append(expected, "-S", "replyto='Ja Mann <ja@mango.go>'")
 
 		So(args, ShouldResemble, expected)
 	})
@@ -256,7 +256,7 @@ func TestPrepMUAArgsForNonMailxWithCcAndSender(t *testing.T) {
 
 		// So(len(args), ShouldEqual, 1)
 		expected := []string{"-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
-		expected = append(expected, []string{"-a", "'From: Hello Go <hello@go.go>'"}...)
+		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
 
 		So(args, ShouldResemble, expected)
 	})
@@ -275,8 +275,8 @@ func TestPrepMUAArgsForNonMailxWithAll(t *testing.T) {
 		args := PrepMUAArgs(cfg)
 
 		expected := []string{"-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
-		expected = append(expected, []string{"-a", "'From: Hello Go <hello@go.go>'"}...)
-		expected = append(expected, []string{"-a", "'Reply-To: Ja Mann <ja@mango.go>'"}...)
+		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
+		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
 
 		So(args, ShouldResemble, expected)
 	})
