@@ -31,13 +31,12 @@ type Recipient struct {
 }
 
 type Data struct {
-	MailProg    string
-	SenderEmail string
-	SenderName  string
-	ReplyTo     string
-	Cc          []string
-	Subject     string
-	Recipients  []Recipient
+	MailProg   string
+	From       string
+	ReplyTo    string
+	Cc         []string
+	Subject    string
+	Recipients []Recipient
 }
 
 func New(bs []byte) (result Data, err error) {
@@ -122,8 +121,7 @@ func SampleConfig() string {
 # the first name, the rest is the surname
 [general]
 mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
-sender-email=rts@example.com
-sender-name=Frodo Baggins
+From=Frodo Baggins <rts@example.com>
 #Cc=weirdo@nsb.gov, cc@example.com
 #Reply-To=John Doe <jd@mail.com>
 subject=Hello %FN%!
