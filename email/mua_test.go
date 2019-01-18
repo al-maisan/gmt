@@ -76,7 +76,7 @@ func TestPrepMUAArgsForMailxWithSenderAndNoName(t *testing.T) {
 		args := PrepMUAArgs(cfg)
 
 		// So(len(args), ShouldEqual, 1)
-		expected := []string{cfg.MailProg, "-S", "from=hello@go.go"}
+		expected := []string{cfg.MailProg, "-S", "from='hello@go.go'"}
 
 		So(args, ShouldResemble, expected)
 	})

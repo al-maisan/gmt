@@ -66,11 +66,8 @@ func New(bs []byte) (result Data, err error) {
 	}
 
 	// optional keys
-	if val, ok := keys["sender-email"]; ok {
-		result.SenderEmail = val
-	}
-	if val, ok := keys["sender-name"]; ok {
-		result.SenderName = val
+	if val, ok := keys["From"]; ok {
+		result.From = val
 	}
 	if val, ok := keys["Reply-To"]; ok {
 		result.ReplyTo = val
