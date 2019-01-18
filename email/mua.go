@@ -29,36 +29,21 @@ func PrepMUAArgs(cfg config.Data) (args []string) {
 		if cfg.Cc != nil {
 			args = append(args, "-c", fmt.Sprintf("'%s'", strings.Join(cfg.Cc, ", ")))
 		}
-		if cfg.SenderEmail != "" {
-			var sender string
-			if cfg.SenderName != "" {
-				sender = fmt.Sprintf("'%s <%s>'", cfg.SenderName, cfg.SenderEmail)
-			} else {
-				sender = cfg.SenderEmail
-			}
-			from := fmt.Sprintf("from=%s", sender)
-			args = append(args, "-S", from)
+		if cfg.From != "" {
+			args = append(args, "-S", fmt.Sprintf("from='%s'", cfg.From))
 		}
 		if cfg.ReplyTo != "" {
-			replyto := fmt.Sprintf("replyto='%s'", cfg.ReplyTo)
-			args = append(args, "-S", replyto)
+			args = append(args, "-S", fmt.Sprintf("replyto='%s'", cfg.ReplyTo))
 		}
 	} else {
 		if cfg.Cc != nil {
 			args = append(args, "-a", fmt.Sprintf("'Cc: %s'", strings.Join(cfg.Cc, ", ")))
 		}
-		if cfg.SenderEmail != "" {
-			var sender string
-			if cfg.SenderName != "" {
-				sender = fmt.Sprintf("'From: %s <%s>'", cfg.SenderName, cfg.SenderEmail)
-			} else {
-				sender = fmt.Sprintf("'From: %s'", cfg.SenderEmail)
-			}
-			args = append(args, "-a", sender)
+		if cfg.From != "" {
+			args = append(args, "-a", fmt.Sprintf("'From: %s'", cfg.From))
 		}
 		if cfg.ReplyTo != "" {
-			replyto := fmt.Sprintf("'Reply-To: %s'", cfg.ReplyTo)
-			args = append(args, "-a", replyto)
+			args = append(args, "-a", fmt.Sprintf("'Reply-To: %s'", cfg.ReplyTo))
 		}
 	}
 	return

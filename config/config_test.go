@@ -29,8 +29,7 @@ func TestLoadDefault(t *testing.T) {
 		cfg, err := New([]byte(`
 [general]
 mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
-sender-email=rts@example.com
-sender-name=Frodo Baggins
+From=Frodo Baggins <rts@example.com>
 #Cc=weirdo@nsb.gov, cc@example.com
 #Reply-to=John Doe <jd@mail.com>
 subject=Hello %FN%!
@@ -43,8 +42,7 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		So(cfg, ShouldNotBeNil)
 
 		So(cfg.MailProg, ShouldEqual, "gnu-mail")
-		So(cfg.SenderEmail, ShouldEqual, "rts@example.com")
-		So(cfg.SenderName, ShouldEqual, "Frodo Baggins")
+		So(cfg.From, ShouldEqual, "Frodo Baggins <rts@example.com>")
 		So(len(cfg.Cc), ShouldEqual, 0)
 		expected := []Recipient{
 			{
@@ -116,8 +114,7 @@ func TestLoadFull(t *testing.T) {
 		cfg, err := New([]byte(`
 [general]
 mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
-sender-email=rts@example.com
-sender-name=Frodo Baggins
+From=Frodo Baggins <rts@example.com>
 Cc=weirdo@nsb.gov, cc@example.com
 Reply-To=John Doe <jd@mail.com>
 subject=Hello %FN%!
@@ -130,8 +127,7 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		So(cfg, ShouldNotBeNil)
 
 		So(cfg.MailProg, ShouldEqual, "gnu-mail")
-		So(cfg.SenderEmail, ShouldEqual, "rts@example.com")
-		So(cfg.SenderName, ShouldEqual, "Frodo Baggins")
+		So(cfg.From, ShouldEqual, "Frodo Baggins <rts@example.com>")
 		So(cfg.ReplyTo, ShouldEqual, "John Doe <jd@mail.com>")
 		So(len(cfg.Cc), ShouldEqual, 2)
 		So(cfg.Subject, ShouldEqual, "Hello %FN%!")
@@ -168,8 +164,7 @@ func TestParseRecipients(t *testing.T) {
 		cfg, err := ini.Load([]byte(`
 [general]
 mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
-sender-email=rts@example.com
-sender-name=Frodo Baggins
+From=Frodo Baggins <rts@example.com>
 Cc=weirdo@nsb.gov, cc@example.com
 [recipients]
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
