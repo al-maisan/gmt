@@ -127,7 +127,7 @@ subject=Hello %FN%!
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|Cc:-Bruce Lee <bl@kf.io>,info@ex.org
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 # The 'Cc' setting below *adds* to the global 'Cc' value above
-daisy@example.com=Daisy Lila|ORG:-EFF|TITLE:-PhD|Cc:-+John Doe <inc@gg.org>`
+daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+John Doe <inc@gg.org>`
 }
 
 func SampleTemplate() string {

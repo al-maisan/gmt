@@ -56,5 +56,6 @@ func PrepMUAArgs(cfg config.Data) (args []string) {
 // In a first implementation we will support per-recipient additions XOR
 // redefinitions of the 'Cc' header variable.
 func PostProcessMUAArgs(data Data, cmdline []string) (result []string) {
+	result = cmdline
 	return
 }
