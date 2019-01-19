@@ -23,6 +23,8 @@ import (
 	"github.com/al-maisan/gmt/config"
 )
 
+// `PrepMUAArgs` converts global configuration data to mail user agent (MUA)
+// command line arguments.
 func PrepMUAArgs(cfg config.Data) (args []string) {
 	args = []string{cfg.MailProg}
 	if cfg.MailProg == "mailx" {
@@ -46,5 +48,13 @@ func PrepMUAArgs(cfg config.Data) (args []string) {
 			args = append(args, "-a", fmt.Sprintf("'Reply-To: %s'", cfg.ReplyTo))
 		}
 	}
+	return
+}
+
+// `PostProcessMUAArgs` looks at per-recipient configuration data / variables
+// and adds to the mail user agent (MUA) command line arguments if/as needed.
+// In a first implementation we will support per-recipient additions XOR
+// redefinitions of the 'Cc' header variable.
+func PostProcessMUAArgs(data Data, cmdline []string) (result []string) {
 	return
 }

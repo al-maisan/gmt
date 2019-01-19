@@ -245,3 +245,26 @@ func TestPrepMUAArgsForNonMailxWithAll(t *testing.T) {
 		So(args, ShouldResemble, expected)
 	})
 }
+
+func TestPostProcessMUAArgsWithNoCc(t *testing.T) {
+	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
+		cfg := config.Data{
+			MailProg: "gnu-mail",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+			Subject:  "Hola %FN%!",
+		}
+		args := PrepMUAArgs(cfg)
+
+		expected := []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
+		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
+		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
+
+		So(args, ShouldResemble, expected)
+
+		data := Data{}
+		args = PostProcessMUAArgs(data, args)
+		So(args, ShouldResemble, expected)
+	})
+}

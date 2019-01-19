@@ -124,6 +124,7 @@ func Send(mails map[string]email.Data, cmdline []string) (sent int, err error) {
 }
 
 func sendEmail(addr string, data email.Data, cmdline []string, ch chan string) {
+	cmdline = email.PostProcessMUAArgs(data, cmdline)
 	file, err := tempFile([]byte(data.Body))
 	if err != nil {
 		ch <- fmt.Sprintf("!! Error sending to %s (%s)", addr, err.Error())

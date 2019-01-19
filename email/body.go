@@ -24,8 +24,9 @@ import (
 )
 
 type Data struct {
-	Subject string
-	Body    string
+	Subject       string
+	Body          string
+	RecipientVars map[string]string
 }
 
 func substVars(recipient config.Recipient, text string) (result string) {
@@ -44,6 +45,7 @@ func PrepMails(cfg config.Data, template string) (mails map[string]Data) {
 		data := Data{}
 		data.Body = substVars(recipient, template)
 		data.Subject = substVars(recipient, cfg.Subject)
+		data.RecipientVars = recipient.Data
 		mails[recipient.Email] = data
 	}
 	return
