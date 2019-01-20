@@ -268,3 +268,135 @@ func TestPostProcessMUAArgsWithNoCc(t *testing.T) {
 		So(args, ShouldResemble, expected)
 	})
 }
+
+func TestPostProcessMUAArgsWithCcRedefined(t *testing.T) {
+	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
+		cfg := config.Data{
+			MailProg: "gnu-mail",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+			Subject:  "Hola %FN%!",
+		}
+		args := PrepMUAArgs(cfg)
+
+		expected := []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
+		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
+		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
+
+		So(args, ShouldResemble, expected)
+
+		data := Data{
+			RecipientVars: map[string]string{
+				"Cc": "rv1@redef.org, rv2@redef.com",
+			},
+		}
+		expected = []string{cfg.MailProg, "-a", "'Cc: rv1f@redef.org, rv2@redef.com'"}
+		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
+		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
+		args = PostProcessMUAArgs(data, args)
+		So(args, ShouldResemble, expected)
+	})
+}
+
+func TestPostProcessMUAArgsWithSingleCcAdded(t *testing.T) {
+	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
+		cfg := config.Data{
+			MailProg: "gnu-mail",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+			Subject:  "Hola %FN%!",
+		}
+		args := PrepMUAArgs(cfg)
+
+		expected := []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
+		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
+		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
+
+		So(args, ShouldResemble, expected)
+
+		data := Data{
+			RecipientVars: map[string]string{
+				"Cc": "+rv2@redef.com",
+			},
+		}
+		expected = []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net, rv2@redef.com'"}
+		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
+		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
+		args = PostProcessMUAArgs(data, args)
+		So(args, ShouldResemble, expected)
+	})
+}
+
+func TestPostProcessMUAArgsWithMultiCcAdded(t *testing.T) {
+	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
+		cfg := config.Data{
+			MailProg: "gnu-mail",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+			Subject:  "Hola %FN%!",
+		}
+		args := PrepMUAArgs(cfg)
+
+		expected := []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
+		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
+		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
+
+		So(args, ShouldResemble, expected)
+
+		data := Data{
+			RecipientVars: map[string]string{
+				"Cc": "+rv1@redef.org, rv2@redef.com",
+			},
+		}
+		expected = []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net, rv1@redef.org, rv2@redef.com'"}
+		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
+		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
+		args = PostProcessMUAArgs(data, args)
+		So(args, ShouldResemble, expected)
+	})
+}
+
+func TestFindCcArgsMailxNoCcHeader(t *testing.T) {
+	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
+		cmdline := []string{"mailx"}
+		So(findCcArgs(cmdline), ShouldEqual, -1)
+	})
+}
+
+func TestFindCcArgsMailxNoCcHeaderBlah(t *testing.T) {
+	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
+		cmdline := []string{"mailx", "-S", "blah='yes or no?'", "-S", "herewego='Nver say never'"}
+		So(findCcArgs(cmdline), ShouldEqual, -1)
+	})
+}
+
+func TestFindCcArgsMailxCcHeaderBlah(t *testing.T) {
+	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
+		cmdline := []string{"mailx", "-S", "blah='yes or no?'", "-c", "whatever", "-S", "herewego='Nver say never'"}
+		So(findCcArgs(cmdline), ShouldEqual, 4)
+	})
+}
+
+func TestFindCcArgsNotMailxNoCcHeader(t *testing.T) {
+	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
+		cmdline := []string{"gnu-mail"}
+		So(findCcArgs(cmdline), ShouldEqual, -1)
+	})
+}
+
+func TestFindCcArgsNotMailxNoCcHeaderBlah(t *testing.T) {
+	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
+		cmdline := []string{"gnu-mail", "-a", "'From: whom?'", "-a", "'Reply-To: never!'"}
+		So(findCcArgs(cmdline), ShouldEqual, -1)
+	})
+}
+
+func TestFindCcArgsNotMailxCcHeaderBlah(t *testing.T) {
+	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
+		cmdline := []string{"gnu-mail", "-a", "'From: whom?'", "-a", "'Cc: carbon?'", "-a", "'Reply-To: never!'"}
+		So(findCcArgs(cmdline), ShouldEqual, 4)
+	})
+}

@@ -51,11 +51,40 @@ func PrepMUAArgs(cfg config.Data) (args []string) {
 	return
 }
 
+// Return the index of the command line argument with the "Cc" header value or
+// -1 if not present.
+func findCcArgs(cmdline []string) (result int) {
+	result = -1
+	mailprog := cmdline[0]
+	args := cmdline[1:]
+	for idx, arg := range args {
+		idx++
+		if mailprog == "mailx" {
+			if arg == "-c" {
+				result = idx + 1
+				break
+			}
+		} else {
+			if arg == "-a" && strings.HasPrefix(args[idx], "'Cc: ") {
+				result = idx + 1
+				break
+			}
+		}
+	}
+	return
+}
+
 // `PostProcessMUAArgs` looks at per-recipient configuration data / variables
 // and adds to the mail user agent (MUA) command line arguments if/as needed.
 // In a first implementation we will support per-recipient additions XOR
 // redefinitions of the 'Cc' header variable.
 func PostProcessMUAArgs(data Data, cmdline []string) (result []string) {
 	result = cmdline
+	rcc, ok := data.RecipientVars["Cc"]
+	if !ok {
+		return
+	}
+
+	fmt.Println(rcc)
 	return
 }
