@@ -79,14 +79,15 @@ func findCcArgs(cmdline []string) (result int) {
 // In a first implementation we will support per-recipient additions XOR
 // redefinitions of the 'Cc' header variable.
 func PostProcessMUAArgs(data Data, cmdline []string) (result []string) {
-	result = cmdline
+	result = make([]string, len(cmdline))
+	copy(result, cmdline)
 	rcc, ok := data.RecipientVars["Cc"]
 	if !ok {
 		return
 	}
 
-	mailprog := cmdline[0]
-	ccidx := findCcArgs(cmdline)
+	mailprog := result[0]
+	ccidx := findCcArgs(result)
 	if ccidx == -1 {
 		if mailprog == "mailx" {
 			result = append(result, "-c", fmt.Sprintf("'%s'", rcc[1:]))
@@ -100,14 +101,14 @@ func PostProcessMUAArgs(data Data, cmdline []string) (result []string) {
 	if !strings.HasPrefix(rcc, "+") {
 		// 'Cc' header value is being redefined
 		if mailprog == "mailx" {
-			cmdline[ccidx] = fmt.Sprintf("'%s'", rcc)
+			result[ccidx] = fmt.Sprintf("'%s'", rcc)
 		} else {
-			cmdline[ccidx] = fmt.Sprintf("'Cc: %s'", rcc)
+			result[ccidx] = fmt.Sprintf("'Cc: %s'", rcc)
 		}
 	} else {
 		// we are adding to the 'Cc' header value
-		ccv := strings.Trim(cmdline[ccidx], "'")
-		cmdline[ccidx] = fmt.Sprintf("'%s, %s'", ccv, rcc[1:])
+		ccv := strings.Trim(result[ccidx], "'")
+		result[ccidx] = fmt.Sprintf("'%s, %s'", ccv, rcc[1:])
 	}
 	return
 }

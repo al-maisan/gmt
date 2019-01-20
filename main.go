@@ -96,17 +96,19 @@ func main() {
 	// prepare the emails, substitute vars in subject & body
 	emails := email.PrepMails(cfg, string(bytes))
 
+	// prepare the command line args for the mail user agent (MUA)
+	args := email.PrepMUAArgs(cfg)
+	log.Println(args)
+
 	// is this a dry run? print what would be done if so and exit
 	if *doDryRun == true {
 		for ea, mail := range emails {
-			fmt.Fprintf(os.Stdout, "--\nTo: %s\nSubject: %s\n%s\n", ea, mail.Subject, mail.Body)
+			cmdline := email.PostProcessMUAArgs(mail, args)
+			fmt.Fprintf(os.Stdout, "--\n%s\nTo: %s\nSubject: %s\n%s\n", cmdline, ea, mail.Subject, mail.Body)
 		}
 		os.Exit(0)
 	}
 
-	// prepare the command line args for the mail user agent (MUA)
-	args := email.PrepMUAArgs(cfg)
-	log.Println(args)
 	Send(emails, args)
 }
 
