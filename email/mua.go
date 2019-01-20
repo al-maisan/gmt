@@ -93,7 +93,7 @@ func PostProcessMUAArgs(data Data, cmdline []string) (result []string) {
 		mailprog := cmdline[0]
 		// 'Cc' header value is being redefined
 		if mailprog == "mailx" {
-			cmdline[ccidx] = rcc
+			cmdline[ccidx] = fmt.Sprintf("'%s'", rcc)
 		} else {
 			cmdline[ccidx] = fmt.Sprintf("'Cc: %s'", rcc)
 		}
