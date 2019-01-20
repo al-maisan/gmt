@@ -291,7 +291,7 @@ func TestPostProcessMUAArgsWithCcRedefined(t *testing.T) {
 				"Cc": "rv1@redef.org, rv2@redef.com",
 			},
 		}
-		expected = []string{cfg.MailProg, "-a", "'Cc: rv1f@redef.org, rv2@redef.com'"}
+		expected = []string{cfg.MailProg, "-a", "'Cc: rv1@redef.org, rv2@redef.com'"}
 		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
 		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
 		args = PostProcessMUAArgs(data, args)

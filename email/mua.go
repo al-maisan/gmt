@@ -84,7 +84,19 @@ func PostProcessMUAArgs(data Data, cmdline []string) (result []string) {
 	if !ok {
 		return
 	}
+	ccidx := findCcArgs(cmdline)
+	if ccidx == -1 {
+		return
+	}
 
-	fmt.Println(rcc)
+	if !strings.HasPrefix(rcc, "+") {
+		mailprog := cmdline[0]
+		// 'Cc' header value is being redefined
+		if mailprog == "mailx" {
+			cmdline[ccidx] = rcc
+		} else {
+			cmdline[ccidx] = fmt.Sprintf("'Cc: %s'", rcc)
+		}
+	}
 	return
 }
