@@ -45,7 +45,10 @@ func TestPrepMUAArgsForMailxWithCc(t *testing.T) {
 		}
 		args := PrepMUAArgs(cfg)
 
-		expected := []string{cfg.MailProg, "-c", "'ab@cd.org, ef@gh.com, ij@kl.net'"}
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "-c", "ab@cd.org")
+		expected = append(expected, "-c", "ef@gh.com,")
+		expected = append(expected, "-c", "ij@kl.net")
 
 		So(args, ShouldResemble, expected)
 	})
@@ -102,7 +105,10 @@ func TestPrepMUAArgsForMailxWithCcAndSender(t *testing.T) {
 		}
 		args := PrepMUAArgs(cfg)
 
-		expected := []string{cfg.MailProg, "-c", "'ab@cd.org, ef@gh.com, ij@kl.net'"}
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "-c", "ab@cd.org")
+		expected = append(expected, "-c", "ef@gh.com,")
+		expected = append(expected, "-c", "ij@kl.net")
 		expected = append(expected, "-S", "from='Hello Go <hello@go.go>'")
 
 		So(args, ShouldResemble, expected)
@@ -120,7 +126,10 @@ func TestPrepMUAArgsForMailxWithAll(t *testing.T) {
 		}
 		args := PrepMUAArgs(cfg)
 
-		expected := []string{cfg.MailProg, "-c", "'ab@cd.org, ef@gh.com, ij@kl.net'"}
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "-c", "ab@cd.org")
+		expected = append(expected, "-c", "ef@gh.com,")
+		expected = append(expected, "-c", "ij@kl.net")
 		expected = append(expected, "-S", "from='Hello Go <hello@go.go>'")
 		expected = append(expected, "-S", "replyto='Ja Mann <ja@mango.go>'")
 
@@ -240,7 +249,10 @@ func TestPrepMUAArgsForNonMailxWithAll(t *testing.T) {
 // ----------------------------- mailx tests ---------------------------
 func TestMailxPostProcessMUAArgsWithNoCc(t *testing.T) {
 	Convey("command line args, mailx [Reply-To, Cc, From]", t, func() {
-		args := []string{"mailx", "-c", "'ab@cd.org, ef@gh.com, ij@kl.net'"}
+		args := []string{cfg.MailProg}
+		args = append(args, "-c", "ab@cd.org")
+		args = append(args, "-c", "ef@gh.com,")
+		args = append(args, "-c", "ij@kl.net")
 		args = append(args, "-S", "from='Hello Go <hello@go.go>'")
 		args = append(args, "-S", "replyto='Ja Mann <ja@mango.go>'")
 
@@ -252,7 +264,10 @@ func TestMailxPostProcessMUAArgsWithNoCc(t *testing.T) {
 
 func TestMailxPostProcessMUAArgsWithCcRedefined(t *testing.T) {
 	Convey("command line args, mailx [Reply-To, Cc, From]", t, func() {
-		args := []string{"mailx", "-c", "'ab@cd.org, ef@gh.com, ij@kl.net'"}
+		args := []string{cfg.MailProg}
+		args = append(args, "-c", "ab@cd.org")
+		args = append(args, "-c", "ef@gh.com,")
+		args = append(args, "-c", "ij@kl.net")
 		args = append(args, "-S", "from='Hello Go <hello@go.go>'")
 		args = append(args, "-S", "replyto='Ja Mann <ja@mango.go>'")
 
@@ -261,7 +276,9 @@ func TestMailxPostProcessMUAArgsWithCcRedefined(t *testing.T) {
 				"Cc": "rv1@redef.org, rv2@redef.com",
 			},
 		}
-		expected := []string{"mailx", "-c", "'rv1@redef.org, rv2@redef.com'"}
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "-c", "rv1@redef.org")
+		expected = append(expected, "-c", "rv2@redef.com")
 		expected = append(expected, "-S", "from='Hello Go <hello@go.go>'")
 		expected = append(expected, "-S", "replyto='Ja Mann <ja@mango.go>'")
 		actual := PostProcessMUAArgs(data, args)
@@ -271,7 +288,10 @@ func TestMailxPostProcessMUAArgsWithCcRedefined(t *testing.T) {
 
 func TestMailxPostProcessMUAArgsWithSingleCcAdded(t *testing.T) {
 	Convey("command line args, mailx [Reply-To, Cc, From]", t, func() {
-		args := []string{"mailx", "-c", "'ab@cd.org, ef@gh.com, ij@kl.net'"}
+		args := []string{cfg.MailProg}
+		args = append(args, "-c", "ab@cd.org")
+		args = append(args, "-c", "ef@gh.com,")
+		args = append(args, "-c", "ij@kl.net")
 		args = append(args, "-S", "from='Hello Go <hello@go.go>'")
 		args = append(args, "-S", "replyto='Ja Mann <ja@mango.go>'")
 
@@ -280,7 +300,11 @@ func TestMailxPostProcessMUAArgsWithSingleCcAdded(t *testing.T) {
 				"Cc": "+rv2@redef.com",
 			},
 		}
-		expected := []string{"mailx", "-c", "'ab@cd.org, ef@gh.com, ij@kl.net, rv2@redef.com'"}
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "-c", "ab@cd.org")
+		expected = append(expected, "-c", "ef@gh.com,")
+		expected = append(expected, "-c", "ij@kl.net")
+		expected = append(expected, "-c", "rv1@redef.org")
 		expected = append(expected, "-S", "from='Hello Go <hello@go.go>'")
 		expected = append(expected, "-S", "replyto='Ja Mann <ja@mango.go>'")
 		actual := PostProcessMUAArgs(data, args)
@@ -290,7 +314,10 @@ func TestMailxPostProcessMUAArgsWithSingleCcAdded(t *testing.T) {
 
 func TestMailxPostProcessMUAArgsWithMultiCcAdded(t *testing.T) {
 	Convey("command line args, mailx [Reply-To, Cc, From]", t, func() {
-		args := []string{"mailx", "-c", "'ab@cd.org, ef@gh.com, ij@kl.net'"}
+		args := []string{cfg.MailProg}
+		args = append(args, "-c", "ab@cd.org")
+		args = append(args, "-c", "ef@gh.com,")
+		args = append(args, "-c", "ij@kl.net")
 		args = append(args, "-S", "from='Hello Go <hello@go.go>'")
 		args = append(args, "-S", "replyto='Ja Mann <ja@mango.go>'")
 
@@ -299,7 +326,12 @@ func TestMailxPostProcessMUAArgsWithMultiCcAdded(t *testing.T) {
 				"Cc": "+rv1@redef.org, rv2@redef.com",
 			},
 		}
-		expected := []string{"mailx", "-c", "'ab@cd.org, ef@gh.com, ij@kl.net, rv1@redef.org, rv2@redef.com'"}
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "-c", "ab@cd.org")
+		expected = append(expected, "-c", "ef@gh.com,")
+		expected = append(expected, "-c", "ij@kl.net")
+		expected = append(expected, "-c", "rv1@redef.org")
+		expected = append(expected, "-c", "rv2@redef.com")
 		expected = append(expected, "-S", "from='Hello Go <hello@go.go>'")
 		expected = append(expected, "-S", "replyto='Ja Mann <ja@mango.go>'")
 		actual := PostProcessMUAArgs(data, args)
@@ -319,6 +351,8 @@ func TestMailxPostProcessMUAArgsWithMultiCcAddedAndNoGlobalCcPresent(t *testing.
 			},
 		}
 		expected := []string{"mailx"}
+		expected = append(expected, "-c", "rv1@redef.org")
+		expected = append(expected, "-c", "rv2@redef.com")
 		expected = append(expected, "-S", "from='Hello Go <hello@go.go>'")
 		expected = append(expected, "-S", "replyto='Ja Mann <ja@mango.go>'")
 		expected = append(expected, "-c", "'rv1@redef.org, rv2@redef.com'")

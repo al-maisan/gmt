@@ -18,6 +18,7 @@ package email
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/al-maisan/gmt/config"
@@ -90,7 +91,11 @@ func PostProcessMUAArgs(data Data, cmdline []string) (result []string) {
 	ccidx := findCcArgs(result)
 	if ccidx == -1 {
 		if mailprog == "mailx" {
-			result = append(result, "-c", fmt.Sprintf("'%s'", rcc[1:]))
+			re := regexp.MustCompile("\\s*,\\s*")
+			ccl := re.Split(rcc, -1)
+			for _, ccv := range ccl {
+				result = append(result, "-c", fmt.Sprintf("%s", ccv))
+			}
 		} else {
 			result = append(result, "-a", fmt.Sprintf("'Cc: %s'", rcc[1:]))
 
