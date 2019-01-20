@@ -123,8 +123,11 @@ From=Frodo Baggins <rts@example.com>
 #Reply-To=John Doe <jd@mail.com>
 subject=Hello %FN%!
 [recipients]
-jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
-mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!`
+# The 'Cc' setting below *redefines* the global 'Cc' value above
+jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|Cc:-Bruce Lee <bl@kf.io>,info@ex.org
+mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
+# The 'Cc' setting below *adds* to the global 'Cc' value above
+daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+John Doe <inc@gg.org>`
 }
 
 func SampleTemplate() string {

@@ -24,11 +24,12 @@ import (
 )
 
 type Data struct {
-	Subject string
-	Body    string
+	Subject       string
+	Body          string
+	RecipientVars map[string]string
 }
 
-func SubstVars(recipient config.Recipient, text string) (result string) {
+func substVars(recipient config.Recipient, text string) (result string) {
 	result = strings.Replace(text, "%EA%", recipient.Email, -1)
 	result = strings.Replace(result, "%FN%", recipient.First, -1)
 	result = strings.Replace(result, "%LN%", recipient.Last, -1)
@@ -42,8 +43,9 @@ func PrepMails(cfg config.Data, template string) (mails map[string]Data) {
 	mails = make(map[string]Data)
 	for _, recipient := range cfg.Recipients {
 		data := Data{}
-		data.Body = SubstVars(recipient, template)
-		data.Subject = SubstVars(recipient, cfg.Subject)
+		data.Body = substVars(recipient, template)
+		data.Subject = substVars(recipient, cfg.Subject)
+		data.RecipientVars = recipient.Data
 		mails[recipient.Email] = data
 	}
 	return
