@@ -307,6 +307,26 @@ func TestMailxPostProcessMUAArgsWithMultiCcAdded(t *testing.T) {
 	})
 }
 
+func TestMailxPostProcessMUAArgsWithMultiCcAddedAndNoGlobalCcPresent(t *testing.T) {
+	Convey("command line args, mailx [Reply-To, Cc, From]", t, func() {
+		args := []string{"mailx"}
+		args = append(args, "-S", "from='Hello Go <hello@go.go>'")
+		args = append(args, "-S", "replyto='Ja Mann <ja@mango.go>'")
+
+		data := Data{
+			RecipientVars: map[string]string{
+				"Cc": "+rv1@redef.org, rv2@redef.com",
+			},
+		}
+		expected := []string{"mailx"}
+		expected = append(expected, "-S", "from='Hello Go <hello@go.go>'")
+		expected = append(expected, "-S", "replyto='Ja Mann <ja@mango.go>'")
+		expected = append(expected, "-c", "'rv1@redef.org, rv2@redef.com'")
+		actual := PostProcessMUAArgs(data, args)
+		So(actual, ShouldResemble, expected)
+	})
+}
+
 // ---------------------------- non-mailx tests ------------------------
 func TestPostProcessMUAArgsWithNoCc(t *testing.T) {
 	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
@@ -377,6 +397,27 @@ func TestPostProcessMUAArgsWithMultiCcAdded(t *testing.T) {
 	})
 }
 
+func TestPostProcessMUAArgsWithMultiCcAddedAndNoGlobalCcPresent(t *testing.T) {
+	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
+		args := []string{"gnu-mail"}
+		args = append(args, "-a", "'From: Hello Go <hello@go.go>'")
+		args = append(args, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
+
+		data := Data{
+			RecipientVars: map[string]string{
+				"Cc": "+rv1@redef.org, rv2@redef.com",
+			},
+		}
+		expected := []string{"gnu-mail"}
+		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
+		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
+		expected = append(expected, "-a", "'Cc: rv1@redef.org, rv2@redef.com'")
+		actual := PostProcessMUAArgs(data, args)
+		So(actual, ShouldResemble, expected)
+	})
+}
+
+// -------------------- findCcArgs() tests ---------------------
 func TestFindCcArgsMailxNoCcHeader(t *testing.T) {
 	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
 		cmdline := []string{"mailx"}

@@ -84,19 +84,30 @@ func PostProcessMUAArgs(data Data, cmdline []string) (result []string) {
 	if !ok {
 		return
 	}
+
+	mailprog := cmdline[0]
 	ccidx := findCcArgs(cmdline)
 	if ccidx == -1 {
+		if mailprog == "mailx" {
+			result = append(result, "-c", fmt.Sprintf("'%s'", rcc[1:]))
+		} else {
+			result = append(result, "-a", fmt.Sprintf("'Cc: %s'", rcc[1:]))
+
+		}
 		return
 	}
 
 	if !strings.HasPrefix(rcc, "+") {
-		mailprog := cmdline[0]
 		// 'Cc' header value is being redefined
 		if mailprog == "mailx" {
 			cmdline[ccidx] = fmt.Sprintf("'%s'", rcc)
 		} else {
 			cmdline[ccidx] = fmt.Sprintf("'Cc: %s'", rcc)
 		}
+	} else {
+		// we are adding to the 'Cc' header value
+		ccv := strings.Trim(cmdline[ccidx], "'")
+		cmdline[ccidx] = fmt.Sprintf("'%s, %s'", ccv, rcc[1:])
 	}
 	return
 }
