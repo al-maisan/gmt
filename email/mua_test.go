@@ -248,114 +248,70 @@ func TestPrepMUAArgsForNonMailxWithAll(t *testing.T) {
 
 func TestPostProcessMUAArgsWithNoCc(t *testing.T) {
 	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
-		cfg := config.Data{
-			MailProg: "gnu-mail",
-			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
-			From:     "Hello Go <hello@go.go>",
-			ReplyTo:  "Ja Mann <ja@mango.go>",
-			Subject:  "Hola %FN%!",
-		}
-		args := PrepMUAArgs(cfg)
-
-		expected := []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
-		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
-		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
-
-		So(args, ShouldResemble, expected)
+		args := []string{"gnu-mail", "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
+		args = append(args, "-a", "'From: Hello Go <hello@go.go>'")
+		args = append(args, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
 
 		data := Data{}
-		args = PostProcessMUAArgs(data, args)
-		So(args, ShouldResemble, expected)
+		actual := PostProcessMUAArgs(data, args)
+		So(actual, ShouldResemble, args)
 	})
 }
 
 func TestPostProcessMUAArgsWithCcRedefined(t *testing.T) {
 	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
-		cfg := config.Data{
-			MailProg: "gnu-mail",
-			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
-			From:     "Hello Go <hello@go.go>",
-			ReplyTo:  "Ja Mann <ja@mango.go>",
-			Subject:  "Hola %FN%!",
-		}
-		args := PrepMUAArgs(cfg)
-
-		expected := []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
-		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
-		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
-
-		So(args, ShouldResemble, expected)
+		args := []string{"gnu-mail", "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
+		args = append(args, "-a", "'From: Hello Go <hello@go.go>'")
+		args = append(args, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
 
 		data := Data{
 			RecipientVars: map[string]string{
 				"Cc": "rv1@redef.org, rv2@redef.com",
 			},
 		}
-		expected = []string{cfg.MailProg, "-a", "'Cc: rv1@redef.org, rv2@redef.com'"}
+		expected := []string{"gnu-mail", "-a", "'Cc: rv1@redef.org, rv2@redef.com'"}
 		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
 		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
-		args = PostProcessMUAArgs(data, args)
-		So(args, ShouldResemble, expected)
+		actual := PostProcessMUAArgs(data, args)
+		So(actual, ShouldResemble, expected)
 	})
 }
 
 func TestPostProcessMUAArgsWithSingleCcAdded(t *testing.T) {
 	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
-		cfg := config.Data{
-			MailProg: "gnu-mail",
-			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
-			From:     "Hello Go <hello@go.go>",
-			ReplyTo:  "Ja Mann <ja@mango.go>",
-			Subject:  "Hola %FN%!",
-		}
-		args := PrepMUAArgs(cfg)
-
-		expected := []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
-		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
-		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
-
-		So(args, ShouldResemble, expected)
+		args := []string{"gnu-mail", "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
+		args = append(args, "-a", "'From: Hello Go <hello@go.go>'")
+		args = append(args, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
 
 		data := Data{
 			RecipientVars: map[string]string{
 				"Cc": "+rv2@redef.com",
 			},
 		}
-		expected = []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net, rv2@redef.com'"}
+		expected := []string{"gnu-mail", "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net, rv2@redef.com'"}
 		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
 		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
-		args = PostProcessMUAArgs(data, args)
-		So(args, ShouldResemble, expected)
+		actual := PostProcessMUAArgs(data, args)
+		So(actual, ShouldResemble, expected)
 	})
 }
 
 func TestPostProcessMUAArgsWithMultiCcAdded(t *testing.T) {
 	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
-		cfg := config.Data{
-			MailProg: "gnu-mail",
-			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
-			From:     "Hello Go <hello@go.go>",
-			ReplyTo:  "Ja Mann <ja@mango.go>",
-			Subject:  "Hola %FN%!",
-		}
-		args := PrepMUAArgs(cfg)
-
-		expected := []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
-		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
-		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
-
-		So(args, ShouldResemble, expected)
+		args := []string{"gnu-mail", "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
+		args = append(args, "-a", "'From: Hello Go <hello@go.go>'")
+		args = append(args, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
 
 		data := Data{
 			RecipientVars: map[string]string{
 				"Cc": "+rv1@redef.org, rv2@redef.com",
 			},
 		}
-		expected = []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net, rv1@redef.org, rv2@redef.com'"}
+		expected := []string{"gnu-mail", "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net, rv1@redef.org, rv2@redef.com'"}
 		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
 		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
-		args = PostProcessMUAArgs(data, args)
-		So(args, ShouldResemble, expected)
+		actual := PostProcessMUAArgs(data, args)
+		So(actual, ShouldResemble, expected)
 	})
 }
 
