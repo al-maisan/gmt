@@ -28,7 +28,7 @@ func TestPrepMUAArgsForMailxWithNoAdditionalData(t *testing.T) {
 		cfg := config.Data{
 			MailProg: "mailx",
 		}
-		args := PrepMUAArgs(cfg)
+		args := PrepMUAArgs(cfg, map[string]string{})
 
 		So(len(args), ShouldEqual, 1)
 		expected := []string{cfg.MailProg}
@@ -43,7 +43,7 @@ func TestPrepMUAArgsForMailxWithCc(t *testing.T) {
 			MailProg: "mailx",
 			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
 		}
-		args := PrepMUAArgs(cfg)
+		args := PrepMUAArgs(cfg, map[string]string{})
 
 		expected := []string{cfg.MailProg}
 		expected = append(expected, "-c", "ab@cd.org")
@@ -60,7 +60,7 @@ func TestPrepMUAArgsForMailxWithSender(t *testing.T) {
 			MailProg: "mailx",
 			From:     "Hello Go <hello@go.go>",
 		}
-		args := PrepMUAArgs(cfg)
+		args := PrepMUAArgs(cfg, map[string]string{})
 
 		expected := []string{cfg.MailProg, "-S", "from='Hello Go <hello@go.go>'"}
 
@@ -74,7 +74,7 @@ func TestPrepMUAArgsForMailxWithSenderAndNoName(t *testing.T) {
 			MailProg: "mailx",
 			From:     "hello@go.go",
 		}
-		args := PrepMUAArgs(cfg)
+		args := PrepMUAArgs(cfg, map[string]string{})
 
 		expected := []string{cfg.MailProg, "-S", "from='hello@go.go'"}
 
@@ -88,7 +88,7 @@ func TestPrepMUAArgsForMailxWithReplyTo(t *testing.T) {
 			MailProg: "mailx",
 			ReplyTo:  "Ja Mann <ja@mango.go>",
 		}
-		args := PrepMUAArgs(cfg)
+		args := PrepMUAArgs(cfg, map[string]string{})
 
 		expected := []string{cfg.MailProg, "-S", "replyto='Ja Mann <ja@mango.go>'"}
 
@@ -103,7 +103,7 @@ func TestPrepMUAArgsForMailxWithCcAndSender(t *testing.T) {
 			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
 			From:     "Hello Go <hello@go.go>",
 		}
-		args := PrepMUAArgs(cfg)
+		args := PrepMUAArgs(cfg, map[string]string{})
 
 		expected := []string{cfg.MailProg}
 		expected = append(expected, "-c", "ab@cd.org")
@@ -124,7 +124,7 @@ func TestPrepMUAArgsForMailxWithAll(t *testing.T) {
 			ReplyTo:  "Ja Mann <ja@mango.go>",
 			Subject:  "This is spam!",
 		}
-		args := PrepMUAArgs(cfg)
+		args := PrepMUAArgs(cfg, map[string]string{})
 
 		expected := []string{cfg.MailProg}
 		expected = append(expected, "-c", "ab@cd.org")
@@ -144,7 +144,7 @@ func TestPrepMUAArgsForNonMailxWithNoAdditionalData(t *testing.T) {
 		cfg := config.Data{
 			MailProg: "gnu-mail",
 		}
-		args := PrepMUAArgs(cfg)
+		args := PrepMUAArgs(cfg, map[string]string{})
 
 		So(len(args), ShouldEqual, 1)
 		expected := []string{cfg.MailProg}
@@ -159,7 +159,7 @@ func TestPrepMUAArgsForNonMailxWithCc(t *testing.T) {
 			MailProg: "gnu-mail",
 			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
 		}
-		args := PrepMUAArgs(cfg)
+		args := PrepMUAArgs(cfg, map[string]string{})
 
 		expected := []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
 
@@ -173,7 +173,7 @@ func TestPrepMUAArgsForNonMailxWithSender(t *testing.T) {
 			MailProg: "gnu-mail",
 			From:     "Hello Go <hello@go.go>",
 		}
-		args := PrepMUAArgs(cfg)
+		args := PrepMUAArgs(cfg, map[string]string{})
 
 		expected := []string{cfg.MailProg, "-a", "'From: Hello Go <hello@go.go>'"}
 
@@ -187,7 +187,7 @@ func TestPrepMUAArgsForNonMailxWithSenderAndNoName(t *testing.T) {
 			MailProg: "gnu-mail",
 			From:     "hello@go.go",
 		}
-		args := PrepMUAArgs(cfg)
+		args := PrepMUAArgs(cfg, map[string]string{})
 
 		expected := []string{cfg.MailProg, "-a", "'From: hello@go.go'"}
 
@@ -201,7 +201,7 @@ func TestPrepMUAArgsForNonMailxWithReplyTo(t *testing.T) {
 			MailProg: "gnu-mail",
 			ReplyTo:  "Ja Mann <ja@mango.go>",
 		}
-		args := PrepMUAArgs(cfg)
+		args := PrepMUAArgs(cfg, map[string]string{})
 
 		expected := []string{cfg.MailProg, "-a", "'Reply-To: Ja Mann <ja@mango.go>'"}
 
@@ -216,7 +216,7 @@ func TestPrepMUAArgsForNonMailxWithCcAndSender(t *testing.T) {
 			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
 			From:     "Hello Go <hello@go.go>",
 		}
-		args := PrepMUAArgs(cfg)
+		args := PrepMUAArgs(cfg, map[string]string{})
 
 		expected := []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
 		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
@@ -234,7 +234,7 @@ func TestPrepMUAArgsForNonMailxWithAll(t *testing.T) {
 			ReplyTo:  "Ja Mann <ja@mango.go>",
 			Subject:  "Hola %FN%!",
 		}
-		args := PrepMUAArgs(cfg)
+		args := PrepMUAArgs(cfg, map[string]string{})
 
 		expected := []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
 		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")

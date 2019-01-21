@@ -18,14 +18,17 @@ package email
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/al-maisan/gmt/config"
 )
 
-// `PrepMUAArgs` converts global configuration data to mail user agent (MUA)
-// command line arguments.
-func PrepMUAArgs(cfg config.Data) (args []string) {
+// `PrepMUAArgs` is called for each email recipient. It converts global
+// configuration data (`cfg`) and per-recipient configuration variables
+// (`prdata`) to mail user agent (MUA) command line arguments.
+func PrepMUAArgs(cfg config.Data, prdata map[string]string) (args []string) {
+	log.Println(prdata)
 	args = []string{cfg.MailProg}
 	if cfg.MailProg == "mailx" {
 		if cfg.Cc != nil {

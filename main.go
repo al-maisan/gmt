@@ -94,27 +94,24 @@ func main() {
 	}
 
 	// prepare the emails, substitute vars in subject & body
-	emails := email.PrepMails(cfg, string(bytes))
-
-	// prepare the command line args for the mail user agent (MUA)
-	args := email.PrepMUAArgs(cfg)
-	log.Println(args)
+	mails := email.PrepMails(cfg, string(bytes))
 
 	// is this a dry run? print what would be done if so and exit
 	if *doDryRun == true {
-		for ea, mail := range emails {
-			fmt.Fprintf(os.Stdout, "--\n%s\nTo: %s\nSubject: %s\n%s\n", args, ea, mail.Subject, mail.Body)
+		for addr, data := range mails {
+			cmdline := email.PrepMUAArgs(cfg, data.RecipientVars)
+			fmt.Fprintf(os.Stdout, "--\n%s\nTo: %s\nSubject: %s\n%s\n", cmdline, addr, data.Subject, data.Body)
 		}
 		os.Exit(0)
 	}
 
-	send(emails, args)
+	send(mails, cfg)
 }
 
-func send(mails map[string]email.Data, cmdline []string) (sent int, err error) {
+func send(mails map[string]email.Data, cfg config.Data) {
 	ch := make(chan string)
 	for addr, data := range mails {
-		go sendEmail(addr, data, cmdline, ch)
+		go sendEmail(addr, data, cfg, ch)
 	}
 	fmt.Println("\nSending emails now..")
 	for i := len(mails); i > 0; i-- {
@@ -124,7 +121,11 @@ func send(mails map[string]email.Data, cmdline []string) (sent int, err error) {
 	return
 }
 
-func sendEmail(addr string, data email.Data, cmdline []string, ch chan string) {
+func sendEmail(addr string, data email.Data, cfg config.Data, ch chan string) {
+	// prepare the command line args for the mail user agent (MUA)
+	cmdline := email.PrepMUAArgs(cfg, data.RecipientVars)
+	log.Println(cmdline)
+
 	file, err := tempFile([]byte(data.Body))
 	if err != nil {
 		ch <- fmt.Sprintf("!! Error sending to %s (%s)", addr, err.Error())
