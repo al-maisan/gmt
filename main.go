@@ -108,10 +108,10 @@ func main() {
 		os.Exit(0)
 	}
 
-	Send(emails, args)
+	send(emails, args)
 }
 
-func Send(mails map[string]email.Data, cmdline []string) (sent int, err error) {
+func send(mails map[string]email.Data, cmdline []string) (sent int, err error) {
 	ch := make(chan string)
 	for addr, data := range mails {
 		go sendEmail(addr, data, cmdline, ch)
