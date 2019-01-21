@@ -243,3 +243,28 @@ func TestPrepMUAArgsForNonMailxWithAll(t *testing.T) {
 		So(args, ShouldResemble, expected)
 	})
 }
+
+// A `Cc` is set for the recipient and it redefines/overrides the global `Cc`
+// header value
+func TestPrepMUAArgsForNonMailxWithAllAndPRCcRedef(t *testing.T) {
+	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
+		cfg := config.Data{
+			MailProg: "gnu-mail",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+			Subject:  "Hola %FN%!",
+		}
+		prdata := map[string]string {
+			"Cc": "First One <hello1@world.com>,   	The Second <2nd@example.org>",
+		}
+		args := PrepMUAArgs(cfg, prdata)
+
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "-a", "Cc: First One <hello1@world.com>, The Second <2nd@example.org>")
+		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
+		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
+
+		So(args, ShouldResemble, expected)
+	})
+}
