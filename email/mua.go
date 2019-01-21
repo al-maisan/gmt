@@ -19,6 +19,7 @@ package email
 import (
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 
 	"github.com/al-maisan/gmt/config"
@@ -28,6 +29,15 @@ import (
 // configuration data (`cfg`) and per-recipient configuration variables
 // (`prdata`) to mail user agent (MUA) command line arguments.
 func PrepMUAArgs(cfg config.Data, prdata map[string]string) (args []string) {
+	if prccv, ok := prdata["Cc"]; ok {
+		re := regexp.MustCompile("\\s*,\\s*")
+		if strings.HasPrefix(prccv, "+") {
+			cfg.Cc = append(cfg.Cc, re.Split(prccv[1:], -1)...)
+		} else {
+			cfg.Cc = re.Split(prccv, -1)
+		}
+	}
+
 	log.Println(prdata)
 	args = []string{cfg.MailProg}
 	if cfg.MailProg == "mailx" {
