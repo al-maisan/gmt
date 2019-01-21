@@ -18,7 +18,6 @@ package email
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 	"strings"
 
@@ -32,13 +31,13 @@ func PrepMUAArgs(cfg config.Data, prdata map[string]string) (args []string) {
 	if prccv, ok := prdata["Cc"]; ok {
 		re := regexp.MustCompile("\\s*,\\s*")
 		if strings.HasPrefix(prccv, "+") {
-			cfg.Cc = append(cfg.Cc, re.Split(prccv[1:], -1)...)
+			val := strings.Trim(prccv[1:], " 	")
+			cfg.Cc = append(cfg.Cc, re.Split(val, -1)...)
 		} else {
 			cfg.Cc = re.Split(prccv, -1)
 		}
 	}
 
-	log.Println(prdata)
 	args = []string{cfg.MailProg}
 	if cfg.MailProg == "mailx" {
 		if cfg.Cc != nil {
