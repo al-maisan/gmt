@@ -137,6 +137,61 @@ func TestPrepMUAArgsForMailxWithAll(t *testing.T) {
 	})
 }
 
+// A `Cc` is set for the recipient and it redefines/overrides the global `Cc`
+// header value
+func TestPrepMUAArgsForMailxWithAllAndPRCcRedef(t *testing.T) {
+	Convey("command line args, mailx [Reply-To, Cc, From]", t, func() {
+		cfg := config.Data{
+			MailProg: "mailx",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+			Subject:  "This is spam!",
+		}
+		prdata := map[string]string{
+			"Cc": "First One <hello1@world.com>,   	The Second <2nd@example.org>",
+		}
+		args := PrepMUAArgs(cfg, prdata)
+
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "-c", "First One <hello1@world.com>")
+		expected = append(expected, "-c", "The Second <2nd@example.org>")
+		expected = append(expected, "-S", "from='Hello Go <hello@go.go>'")
+		expected = append(expected, "-S", "replyto='Ja Mann <ja@mango.go>'")
+
+		So(args, ShouldResemble, expected)
+	})
+}
+
+// A `Cc` is set for the recipient and it adds to the global `Cc`
+// header value
+func TestPrepMUAArgsForMailxWithAllAndPRCcAdded(t *testing.T) {
+	Convey("command line args, mailx [Reply-To, Cc, From]", t, func() {
+		cfg := config.Data{
+			MailProg: "mailx",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+			Subject:  "This is spam!",
+		}
+		prdata := map[string]string{
+			"Cc": "+Add Me <am@world.com>,   	Me Too Please Second <mtp@example.org>",
+		}
+		args := PrepMUAArgs(cfg, prdata)
+
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "-c", "ab@cd.org")
+		expected = append(expected, "-c", "ef@gh.com")
+		expected = append(expected, "-c", "ij@kl.net")
+		expected = append(expected, "-c", "Add Me <am@world.com>")
+		expected = append(expected, "-c", "Me Too Please Second <mtp@example.org>")
+		expected = append(expected, "-S", "from='Hello Go <hello@go.go>'")
+		expected = append(expected, "-S", "replyto='Ja Mann <ja@mango.go>'")
+
+		So(args, ShouldResemble, expected)
+	})
+}
+
 // ------------- non-mailx -------------
 
 func TestPrepMUAArgsForNonMailxWithNoAdditionalData(t *testing.T) {
@@ -161,7 +216,7 @@ func TestPrepMUAArgsForNonMailxWithCc(t *testing.T) {
 		}
 		args := PrepMUAArgs(cfg, map[string]string{})
 
-		expected := []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
+		expected := []string{cfg.MailProg, "-a", "Cc: ab@cd.org, ef@gh.com, ij@kl.net"}
 
 		So(args, ShouldResemble, expected)
 	})
@@ -175,7 +230,7 @@ func TestPrepMUAArgsForNonMailxWithSender(t *testing.T) {
 		}
 		args := PrepMUAArgs(cfg, map[string]string{})
 
-		expected := []string{cfg.MailProg, "-a", "'From: Hello Go <hello@go.go>'"}
+		expected := []string{cfg.MailProg, "-a", "From: Hello Go <hello@go.go>"}
 
 		So(args, ShouldResemble, expected)
 	})
@@ -189,7 +244,7 @@ func TestPrepMUAArgsForNonMailxWithSenderAndNoName(t *testing.T) {
 		}
 		args := PrepMUAArgs(cfg, map[string]string{})
 
-		expected := []string{cfg.MailProg, "-a", "'From: hello@go.go'"}
+		expected := []string{cfg.MailProg, "-a", "From: hello@go.go"}
 
 		So(args, ShouldResemble, expected)
 	})
@@ -203,7 +258,7 @@ func TestPrepMUAArgsForNonMailxWithReplyTo(t *testing.T) {
 		}
 		args := PrepMUAArgs(cfg, map[string]string{})
 
-		expected := []string{cfg.MailProg, "-a", "'Reply-To: Ja Mann <ja@mango.go>'"}
+		expected := []string{cfg.MailProg, "-a", "Reply-To: Ja Mann <ja@mango.go>"}
 
 		So(args, ShouldResemble, expected)
 	})
@@ -218,8 +273,8 @@ func TestPrepMUAArgsForNonMailxWithCcAndSender(t *testing.T) {
 		}
 		args := PrepMUAArgs(cfg, map[string]string{})
 
-		expected := []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
-		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
+		expected := []string{cfg.MailProg, "-a", "Cc: ab@cd.org, ef@gh.com, ij@kl.net"}
+		expected = append(expected, "-a", "From: Hello Go <hello@go.go>")
 
 		So(args, ShouldResemble, expected)
 	})
@@ -236,9 +291,9 @@ func TestPrepMUAArgsForNonMailxWithAll(t *testing.T) {
 		}
 		args := PrepMUAArgs(cfg, map[string]string{})
 
-		expected := []string{cfg.MailProg, "-a", "'Cc: ab@cd.org, ef@gh.com, ij@kl.net'"}
-		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
-		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
+		expected := []string{cfg.MailProg, "-a", "Cc: ab@cd.org, ef@gh.com, ij@kl.net"}
+		expected = append(expected, "-a", "From: Hello Go <hello@go.go>")
+		expected = append(expected, "-a", "Reply-To: Ja Mann <ja@mango.go>")
 
 		So(args, ShouldResemble, expected)
 	})
@@ -255,15 +310,40 @@ func TestPrepMUAArgsForNonMailxWithAllAndPRCcRedef(t *testing.T) {
 			ReplyTo:  "Ja Mann <ja@mango.go>",
 			Subject:  "Hola %FN%!",
 		}
-		prdata := map[string]string {
+		prdata := map[string]string{
 			"Cc": "First One <hello1@world.com>,   	The Second <2nd@example.org>",
 		}
 		args := PrepMUAArgs(cfg, prdata)
 
 		expected := []string{cfg.MailProg}
 		expected = append(expected, "-a", "Cc: First One <hello1@world.com>, The Second <2nd@example.org>")
-		expected = append(expected, "-a", "'From: Hello Go <hello@go.go>'")
-		expected = append(expected, "-a", "'Reply-To: Ja Mann <ja@mango.go>'")
+		expected = append(expected, "-a", "From: Hello Go <hello@go.go>")
+		expected = append(expected, "-a", "Reply-To: Ja Mann <ja@mango.go>")
+
+		So(args, ShouldResemble, expected)
+	})
+}
+
+// A `Cc` is set for the recipient and it adds to the global `Cc`
+// header value
+func TestPrepMUAArgsForNonMailxWithAllAndPRCcAdded(t *testing.T) {
+	Convey("command line args, gnu-mail [Reply-To, Cc, From]", t, func() {
+		cfg := config.Data{
+			MailProg: "gnu-mail",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+			Subject:  "Hola %FN%!",
+		}
+		prdata := map[string]string{
+			"Cc": "+Add Me <am@world.com>,   	Me Too Please Second <mtp@example.org>",
+		}
+		args := PrepMUAArgs(cfg, prdata)
+
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "-a", "Cc: ab@cd.org, ef@gh.com, ij@kl.net, Add Me <am@world.com>, Me Too Please Second <mtp@example.org>")
+		expected = append(expected, "-a", "From: Hello Go <hello@go.go>")
+		expected = append(expected, "-a", "Reply-To: Ja Mann <ja@mango.go>")
 
 		So(args, ShouldResemble, expected)
 	})

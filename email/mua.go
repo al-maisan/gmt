@@ -44,13 +44,13 @@ func PrepMUAArgs(cfg config.Data, prdata map[string]string) (args []string) {
 		}
 	} else {
 		if cfg.Cc != nil {
-			args = append(args, "-a", fmt.Sprintf("'Cc: %s'", strings.Join(cfg.Cc, ", ")))
+			args = append(args, "-a", fmt.Sprintf("Cc: %s", strings.Join(cfg.Cc, ", ")))
 		}
 		if cfg.From != "" {
-			args = append(args, "-a", fmt.Sprintf("'From: %s'", cfg.From))
+			args = append(args, "-a", fmt.Sprintf("From: %s", cfg.From))
 		}
 		if cfg.ReplyTo != "" {
-			args = append(args, "-a", fmt.Sprintf("'Reply-To: %s'", cfg.ReplyTo))
+			args = append(args, "-a", fmt.Sprintf("Reply-To: %s", cfg.ReplyTo))
 		}
 	}
 	return
