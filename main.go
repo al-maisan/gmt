@@ -103,8 +103,7 @@ func main() {
 	// is this a dry run? print what would be done if so and exit
 	if *doDryRun == true {
 		for ea, mail := range emails {
-			cmdline := email.PostProcessMUAArgs(mail, args)
-			fmt.Fprintf(os.Stdout, "--\n%s\nTo: %s\nSubject: %s\n%s\n", cmdline, ea, mail.Subject, mail.Body)
+			fmt.Fprintf(os.Stdout, "--\n%s\nTo: %s\nSubject: %s\n%s\n", args, ea, mail.Subject, mail.Body)
 		}
 		os.Exit(0)
 	}
@@ -126,8 +125,6 @@ func Send(mails map[string]email.Data, cmdline []string) (sent int, err error) {
 }
 
 func sendEmail(addr string, data email.Data, cmdline []string, ch chan string) {
-	cmdline = email.PostProcessMUAArgs(data, cmdline)
-	log.Println(cmdline)
 	file, err := tempFile([]byte(data.Body))
 	if err != nil {
 		ch <- fmt.Sprintf("!! Error sending to %s (%s)", addr, err.Error())
