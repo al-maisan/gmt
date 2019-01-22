@@ -46,10 +46,10 @@ func PrepMUAArgs(cfg config.Data, prdata map[string]string) (args []string) {
 			}
 		}
 		if cfg.From != "" {
-			args = append(args, "-S", fmt.Sprintf("from='%s'", cfg.From))
+			args = append(args, "-S", fmt.Sprintf("from=%s", cfg.From))
 		}
 		if cfg.ReplyTo != "" {
-			args = append(args, "-S", fmt.Sprintf("replyto='%s'", cfg.ReplyTo))
+			args = append(args, "-S", fmt.Sprintf("replyto=%s", cfg.ReplyTo))
 		}
 	} else {
 		if cfg.Cc != nil {
