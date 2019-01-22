@@ -41,9 +41,7 @@ func PrepMUAArgs(cfg config.Data, prdata map[string]string) (args []string) {
 	args = []string{cfg.MailProg}
 	if cfg.MailProg == "mailx" {
 		if cfg.Cc != nil {
-			for _, ccv := range cfg.Cc {
-				args = append(args, "-c", ccv)
-			}
+			args = append(args, "-c", strings.Join(cfg.Cc, ","))
 		}
 		if cfg.From != "" {
 			args = append(args, "-S", fmt.Sprintf("from=%s", cfg.From))
