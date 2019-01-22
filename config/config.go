@@ -118,21 +118,21 @@ func SampleConfig() string {
 # the first name, the rest is the surname
 [general]
 mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
-From=Frodo Baggins <rts@example.com>
+From="Frodo Baggins" <rts@example.com>
 #Cc=weirdo@nsb.gov, cc@example.com
-#Reply-To=John Doe <jd@mail.com>
+#Reply-To="John Doe" <jd@mail.com>
 subject=Hello %FN%!
 [recipients]
 # The 'Cc' setting below *redefines* the global 'Cc' value above
-jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|Cc:-Bruce Lee <bl@kf.io>,info@ex.org
+jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|Cc:-bl@kf.io,info@ex.org
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 # The 'Cc' setting below *adds* to the global 'Cc' value above
-daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+John Doe <inc@gg.org>`
+daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org`
 }
 
 func SampleTemplate() string {
 	return `FN / LN / EA = first name / last name / email address
 
 Hello %FN% // %LN%, how are things going at %ORG%?
-this is your email * 2: %EA%%EA%.`
+this is your email: %EA% :)`
 }
