@@ -18,6 +18,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 
 	"github.com/go-ini/ini"
@@ -112,8 +113,10 @@ func parseRecipients(sec *ini.Section) (recipients []Recipient) {
 	return
 }
 
-func SampleConfig() string {
-	return `# anything that follows a hash is a comment
+func SampleConfig(version string) string {
+	fs := `# gmt version %s
+#
+# anything that follows a hash is a comment
 # email address is to the left of the '=' sign, first word after is
 # the first name, the rest is the surname
 [general]
@@ -121,18 +124,23 @@ mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 From="Frodo Baggins" <rts@example.com>
 #Cc=weirdo@nsb.gov, cc@example.com
 #Reply-To="John Doe" <jd@mail.com>
-subject=Hello %FN%!
+subject=Hello %%FN%%!
 [recipients]
 # The 'Cc' setting below *redefines* the global 'Cc' value above
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|Cc:-bl@kf.io,info@ex.org
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 # The 'Cc' setting below *adds* to the global 'Cc' value above
 daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org`
+	return fmt.Sprintf(fs, version)
 }
 
-func SampleTemplate() string {
-	return `FN / LN / EA = first name / last name / email address
+func SampleTemplate(version string) string {
+	fs := `FN / LN / EA = first name / last name / email address
 
-Hello %FN% // %LN%, how are things going at %ORG%?
-this is your email: %EA% :)`
+Hello %%FN%% // %%LN%%, how are things going at %%ORG%%?
+this is your email: %%EA%% :)
+
+
+Sent with gmt version %s, see https://github.com/al-maisan/gmt for details.`
+	return fmt.Sprintf(fs, version)
 }

@@ -33,11 +33,14 @@ import (
 )
 
 func help() {
-	fmt.Fprintf(flag.CommandLine.Output(), "\n%s sends emails in bulk based on a template and a config file\n\n", filepath.Base(os.Args[0]))
+	fmt.Fprintf(flag.CommandLine.Output(), "\n%s, version %s\nThis tool sends emails in bulk based on a template and a config file\n\n", filepath.Base(os.Args[0]), Version())
 	flag.PrintDefaults()
 }
 
+func Version() string { return "0.1.8" }
+
 func main() {
+
 	flag.Usage = help
 	configPath := flag.String("config-path", "", "path to the config file")
 	doDryRun := flag.Bool("dry-run", false, "show what would be done but execute no action")
@@ -48,12 +51,12 @@ func main() {
 	flag.Parse()
 
 	if *doSampleConfig {
-		fmt.Println(config.SampleConfig())
+		fmt.Println(config.SampleConfig(Version()))
 		os.Exit(0)
 	}
 
 	if *doSampleTemplate {
-		fmt.Println(config.SampleTemplate())
+		fmt.Println(config.SampleTemplate(Version()))
 		os.Exit(0)
 	}
 
