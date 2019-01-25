@@ -39,7 +39,17 @@ func PrepMUAArgs(cfg config.Data, prdata map[string]string) (args []string) {
 	}
 
 	args = []string{cfg.MailProg}
-	if cfg.MailProg == "mailx" {
+	if cfg.MailProg == "sendmail" {
+		if cfg.Cc != nil {
+			args = append(args, "Cc:", strings.Join(cfg.Cc, ", "))
+		}
+		if cfg.From != "" {
+			args = append(args, "From:", cfg.From)
+		}
+		if cfg.ReplyTo != "" {
+			args = append(args, "Reply-To:", cfg.ReplyTo)
+		}
+	} else if cfg.MailProg == "mailx" {
 		if cfg.Cc != nil {
 			args = append(args, "-c", strings.Join(cfg.Cc, ","))
 		}
