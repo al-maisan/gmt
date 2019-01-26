@@ -141,6 +141,6 @@ Hello %%FN%% // %%LN%%, how are things going at %%ORG%%?
 this is your email: %%EA%% :)
 
 
-Sent with gmt version %s, see https://github.com/al-maisan/gmt for details.`
+Sent with gmt version %s, see https://301.mx/gmt for details.`
 	return fmt.Sprintf(fs, version)
 }

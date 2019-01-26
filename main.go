@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/al-maisan/gmt/config"
 	"github.com/al-maisan/gmt/email"
@@ -37,7 +38,7 @@ func help() {
 	flag.PrintDefaults()
 }
 
-func Version() string { return "0.1.8" }
+func Version() string { return "0.1.9" }
 
 func main() {
 
@@ -103,7 +104,16 @@ func main() {
 	if *doDryRun == true {
 		for addr, data := range mails {
 			cmdline := email.PrepMUAArgs(cfg, data.RecipientVars)
-			fmt.Fprintf(os.Stdout, "--\n%s\nTo: %s\nSubject: %s\n%s\n", cmdline, addr, data.Subject, data.Body)
+			var body string
+
+			if cfg.MailProg == "sendmail" {
+				header := prepSendmailHeader(addr, data, cmdline[1:])
+				body = strings.Join([]string{header, data.Body}, "\n\n")
+				cmdline = []string{"sendmail", "-t"}
+			} else {
+				body = data.Body
+			}
+			fmt.Fprintf(os.Stdout, "--\n%s\n%s\n", cmdline, body)
 		}
 		os.Exit(0)
 	}
@@ -124,20 +134,50 @@ func send(mails map[string]email.Data, cfg config.Data) {
 	return
 }
 
+func prepSendmailHeader(addr string, data email.Data, cmdline []string) string {
+	lines := []string{fmt.Sprintf("To: %s", addr)}
+	if data.Subject != "" {
+		lines = append(lines, fmt.Sprintf("Subject: %s", data.Subject))
+	}
+	for i := 0; i < len(cmdline); i++ {
+		lines = append(lines, fmt.Sprintf("%s %s", cmdline[i], cmdline[i+1]))
+		i++
+	}
+	lines = append(lines, fmt.Sprintf("X-Mailer: gmt, version %s, https://301.mx/gmt", Version()))
+
+	return strings.Join(lines, "\n")
+}
+
 func sendEmail(addr string, data email.Data, cfg config.Data, ch chan string) {
 	// prepare the command line args for the mail user agent (MUA)
 	cmdline := email.PrepMUAArgs(cfg, data.RecipientVars)
-	log.Println(cmdline)
 
-	file, err := tempFile([]byte(data.Body))
+	var body string
+
+	if cfg.MailProg == "sendmail" {
+		header := prepSendmailHeader(addr, data, cmdline[1:])
+		body = strings.Join([]string{header, data.Body}, "\n\n")
+		cmdline = []string{"sendmail", "-t"}
+	} else {
+		body = data.Body
+	}
+	log.Println(cmdline)
+	file, err := tempFile([]byte(body))
 	if err != nil {
 		ch <- fmt.Sprintf("!! Error sending to %s (%s)", addr, err.Error())
 		return
 	}
 	defer os.Remove(file)
 	cmd1 := exec.Command("cat", file)
-	cmd2args := append(cmdline[1:], "-s", data.Subject, addr)
+
+	var cmd2args []string
+	if cfg.MailProg != "sendmail" {
+		cmd2args = append(cmdline[1:], "-s", data.Subject, addr)
+	} else {
+		cmd2args = cmdline[1:]
+	}
 	cmd2 := exec.Command(cmdline[0], cmd2args...)
+
 	if _, err = pipeCmds(cmd1, cmd2); err != nil {
 		ch <- fmt.Sprintf("!! Error sending to %s (%s)", addr, err.Error())
 		return

@@ -30,7 +30,7 @@ func GetConfig(input string) config.Data {
 
 func TestPrepBodies(t *testing.T) {
 	Convey("generate email bodies for default config", t, func() {
-		version := "0.1.8"
+		version := "0.1.9"
 		cfg := GetConfig(config.SampleConfig(version))
 		template := config.SampleTemplate(version)
 		bodies := PrepMails(cfg, template)
@@ -42,7 +42,7 @@ Hello John // Doe Jr., how are things going at EFF?
 this is your email: jd@example.com :)
 
 
-Sent with gmt version 0.1.8, see https://github.com/al-maisan/gmt for details.`
+Sent with gmt version 0.1.9, see https://301.mx/gmt for details.`
 		So(bodies["jd@example.com"].Body, ShouldEqual, expected)
 		So(bodies["jd@example.com"].Subject, ShouldEqual, "Hello John!")
 
@@ -52,7 +52,7 @@ Hello Mickey // Mouse, how are things going at Disney?
 this is your email: mm@gmail.com :)
 
 
-Sent with gmt version 0.1.8, see https://github.com/al-maisan/gmt for details.`
+Sent with gmt version 0.1.9, see https://301.mx/gmt for details.`
 		So(bodies["mm@gmail.com"].Body, ShouldEqual, expected)
 		So(bodies["mm@gmail.com"].Subject, ShouldEqual, "Hello Mickey!")
 
@@ -62,7 +62,7 @@ Hello Daisy // Lila, how are things going at NASA?
 this is your email: daisy@example.com :)
 
 
-Sent with gmt version 0.1.8, see https://github.com/al-maisan/gmt for details.`
+Sent with gmt version 0.1.9, see https://301.mx/gmt for details.`
 		So(bodies["daisy@example.com"].Body, ShouldEqual, expected)
 		So(bodies["daisy@example.com"].Subject, ShouldEqual, "Hello Daisy!")
 	})
