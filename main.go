@@ -153,11 +153,14 @@ func sendEmail(addr string, data email.Data, cfg config.Data, ch chan string) {
 	cmdline := email.PrepMUAArgs(cfg, data.RecipientVars)
 
 	var body string
+	var cmd2args []string
 
 	if cfg.MailProg == "sendmail" {
 		body, cmdline = prepSendmailFile(addr, data, cmdline[1:])
+		cmd2args = cmdline[1:]
 	} else {
 		body = data.Body
+		cmd2args = append(cmdline[1:], "-s", data.Subject, addr)
 	}
 	log.Println(cmdline)
 	file, err := tempFile([]byte(body))
@@ -167,13 +170,6 @@ func sendEmail(addr string, data email.Data, cfg config.Data, ch chan string) {
 	}
 	defer os.Remove(file)
 	cmd1 := exec.Command("cat", file)
-
-	var cmd2args []string
-	if cfg.MailProg != "sendmail" {
-		cmd2args = append(cmdline[1:], "-s", data.Subject, addr)
-	} else {
-		cmd2args = cmdline[1:]
-	}
 	cmd2 := exec.Command(cmdline[0], cmd2args...)
 
 	if _, err = pipeCmds(cmd1, cmd2); err != nil {
