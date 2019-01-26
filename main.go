@@ -106,7 +106,7 @@ func main() {
 			var body string
 
 			if cfg.MailProg == "sendmail" {
-				body, cmdline = prepSendmailFile(addr, data, cmdline[1:])
+				body, cmdline = prepSendmailBody(addr, data, cmdline[1:])
 			} else {
 				body = data.Body
 			}
@@ -131,7 +131,7 @@ func send(mails map[string]email.Data, cfg config.Data) {
 	return
 }
 
-func prepSendmailFile(addr string, data email.Data, cmdline []string) (string, []string) {
+func prepSendmailBody(addr string, data email.Data, cmdline []string) (string, []string) {
 	lines := []string{fmt.Sprintf("To: %s", addr)}
 	if data.Subject != "" {
 		lines = append(lines, fmt.Sprintf("Subject: %s", data.Subject))
@@ -155,7 +155,7 @@ func sendEmail(addr string, data email.Data, cfg config.Data, ch chan string) {
 	var cmd2args []string
 
 	if cfg.MailProg == "sendmail" {
-		body, cmdline = prepSendmailFile(addr, data, cmdline[1:])
+		body, cmdline = prepSendmailBody(addr, data, cmdline[1:])
 		cmd2args = cmdline[1:]
 	} else {
 		body = data.Body
