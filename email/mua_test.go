@@ -337,3 +337,160 @@ func TestPrepMUAArgsForNonMailxWithAllAndPRCcAdded(t *testing.T) {
 		So(args, ShouldResemble, expected)
 	})
 }
+
+// ------------- sendmail --------------
+
+func TestPrepMUAArgsForSendmailWithNoAdditionalData(t *testing.T) {
+	Convey("minimal command line args for sendmail", t, func() {
+		cfg := config.Data{
+			MailProg: "sendmail",
+		}
+		args := PrepMUAArgs(cfg, map[string]string{})
+
+		So(len(args), ShouldEqual, 1)
+		expected := []string{cfg.MailProg}
+
+		So(args, ShouldResemble, expected)
+	})
+}
+
+func TestPrepMUAArgsForSendmailWithCc(t *testing.T) {
+	Convey("command line args, sendmail [Cc]", t, func() {
+		cfg := config.Data{
+			MailProg: "sendmail",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+		}
+		args := PrepMUAArgs(cfg, map[string]string{})
+
+		expected := []string{cfg.MailProg, "Cc:", "ab@cd.org, ef@gh.com, ij@kl.net"}
+
+		So(args, ShouldResemble, expected)
+	})
+}
+
+func TestPrepMUAArgsForSendmailWithSender(t *testing.T) {
+	Convey("command line args, sendmail [From]", t, func() {
+		cfg := config.Data{
+			MailProg: "sendmail",
+			From:     "Hello Go <hello@go.go>",
+		}
+		args := PrepMUAArgs(cfg, map[string]string{})
+
+		expected := []string{cfg.MailProg, "From:", "Hello Go <hello@go.go>"}
+
+		So(args, ShouldResemble, expected)
+	})
+}
+
+func TestPrepMUAArgsForSendmailWithSenderAndNoName(t *testing.T) {
+	Convey("command line args, sendmail [From/p]", t, func() {
+		cfg := config.Data{
+			MailProg: "sendmail",
+			From:     "hello@go.go",
+		}
+		args := PrepMUAArgs(cfg, map[string]string{})
+
+		expected := []string{cfg.MailProg, "From:", "hello@go.go"}
+
+		So(args, ShouldResemble, expected)
+	})
+}
+
+func TestPrepMUAArgsForSendmailWithReplyTo(t *testing.T) {
+	Convey("command line args, sendmail [Reply-To]", t, func() {
+		cfg := config.Data{
+			MailProg: "sendmail",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+		}
+		args := PrepMUAArgs(cfg, map[string]string{})
+
+		expected := []string{cfg.MailProg, "Reply-To:", "Ja Mann <ja@mango.go>"}
+
+		So(args, ShouldResemble, expected)
+	})
+}
+
+func TestPrepMUAArgsForSendmailWithCcAndSender(t *testing.T) {
+	Convey("command line args, sendmail [Cc, From]", t, func() {
+		cfg := config.Data{
+			MailProg: "sendmail",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+		}
+		args := PrepMUAArgs(cfg, map[string]string{})
+
+		expected := []string{cfg.MailProg, "Cc:", "ab@cd.org, ef@gh.com, ij@kl.net"}
+		expected = append(expected, "From:", "Hello Go <hello@go.go>")
+
+		So(args, ShouldResemble, expected)
+	})
+}
+
+func TestPrepMUAArgsForSendmailWithAll(t *testing.T) {
+	Convey("command line args, sendmail [Reply-To, Cc, From]", t, func() {
+		cfg := config.Data{
+			MailProg: "sendmail",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+			Subject:  "Hola %FN%!",
+		}
+		args := PrepMUAArgs(cfg, map[string]string{})
+
+		expected := []string{cfg.MailProg, "Cc:", "ab@cd.org, ef@gh.com, ij@kl.net"}
+		expected = append(expected, "From:", "Hello Go <hello@go.go>")
+		expected = append(expected, "Reply-To:", "Ja Mann <ja@mango.go>")
+
+		So(args, ShouldResemble, expected)
+	})
+}
+
+// A `Cc` is set for the recipient and it redefines/overrides the global `Cc`
+// header value
+func TestPrepMUAArgsForSendmailWithAllAndPRCcRedef(t *testing.T) {
+	Convey("command line args, sendmail [Reply-To, Cc, From]", t, func() {
+		cfg := config.Data{
+			MailProg: "sendmail",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+			Subject:  "Hola %FN%!",
+		}
+		prdata := map[string]string{
+			"Cc": "First One <hello1@world.com>,   	The Second <2nd@example.org>",
+		}
+		args := PrepMUAArgs(cfg, prdata)
+
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "Cc:", "First One <hello1@world.com>, The Second <2nd@example.org>")
+		expected = append(expected, "From:", "Hello Go <hello@go.go>")
+		expected = append(expected, "Reply-To:", "Ja Mann <ja@mango.go>")
+
+		So(args, ShouldResemble, expected)
+	})
+}
+
+// A `Cc` is set for the recipient and it adds to the global `Cc`
+// header value
+func TestPrepMUAArgsForSendmailWithAllAndPRCcAdded(t *testing.T) {
+	Convey("command line args, sendmail [Reply-To, Cc, From]", t, func() {
+		cfg := config.Data{
+			MailProg: "sendmail",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+			Subject:  "Hola %FN%!",
+		}
+		prdata := map[string]string{
+			"Cc": "+Add Me <am@world.com>,   	Me Too Please Second <mtp@example.org>",
+		}
+		args := PrepMUAArgs(cfg, prdata)
+
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "Cc:", "ab@cd.org, ef@gh.com, ij@kl.net, Add Me <am@world.com>, Me Too Please Second <mtp@example.org>")
+		expected = append(expected, "From:", "Hello Go <hello@go.go>")
+		expected = append(expected, "Reply-To:", "Ja Mann <ja@mango.go>")
+
+		So(args, ShouldResemble, expected)
+	})
+}

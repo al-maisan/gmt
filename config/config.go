@@ -120,7 +120,7 @@ func SampleConfig(version string) string {
 # email address is to the left of the '=' sign, first word after is
 # the first name, the rest is the surname
 [general]
-mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
+mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'sendmail' on Fedora
 From="Frodo Baggins" <rts@example.com>
 #Cc=weirdo@nsb.gov, cc@example.com
 #Reply-To="John Doe" <jd@mail.com>
@@ -141,6 +141,6 @@ Hello %%FN%% // %%LN%%, how are things going at %%ORG%%?
 this is your email: %%EA%% :)
 
 
-Sent with gmt version %s, see https://github.com/al-maisan/gmt for details.`
+Sent with gmt version %s, see https://301.mx/gmt for details.`
 	return fmt.Sprintf(fs, version)
 }
