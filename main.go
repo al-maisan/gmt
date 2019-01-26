@@ -162,16 +162,16 @@ func sendEmail(addr string, data email.Data, cfg config.Data, ch chan string) {
 		body = data.Body
 		cmd2args = append(cmdline[1:], "-s", data.Subject, addr)
 	}
-	log.Println(cmdline)
+
 	file, err := tempFile([]byte(body))
 	if err != nil {
 		ch <- fmt.Sprintf("!! Error sending to %s (%s)", addr, err.Error())
 		return
 	}
 	defer os.Remove(file)
+
 	cmd1 := exec.Command("cat", file)
 	cmd2 := exec.Command(cmdline[0], cmd2args...)
-
 	if _, err = pipeCmds(cmd1, cmd2); err != nil {
 		ch <- fmt.Sprintf("!! Error sending to %s (%s)", addr, err.Error())
 		return
