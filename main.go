@@ -131,7 +131,7 @@ func send(mails map[string]email.Data, cfg config.Data) {
 	return
 }
 
-func prepSendmailBody(addr string, data email.Data, cmdline []string) (string, []string) {
+func prepSendmailBody(addr string, data email.Data, cmdline []string) (body string, new_cmdline []string) {
 	lines := []string{fmt.Sprintf("To: %s", addr)}
 	if data.Subject != "" {
 		lines = append(lines, fmt.Sprintf("Subject: %s", data.Subject))
@@ -143,8 +143,10 @@ func prepSendmailBody(addr string, data email.Data, cmdline []string) (string, [
 	lines = append(lines, fmt.Sprintf("X-Mailer: gmt, version %s, https://301.mx/gmt", Version()))
 
 	header := strings.Join(lines, "\n")
-	body := strings.Join([]string{header, data.Body}, "\n\n")
-	return body, []string{"sendmail", "-t"}
+	body = strings.Join([]string{header, data.Body}, "\n\n")
+	new_cmdline = []string{"sendmail", "-t"}
+
+	return
 }
 
 func sendEmail(addr string, data email.Data, cfg config.Data, ch chan string) {
