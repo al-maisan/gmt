@@ -24,10 +24,10 @@ import (
 	"github.com/al-maisan/gmt/config"
 )
 
-// `PrepMUAArgs` is called for each email recipient. It converts global
+// `prepMUAArgs` is called for each email recipient. It converts global
 // configuration data (`cfg`) and per-recipient configuration variables
 // (`prdata`) to mail user agent (MUA) command line arguments.
-func PrepMUAArgs(cfg config.Data, prdata map[string]string) (args []string) {
+func prepMUAArgs(cfg config.Data, prdata map[string]string) (args []string) {
 	if prccv, ok := prdata["Cc"]; ok {
 		re := regexp.MustCompile("\\s*,\\s*")
 		if strings.HasPrefix(prccv, "+") {
