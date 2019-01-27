@@ -102,7 +102,7 @@ func main() {
 	// is this a dry run? print what would be done if so and exit
 	if *doDryRun == true {
 		for addr, data := range mails {
-			cmdline := email.PrepMUAArgs(cfg, data.RecipientVars)
+			cmdline := []string{}
 			var body string
 
 			if cfg.MailProg == "sendmail" {
@@ -151,7 +151,7 @@ func prepSendmailBody(addr string, data email.Data, cmdline []string) (body stri
 
 func sendEmail(addr string, data email.Data, cfg config.Data, ch chan string) {
 	// prepare the command line args for the mail user agent (MUA)
-	cmdline := email.PrepMUAArgs(cfg, data.RecipientVars)
+	cmdline := []string{}
 
 	var body string
 	var cmd2args []string

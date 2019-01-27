@@ -27,7 +27,7 @@ import (
 // `prepMUAArgs` is called for each email recipient. It converts global
 // configuration data (`cfg`) and per-recipient configuration variables
 // (`prdata`) to mail user agent (MUA) command line arguments.
-func prepMUAArgs(cfg config.Data, prdata map[string]string) (args []string) {
+func prepMUAArgs(cfg config.Data, prdata map[string]string, subject string, recipient string) (args []string) {
 	if prccv, ok := prdata["Cc"]; ok {
 		re := regexp.MustCompile("\\s*,\\s*")
 		if strings.HasPrefix(prccv, "+") {
@@ -40,15 +40,7 @@ func prepMUAArgs(cfg config.Data, prdata map[string]string) (args []string) {
 
 	args = []string{cfg.MailProg}
 	if cfg.MailProg == "sendmail" {
-		if cfg.Cc != nil {
-			args = append(args, "Cc:", strings.Join(cfg.Cc, ", "))
-		}
-		if cfg.From != "" {
-			args = append(args, "From:", cfg.From)
-		}
-		if cfg.ReplyTo != "" {
-			args = append(args, "Reply-To:", cfg.ReplyTo)
-		}
+		args = append(args, "-t")
 	} else if cfg.MailProg == "mailx" {
 		if cfg.Cc != nil {
 			args = append(args, "-c", strings.Join(cfg.Cc, ","))
@@ -69,6 +61,9 @@ func prepMUAArgs(cfg config.Data, prdata map[string]string) (args []string) {
 		if cfg.ReplyTo != "" {
 			args = append(args, "-a", fmt.Sprintf("Reply-To: %s", cfg.ReplyTo))
 		}
+	}
+	if cfg.MailProg != "sendmail" {
+		args = append(args, "-s", subject, recipient)
 	}
 	return
 }
