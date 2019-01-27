@@ -26,18 +26,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/al-maisan/gmt/config"
 	"github.com/al-maisan/gmt/email"
 )
 
 func help() {
-	fmt.Fprintf(flag.CommandLine.Output(), "\n%s, version %s\nThis tool sends emails in bulk based on a template and a config file\n\n", filepath.Base(os.Args[0]), Version())
+	fmt.Fprintf(flag.CommandLine.Output(), "\n%s, version %s\nThis tool sends emails in bulk based on a template and a config file\n\n", filepath.Base(os.Args[0]), version())
 	flag.PrintDefaults()
 }
 
-func Version() string { return "0.1.9" }
+func version() string { return "0.2.0" }
 
 func main() {
 
@@ -51,12 +50,12 @@ func main() {
 	flag.Parse()
 
 	if *doSampleConfig {
-		fmt.Println(config.SampleConfig(Version()))
+		fmt.Println(config.SampleConfig(version()))
 		os.Exit(0)
 	}
 
 	if *doSampleTemplate {
-		fmt.Println(config.SampleTemplate(Version()))
+		fmt.Println(config.SampleTemplate(version()))
 		os.Exit(0)
 	}
 
@@ -96,32 +95,25 @@ func main() {
 		os.Exit(5)
 	}
 
+	cfg.Version = version()
 	// prepare the emails, substitute vars in subject & body
 	mails := email.PrepMails(cfg, string(bytes))
 
 	// is this a dry run? print what would be done if so and exit
 	if *doDryRun == true {
-		for addr, data := range mails {
-			cmdline := []string{}
-			var body string
-
-			if cfg.MailProg == "sendmail" {
-				body, cmdline = prepSendmailBody(addr, data, cmdline[1:])
-			} else {
-				body = data.Body
-			}
-			fmt.Fprintf(os.Stdout, "--\n%s\n%s\n", cmdline, body)
+		for _, mail := range mails {
+			fmt.Fprintf(os.Stdout, "--\n%s\n%s\n", mail.Cmdline, mail.Body)
 		}
 		os.Exit(0)
 	}
 
-	send(mails, cfg)
+	send(mails)
 }
 
-func send(mails map[string]email.Data, cfg config.Data) {
+func send(mails []email.Mail) {
 	ch := make(chan string)
-	for addr, data := range mails {
-		go sendEmail(addr, data, cfg, ch)
+	for _, mail := range mails {
+		go sendEmail(mail, ch)
 	}
 	fmt.Println("\nSending emails now..")
 	for i := len(mails); i > 0; i-- {
@@ -131,53 +123,21 @@ func send(mails map[string]email.Data, cfg config.Data) {
 	return
 }
 
-func prepSendmailBody(addr string, data email.Data, cmdline []string) (body string, new_cmdline []string) {
-	lines := []string{fmt.Sprintf("To: %s", addr)}
-	if data.Subject != "" {
-		lines = append(lines, fmt.Sprintf("Subject: %s", data.Subject))
-	}
-	for i := 0; i < len(cmdline); i++ {
-		lines = append(lines, fmt.Sprintf("%s %s", cmdline[i], cmdline[i+1]))
-		i++
-	}
-	lines = append(lines, fmt.Sprintf("X-Mailer: gmt, version %s, https://301.mx/gmt", Version()))
-
-	header := strings.Join(lines, "\n")
-	body = strings.Join([]string{header, data.Body}, "\n\n")
-	new_cmdline = []string{"sendmail", "-t"}
-
-	return
-}
-
-func sendEmail(addr string, data email.Data, cfg config.Data, ch chan string) {
-	// prepare the command line args for the mail user agent (MUA)
-	cmdline := []string{}
-
-	var body string
-	var cmd2args []string
-
-	if cfg.MailProg == "sendmail" {
-		body, cmdline = prepSendmailBody(addr, data, cmdline[1:])
-		cmd2args = cmdline[1:]
-	} else {
-		body = data.Body
-		cmd2args = append(cmdline[1:], "-s", data.Subject, addr)
-	}
-
-	file, err := tempFile([]byte(body))
+func sendEmail(mail email.Mail, ch chan string) {
+	file, err := tempFile([]byte(mail.Body))
 	if err != nil {
-		ch <- fmt.Sprintf("!! Error sending to %s (%s)", addr, err.Error())
+		ch <- fmt.Sprintf("!! Error sending to %s (%s)", mail.Recipient, err.Error())
 		return
 	}
 	defer os.Remove(file)
 
 	cmd1 := exec.Command("cat", file)
-	cmd2 := exec.Command(cmdline[0], cmd2args...)
+	cmd2 := exec.Command(mail.Cmdline[0], mail.Cmdline[1:]...)
 	if _, err = pipeCmds(cmd1, cmd2); err != nil {
-		ch <- fmt.Sprintf("!! Error sending to %s (%s)", addr, err.Error())
+		ch <- fmt.Sprintf("!! Error sending to %s (%s)", mail.Recipient, err.Error())
 		return
 	} else {
-		ch <- fmt.Sprintf("-> %s", addr)
+		ch <- fmt.Sprintf("-> %s", mail.Recipient)
 	}
 }
 

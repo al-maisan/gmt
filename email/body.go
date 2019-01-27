@@ -23,10 +23,10 @@ import (
 	"github.com/al-maisan/gmt/config"
 )
 
-type Data struct {
-	Subject       string
-	Body          string
-	RecipientVars map[string]string
+type Mail struct {
+	Recipient string
+	Body      string
+	Cmdline   []string
 }
 
 func substVars(recipient config.Recipient, text string) (result string) {
@@ -39,14 +39,36 @@ func substVars(recipient config.Recipient, text string) (result string) {
 	return
 }
 
-func PrepMails(cfg config.Data, template string) (mails map[string]Data) {
-	mails = make(map[string]Data)
-	for _, recipient := range cfg.Recipients {
-		data := Data{}
-		data.Body = substVars(recipient, template)
-		data.Subject = substVars(recipient, cfg.Subject)
-		data.RecipientVars = recipient.Data
-		mails[recipient.Email] = data
+func PrepMails(cfg config.Data, template string) (mails []Mail) {
+	mails = make([]Mail, len(cfg.Recipients))
+	for idx, recipient := range cfg.Recipients {
+		subject := substVars(recipient, cfg.Subject)
+		mails[idx].Cmdline = prepMUAArgs(cfg, recipient.Data, subject, recipient.Email)
+		mails[idx].Recipient = recipient.Email
+		mails[idx].Body = prepBody(cfg, recipient, subject, substVars(recipient, template))
 	}
 	return
+}
+
+func prepBody(cfg config.Data, recipient config.Recipient, subject string, body string) string {
+	if cfg.MailProg != "sendmail" {
+		return body
+	}
+	lines := []string{fmt.Sprintf("To: %s", recipient.Email)}
+	if subject != "" {
+		lines = append(lines, fmt.Sprintf("Subject: %s", subject))
+	}
+	if cfg.Cc != nil {
+		lines = append(lines, fmt.Sprintf("Cc: %s", strings.Join(cfg.Cc, ", ")))
+	}
+	if cfg.From != "" {
+		lines = append(lines, fmt.Sprintf("From: %s", cfg.From))
+	}
+	if cfg.ReplyTo != "" {
+		lines = append(lines, fmt.Sprintf("Reply-To: %s", cfg.ReplyTo))
+	}
+	lines = append(lines, fmt.Sprintf("X-Mailer: gmt, version %s, https://301.mx/gmt", cfg.Version))
+
+	header := strings.Join(lines, "\n")
+	return strings.Join([]string{header, body}, "\n\n")
 }

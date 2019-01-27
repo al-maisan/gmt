@@ -55,7 +55,6 @@ func TestPrepMUAArgsForMailxWithCc(t *testing.T) {
 		expected = append(expected, "-c", "ab@cd.org,ef@gh.com,ij@kl.net")
 		expected = append(expected, "-s", subject, recipient)
 
-
 		So(args, ShouldResemble, expected)
 	})
 }
