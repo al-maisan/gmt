@@ -18,7 +18,6 @@ package email
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/al-maisan/gmt/config"
@@ -41,7 +40,6 @@ func substVars(recipient config.Recipient, text string) (result string) {
 }
 
 func PrepMails(cfg config.Data, template string) (mails []Mail) {
-	fmt.Fprintf(os.Stdout, "recipients:\n%#v\n", cfg.Recipients)
 	mails = make([]Mail, 0, len(cfg.Recipients))
 	for _, recipient := range cfg.Recipients {
 		subject := substVars(recipient, cfg.Subject)
@@ -50,10 +48,8 @@ func PrepMails(cfg config.Data, template string) (mails []Mail) {
 			Recipient: recipient.Email,
 			Body:      prepBody(cfg, recipient, subject, substVars(recipient, template)),
 		}
-		fmt.Fprintf(os.Stdout, "cmdline:\n%#v\n", mail.Cmdline)
 		mails = append(mails, mail)
 	}
-	fmt.Fprintf(os.Stdout, "mails:\n%#v\n", mails)
 	return
 }
 
