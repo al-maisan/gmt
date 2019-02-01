@@ -17,6 +17,8 @@
 package email
 
 import (
+	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/al-maisan/gmt/config"
@@ -33,7 +35,7 @@ func TestPrepBodies(t *testing.T) {
 		version := "0.2.0"
 		cfg := GetConfig(config.SampleConfig(version))
 		template := config.SampleTemplate(version)
-		bodies := PrepMails(cfg, template)
+		mails := PrepMails(cfg, template)
 
 		expected := `FN / LN / EA = first name / last name / email address
 
@@ -42,8 +44,10 @@ this is your email: jd@example.com :)
 
 
 Sent with gmt version 0.2.0, see https://301.mx/gmt for details.`
-		So(bodies["jd@example.com"].Body, ShouldEqual, expected)
-		So(bodies["jd@example.com"].Subject, ShouldEqual, "Hello John!")
+		mail := mails[0]
+		So(mail.Recipient, ShouldEqual, "jd@example.com")
+		So(mail.Body, ShouldEqual, expected)
+		So(mail.Cmdline, ShouldEqual, []string{"gnu-mail", "-a", "Cc: bl@kf.io, info@ex.org", "-a", fmt.Sprintf("From: %s <rts@example.com>", strconv.Quote("Frodo Baggins")), "-s", "Hello John!", "jd@example.com"})
 
 		expected = `FN / LN / EA = first name / last name / email address
 
@@ -52,8 +56,10 @@ this is your email: mm@gmail.com :)
 
 
 Sent with gmt version 0.2.0, see https://301.mx/gmt for details.`
-		So(bodies["mm@gmail.com"].Body, ShouldEqual, expected)
-		So(bodies["mm@gmail.com"].Subject, ShouldEqual, "Hello Mickey!")
+		mail = mails[1]
+		So(mail.Recipient, ShouldEqual, "mm@gmail.com")
+		So(mail.Body, ShouldEqual, expected)
+		So(mail.Cmdline, ShouldEqual, []string{})
 
 		expected = `FN / LN / EA = first name / last name / email address
 
@@ -62,7 +68,28 @@ this is your email: daisy@example.com :)
 
 
 Sent with gmt version 0.2.0, see https://301.mx/gmt for details.`
-		So(bodies["daisy@example.com"].Body, ShouldEqual, expected)
-		So(bodies["daisy@example.com"].Subject, ShouldEqual, "Hello Daisy!")
+		mail = mails[2]
+		So(mail.Recipient, ShouldEqual, "daisy@example.com")
+		So(mail.Body, ShouldEqual, expected)
+		So(mail.Cmdline, ShouldEqual, []string{})
+	})
+}
+
+func TestPrepBodyForMailxWithNoAdditionalData(t *testing.T) {
+	Convey("minimal command line args for mailx", t, func() {
+		cfg := config.Data{
+			MailProg: "mailx",
+		}
+		recipient := config.Recipient{
+			Email: "r1@example.com",
+			First: "The",
+			Last:  "Mailinator",
+		}
+		subject := "Hello! Just throw it back #1"
+
+		expected := "body #1"
+		body := prepBody(cfg, recipient, subject, "body #1")
+
+		So(body, ShouldResemble, expected)
 	})
 }
