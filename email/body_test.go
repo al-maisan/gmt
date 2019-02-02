@@ -148,7 +148,7 @@ func TestPrepBodyForSendmailWithNoAdditionalData(t *testing.T) {
 	Convey("body for sendmail", t, func() {
 		cfg := config.Data{
 			MailProg: "sendmail",
-			Version: "0.99.7",
+			Version:  "0.99.7",
 		}
 		recipient := config.Recipient{
 			Email: "r7@example.com",
@@ -171,7 +171,7 @@ func TestPrepBodyForSendmailWithCc(t *testing.T) {
 	Convey("body, sendmail [Cc]", t, func() {
 		cfg := config.Data{
 			MailProg: "sendmail",
-			Version: "0.99.8",
+			Version:  "0.99.8",
 			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
 		}
 		recipient := config.Recipient{
@@ -196,7 +196,7 @@ func TestPrepBodyForSendmailWithSender(t *testing.T) {
 	Convey("body, sendmail [From]", t, func() {
 		cfg := config.Data{
 			MailProg: "sendmail",
-			Version: "0.99.9",
+			Version:  "0.99.9",
 			From:     "Hello Go <hello@go.go>",
 		}
 		recipient := config.Recipient{
@@ -221,7 +221,7 @@ func TestPrepBodyForSendmailWithReplyTo(t *testing.T) {
 	Convey("body, sendmail [Reply-To]", t, func() {
 		cfg := config.Data{
 			MailProg: "sendmail",
-			Version: "0.99.A",
+			Version:  "0.99.A",
 			ReplyTo:  "Ja Mann <ja@mango.go>",
 		}
 		recipient := config.Recipient{
@@ -246,7 +246,7 @@ func TestPrepBodyForSendmailWithCcAndSender(t *testing.T) {
 	Convey("body, sendmail [Reply-To]", t, func() {
 		cfg := config.Data{
 			MailProg: "sendmail",
-			Version: "0.99.B",
+			Version:  "0.99.B",
 			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
 			From:     "Hello Go <hello@go.go>",
 		}
@@ -273,7 +273,7 @@ func TestPrepBodyForSendmailWithAll(t *testing.T) {
 	Convey("body, sendmail [Reply-To]", t, func() {
 		cfg := config.Data{
 			MailProg: "sendmail",
-			Version: "0.99.C",
+			Version:  "0.99.C",
 			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
 			From:     "Hello Go <hello@go.go>",
 			ReplyTo:  "Ja Mann <ja@mango.go>",
