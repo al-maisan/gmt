@@ -37,6 +37,7 @@ type Data struct {
 	ReplyTo    string
 	Cc         []string
 	Subject    string
+	Version    string
 	Recipients []Recipient
 }
 

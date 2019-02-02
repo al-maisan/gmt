@@ -23,47 +23,278 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func GetConfig(input string) config.Data {
-	cfg, _ := config.New([]byte(input))
-	return cfg
+// ------------- non-sendmail -------------
+
+func TestPrepBodyForMailxWithNoAdditionalData(t *testing.T) {
+	Convey("body for mailx", t, func() {
+		cfg := config.Data{
+			MailProg: "mailx",
+		}
+		recipient := config.Recipient{
+			Email: "r1@example.com",
+			First: "The",
+			Last:  "Mailinator",
+		}
+		subject := "Hello! Just throw it back #1"
+
+		expected := "body #1"
+		body := prepBody(cfg, recipient, subject, "body #1")
+		So(body, ShouldEqual, expected)
+	})
 }
 
-func TestPrepBodies(t *testing.T) {
-	Convey("generate email bodies for default config", t, func() {
-		version := "0.1.9"
-		cfg := GetConfig(config.SampleConfig(version))
-		template := config.SampleTemplate(version)
-		bodies := PrepMails(cfg, template)
+func TestPrepBodyForMailxWithCc(t *testing.T) {
+	Convey("body, mailx [Cc]", t, func() {
+		cfg := config.Data{
+			MailProg: "mailx",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+		}
+		recipient := config.Recipient{
+			Email: "r2@example.com",
+			First: "The",
+			Last:  "Mailinator",
+		}
+		subject := "Hello! How are things? #2"
 
-		So(len(bodies), ShouldEqual, 3)
-		expected := `FN / LN / EA = first name / last name / email address
+		expected := "body #2"
+		body := prepBody(cfg, recipient, subject, "body #2")
+		So(body, ShouldEqual, expected)
+	})
+}
 
-Hello John // Doe Jr., how are things going at EFF?
-this is your email: jd@example.com :)
+func TestPrepBodyForMailxWithSender(t *testing.T) {
+	Convey("body, mailx [From]", t, func() {
+		cfg := config.Data{
+			MailProg: "mailx",
+			From:     "Hello Go <hello@go.go>",
+		}
+		recipient := config.Recipient{
+			Email: "r3@example.com",
+			First: "The",
+			Last:  "Mailinator",
+		}
+		subject := "Hello! How are things? #3"
 
+		expected := "body #3"
+		body := prepBody(cfg, recipient, subject, "body #3")
+		So(body, ShouldEqual, expected)
+	})
+}
 
-Sent with gmt version 0.1.9, see https://301.mx/gmt for details.`
-		So(bodies["jd@example.com"].Body, ShouldEqual, expected)
-		So(bodies["jd@example.com"].Subject, ShouldEqual, "Hello John!")
+func TestPrepBodyForMailxWithReplyTo(t *testing.T) {
+	Convey("body, mailx [Reply-To]", t, func() {
+		cfg := config.Data{
+			MailProg: "mailx",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+		}
+		recipient := config.Recipient{
+			Email: "r4@example.com",
+			First: "The",
+			Last:  "Mailinator",
+		}
+		subject := "Hello! How are things? #4"
 
-		expected = `FN / LN / EA = first name / last name / email address
+		expected := "body #4"
+		body := prepBody(cfg, recipient, subject, "body #4")
+		So(body, ShouldEqual, expected)
+	})
+}
 
-Hello Mickey // Mouse, how are things going at Disney?
-this is your email: mm@gmail.com :)
+func TestPrepBodyForMailxWithCcAndSender(t *testing.T) {
+	Convey("body, mailx [Reply-To]", t, func() {
+		cfg := config.Data{
+			MailProg: "mailx",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+		}
+		recipient := config.Recipient{
+			Email: "r5@example.com",
+			First: "The",
+			Last:  "Mailinator",
+		}
+		subject := "Hello! How are things? #5"
 
+		expected := "body #5"
+		body := prepBody(cfg, recipient, subject, "body #5")
+		So(body, ShouldEqual, expected)
+	})
+}
 
-Sent with gmt version 0.1.9, see https://301.mx/gmt for details.`
-		So(bodies["mm@gmail.com"].Body, ShouldEqual, expected)
-		So(bodies["mm@gmail.com"].Subject, ShouldEqual, "Hello Mickey!")
+func TestPrepBodyForMailxWithAll(t *testing.T) {
+	Convey("body, mailx [Reply-To]", t, func() {
+		cfg := config.Data{
+			MailProg: "mailx",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+			Subject:  "This is spam!",
+		}
+		recipient := config.Recipient{
+			Email: "r6@example.com",
+			First: "The",
+			Last:  "Mailinator",
+		}
+		subject := "Hello! How are things? #6"
 
-		expected = `FN / LN / EA = first name / last name / email address
+		expected := "body #6"
+		body := prepBody(cfg, recipient, subject, "body #6")
+		So(body, ShouldEqual, expected)
+	})
+}
 
-Hello Daisy // Lila, how are things going at NASA?
-this is your email: daisy@example.com :)
+// ------------- sendmail -------------
 
+func TestPrepBodyForSendmailWithNoAdditionalData(t *testing.T) {
+	Convey("body for sendmail", t, func() {
+		cfg := config.Data{
+			MailProg: "sendmail",
+			Version:  "0.99.7",
+		}
+		recipient := config.Recipient{
+			Email: "r7@example.com",
+			First: "The",
+			Last:  "Mailinator",
+		}
+		subject := "Hello! Just throw it back #7"
 
-Sent with gmt version 0.1.9, see https://301.mx/gmt for details.`
-		So(bodies["daisy@example.com"].Body, ShouldEqual, expected)
-		So(bodies["daisy@example.com"].Subject, ShouldEqual, "Hello Daisy!")
+		expected := `To: r7@example.com
+Subject: Hello! Just throw it back #7
+X-Mailer: gmt, version 0.99.7, https://301.mx/gmt
+
+body #7`
+		body := prepBody(cfg, recipient, subject, "body #7")
+		So(body, ShouldEqual, expected)
+	})
+}
+
+func TestPrepBodyForSendmailWithCc(t *testing.T) {
+	Convey("body, sendmail [Cc]", t, func() {
+		cfg := config.Data{
+			MailProg: "sendmail",
+			Version:  "0.99.8",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+		}
+		recipient := config.Recipient{
+			Email: "r8@example.com",
+			First: "The",
+			Last:  "Mailinator",
+		}
+		subject := "Hello! Just throw it back #8"
+
+		expected := `To: r8@example.com
+Subject: Hello! Just throw it back #8
+Cc: ab@cd.org, ef@gh.com, ij@kl.net
+X-Mailer: gmt, version 0.99.8, https://301.mx/gmt
+
+body #8`
+		body := prepBody(cfg, recipient, subject, "body #8")
+		So(body, ShouldEqual, expected)
+	})
+}
+
+func TestPrepBodyForSendmailWithSender(t *testing.T) {
+	Convey("body, sendmail [From]", t, func() {
+		cfg := config.Data{
+			MailProg: "sendmail",
+			Version:  "0.99.9",
+			From:     "Hello Go <hello@go.go>",
+		}
+		recipient := config.Recipient{
+			Email: "r9@example.com",
+			First: "The",
+			Last:  "Mailinator",
+		}
+		subject := "Hello! Just throw it back #9"
+
+		expected := `To: r9@example.com
+Subject: Hello! Just throw it back #9
+From: Hello Go <hello@go.go>
+X-Mailer: gmt, version 0.99.9, https://301.mx/gmt
+
+body #9`
+		body := prepBody(cfg, recipient, subject, "body #9")
+		So(body, ShouldEqual, expected)
+	})
+}
+
+func TestPrepBodyForSendmailWithReplyTo(t *testing.T) {
+	Convey("body, sendmail [Reply-To]", t, func() {
+		cfg := config.Data{
+			MailProg: "sendmail",
+			Version:  "0.99.A",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+		}
+		recipient := config.Recipient{
+			Email: "rA@example.com",
+			First: "The",
+			Last:  "Mailinator",
+		}
+		subject := "Hello! Just throw it back #A"
+
+		expected := `To: rA@example.com
+Subject: Hello! Just throw it back #A
+Reply-To: Ja Mann <ja@mango.go>
+X-Mailer: gmt, version 0.99.A, https://301.mx/gmt
+
+body #A`
+		body := prepBody(cfg, recipient, subject, "body #A")
+		So(body, ShouldEqual, expected)
+	})
+}
+
+func TestPrepBodyForSendmailWithCcAndSender(t *testing.T) {
+	Convey("body, sendmail [Reply-To]", t, func() {
+		cfg := config.Data{
+			MailProg: "sendmail",
+			Version:  "0.99.B",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+		}
+		recipient := config.Recipient{
+			Email: "rB@example.com",
+			First: "The",
+			Last:  "Mailinator",
+		}
+		subject := "Hello! Just throw it back #B"
+
+		expected := `To: rB@example.com
+Subject: Hello! Just throw it back #B
+Cc: ab@cd.org, ef@gh.com, ij@kl.net
+From: Hello Go <hello@go.go>
+X-Mailer: gmt, version 0.99.B, https://301.mx/gmt
+
+body #B`
+		body := prepBody(cfg, recipient, subject, "body #B")
+		So(body, ShouldEqual, expected)
+	})
+}
+
+func TestPrepBodyForSendmailWithAll(t *testing.T) {
+	Convey("body, sendmail [Reply-To]", t, func() {
+		cfg := config.Data{
+			MailProg: "sendmail",
+			Version:  "0.99.C",
+			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
+			From:     "Hello Go <hello@go.go>",
+			ReplyTo:  "Ja Mann <ja@mango.go>",
+			Subject:  "This is spam!",
+		}
+		recipient := config.Recipient{
+			Email: "rC@example.com",
+			First: "The",
+			Last:  "Mailinator",
+		}
+		subject := "Hello! Just throw it back #C"
+
+		expected := `To: rC@example.com
+Subject: Hello! Just throw it back #C
+Cc: ab@cd.org, ef@gh.com, ij@kl.net
+From: Hello Go <hello@go.go>
+Reply-To: Ja Mann <ja@mango.go>
+X-Mailer: gmt, version 0.99.C, https://301.mx/gmt
+
+body #C`
+		body := prepBody(cfg, recipient, subject, "body #C")
+		So(body, ShouldEqual, expected)
 	})
 }
