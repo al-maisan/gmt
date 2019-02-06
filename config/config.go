@@ -19,6 +19,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
 
 	"github.com/go-ini/ini"
@@ -86,12 +87,25 @@ func New(bs []byte) (result Data, err error) {
 		}
 		re := regexp.MustCompile("\\s*,\\s*")
 		result.Attachments = re.Split(val, -1)
+		if path, err2 := checkAttachments(result.Attachments); err2 != nil {
+			err = errors.New(fmt.Sprintf("Attachment '%s' does not exist!", path))
+			return
+		}
 	}
 
 	var recipients *ini.Section
 	recipients, err = cfg.GetSection("recipients")
 	if err == nil {
 		result.Recipients = parseRecipients(recipients)
+	}
+	return
+}
+
+func checkAttachments(attachments []string) (path string, err error) {
+	for _, path = range attachments {
+		if _, err = os.Lstat(path); err != nil {
+			return
+		}
 	}
 	return
 }
