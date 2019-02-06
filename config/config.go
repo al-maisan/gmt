@@ -19,6 +19,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
 
 	"github.com/go-ini/ini"
@@ -32,13 +33,14 @@ type Recipient struct {
 }
 
 type Data struct {
-	MailProg   string
-	From       string
-	ReplyTo    string
-	Cc         []string
-	Subject    string
-	Version    string
-	Recipients []Recipient
+	MailProg    string
+	From        string
+	ReplyTo     string
+	Cc          []string
+	Subject     string
+	Version     string
+	Recipients  []Recipient
+	Attachments []string
 }
 
 func New(bs []byte) (result Data, err error) {
@@ -78,11 +80,32 @@ func New(bs []byte) (result Data, err error) {
 		re := regexp.MustCompile("\\s*,\\s*")
 		result.Cc = re.Split(val, -1)
 	}
+	if val, ok := keys["attachments"]; ok {
+		if result.MailProg == "sendmail" {
+			err = errors.New("Cannot use 'sendmail' with attachments!")
+			return
+		}
+		re := regexp.MustCompile("\\s*,\\s*")
+		result.Attachments = re.Split(val, -1)
+		if path, err2 := checkAttachments(result.Attachments); err2 != nil {
+			err = errors.New(fmt.Sprintf("Attachment '%s' does not exist!", path))
+			return
+		}
+	}
 
 	var recipients *ini.Section
 	recipients, err = cfg.GetSection("recipients")
 	if err == nil {
 		result.Recipients = parseRecipients(recipients)
+	}
+	return
+}
+
+func checkAttachments(attachments []string) (path string, err error) {
+	for _, path = range attachments {
+		if _, err = os.Lstat(path); err != nil {
+			return
+		}
 	}
 	return
 }
@@ -126,6 +149,7 @@ From="Frodo Baggins" <rts@example.com>
 #Cc=weirdo@nsb.gov, cc@example.com
 #Reply-To="John Doe" <jd@mail.com>
 subject=Hello %%FN%%!
+#attachments=/home/user/atmt1.ics, ../Documents/doc2.txt
 [recipients]
 # The 'Cc' setting below *redefines* the global 'Cc' value above
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|Cc:-bl@kf.io,info@ex.org

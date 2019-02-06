@@ -33,6 +33,7 @@ From=Frodo Baggins <rts@example.com>
 #Cc=weirdo@nsb.gov, cc@example.com
 #Reply-to=John Doe <jd@mail.com>
 subject=Hello %FN%!
+#attachments=/home/user/atmt1.ics, ../Documents/doc2.txt
 [recipients]
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
@@ -109,6 +110,24 @@ mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 	})
 }
 
+func TestLoadSendmailWithAttachments(t *testing.T) {
+	Convey("We cannot use sendmail with attachments", t, func() {
+		_, err := New([]byte(`
+[general]
+mail-prog=sendmail
+From=Frodo Baggins <rts@example.com>
+subject=Hello %FN%!
+attachments=/home/user/atmt1.ics, ../Documents/doc2.txt
+[recipients]
+jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
+mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
+`),
+		)
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldEqual, "Cannot use 'sendmail' with attachments!")
+	})
+}
+
 func TestLoadFull(t *testing.T) {
 	Convey("Load full config, test general parts", t, func() {
 		cfg, err := New([]byte(`
@@ -118,6 +137,7 @@ From=Frodo Baggins <rts@example.com>
 Cc=weirdo@nsb.gov, cc@example.com
 Reply-To=John Doe <jd@mail.com>
 subject=Hello %FN%!
+#attachments=/home/user/atmt1.ics, ../Documents/doc2.txt
 [recipients]
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
@@ -159,6 +179,7 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		So(cfg.Recipients, ShouldResemble, expected)
 	})
 }
+
 func TestParseRecipients(t *testing.T) {
 	Convey("Load the recipients", t, func() {
 		cfg, err := ini.Load([]byte(`

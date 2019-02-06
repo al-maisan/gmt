@@ -51,6 +51,11 @@ func prepMUAArgs(cfg config.Data, prdata map[string]string, subject string, reci
 		if cfg.ReplyTo != "" {
 			args = append(args, "-S", fmt.Sprintf("replyto=%s", cfg.ReplyTo))
 		}
+		if cfg.Attachments != nil {
+			for _, path := range cfg.Attachments {
+				args = append(args, "-a", path)
+			}
+		}
 	} else {
 		if cfg.Cc != nil {
 			args = append(args, "-a", fmt.Sprintf("Cc: %s", strings.Join(cfg.Cc, ", ")))
@@ -60,6 +65,11 @@ func prepMUAArgs(cfg config.Data, prdata map[string]string, subject string, reci
 		}
 		if cfg.ReplyTo != "" {
 			args = append(args, "-a", fmt.Sprintf("Reply-To: %s", cfg.ReplyTo))
+		}
+		if cfg.Attachments != nil {
+			for _, path := range cfg.Attachments {
+				args = append(args, "-A", path)
+			}
 		}
 	}
 	if cfg.MailProg != "sendmail" {
