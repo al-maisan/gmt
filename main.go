@@ -36,7 +36,7 @@ func help() {
 	flag.PrintDefaults()
 }
 
-func version() string { return "0.2.0" }
+func version() string { return "0.2.1" }
 
 func main() {
 

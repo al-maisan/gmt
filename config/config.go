@@ -32,13 +32,14 @@ type Recipient struct {
 }
 
 type Data struct {
-	MailProg   string
-	From       string
-	ReplyTo    string
-	Cc         []string
-	Subject    string
-	Version    string
-	Recipients []Recipient
+	MailProg    string
+	From        string
+	ReplyTo     string
+	Cc          []string
+	Subject     string
+	Version     string
+	Recipients  []Recipient
+	Attachments []string
 }
 
 func New(bs []byte) (result Data, err error) {
@@ -77,6 +78,14 @@ func New(bs []byte) (result Data, err error) {
 	if val, ok := keys["Cc"]; ok {
 		re := regexp.MustCompile("\\s*,\\s*")
 		result.Cc = re.Split(val, -1)
+	}
+	if val, ok := keys["attachments"]; ok {
+		if result.MailProg == "sendmail" {
+			err = errors.New("Cannot use 'sendmail' with attachments!")
+			return
+		}
+		re := regexp.MustCompile("\\s*,\\s*")
+		result.Attachments = re.Split(val, -1)
 	}
 
 	var recipients *ini.Section
@@ -126,6 +135,7 @@ From="Frodo Baggins" <rts@example.com>
 #Cc=weirdo@nsb.gov, cc@example.com
 #Reply-To="John Doe" <jd@mail.com>
 subject=Hello %%FN%%!
+#attachments=/home/user/atmt1.ics, ../Documents/doc2.txt
 [recipients]
 # The 'Cc' setting below *redefines* the global 'Cc' value above
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|Cc:-bl@kf.io,info@ex.org
