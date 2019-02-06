@@ -40,6 +40,26 @@ func TestPrepMUAArgsForMailxWithNoAdditionalData(t *testing.T) {
 	})
 }
 
+func TestPrepMUAArgsForMailxWithAttachments(t *testing.T) {
+	Convey("command line args, mailx [Cc]", t, func() {
+		cfg := config.Data{
+			MailProg:    "mailx",
+			Attachments: []string{"/home/user/atmt1.ics", "../Documents/doc2.txt"},
+		}
+		subject := "Hello! How are things? #2.5"
+		recipient := "r2@example.com"
+
+		args := prepMUAArgs(cfg, map[string]string{}, subject, recipient)
+
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "-a", "/home/user/atmt1.ics")
+		expected = append(expected, "-a", "../Documents/doc2.txt")
+		expected = append(expected, "-s", subject, recipient)
+
+		So(args, ShouldResemble, expected)
+	})
+}
+
 func TestPrepMUAArgsForMailxWithCc(t *testing.T) {
 	Convey("command line args, mailx [Cc]", t, func() {
 		cfg := config.Data{
@@ -229,6 +249,26 @@ func TestPrepMUAArgsForNonMailxWithNoAdditionalData(t *testing.T) {
 		args := prepMUAArgs(cfg, map[string]string{}, subject, recipient)
 
 		expected := []string{cfg.MailProg}
+		expected = append(expected, "-s", subject, recipient)
+
+		So(args, ShouldResemble, expected)
+	})
+}
+
+func TestPrepMUAArgsForNonMailxWithAttachments(t *testing.T) {
+	Convey("command line args, mailx [Cc]", t, func() {
+		cfg := config.Data{
+			MailProg:    "mailx",
+			Attachments: []string{"/home/user/atmt1.ics", "../Documents/doc2.txt"},
+		}
+		subject := "Hello! How are things? #2.5"
+		recipient := "r2@example.com"
+
+		args := prepMUAArgs(cfg, map[string]string{}, subject, recipient)
+
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "-A", "/home/user/atmt1.ics")
+		expected = append(expected, "-A", "../Documents/doc2.txt")
 		expected = append(expected, "-s", subject, recipient)
 
 		So(args, ShouldResemble, expected)
