@@ -137,7 +137,7 @@ From=Frodo Baggins <rts@example.com>
 Cc=weirdo@nsb.gov, cc@example.com
 Reply-To=John Doe <jd@mail.com>
 subject=Hello %FN%!
-attachments=/home/user/atmt1.ics, ../Documents/doc2.txt
+#attachments=/home/user/atmt1.ics, ../Documents/doc2.txt
 [recipients]
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
@@ -152,7 +152,6 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		So(len(cfg.Cc), ShouldEqual, 2)
 		So(cfg.Subject, ShouldEqual, "Hello %FN%!")
 		So(cfg.Cc, ShouldResemble, []string{"weirdo@nsb.gov", "cc@example.com"})
-		So(cfg.Attachments, ShouldResemble, []string{"/home/user/atmt1.ics", "../Documents/doc2.txt"})
 		expected := []Recipient{
 			{
 				Email: "jd@example.com",

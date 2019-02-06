@@ -258,7 +258,7 @@ func TestPrepMUAArgsForNonMailxWithNoAdditionalData(t *testing.T) {
 func TestPrepMUAArgsForNonMailxWithAttachments(t *testing.T) {
 	Convey("command line args, mailx [Cc]", t, func() {
 		cfg := config.Data{
-			MailProg:    "mailx",
+			MailProg:    "gnu-mail",
 			Attachments: []string{"/home/user/atmt1.ics", "../Documents/doc2.txt"},
 		}
 		subject := "Hello! How are things? #2.5"
