@@ -46,10 +46,10 @@ func prepMUAArgs(cfg config.Data, prdata map[string]string, subject string, reci
 			args = append(args, "-c", strings.Join(cfg.Cc, ","))
 		}
 		if cfg.From != "" {
-			args = append(args, "-S", fmt.Sprintf("from=%s", cfg.From))
+			args = append(args, "-S", fmt.Sprintf("from='%s'", cfg.From))
 		}
 		if cfg.ReplyTo != "" {
-			args = append(args, "-S", fmt.Sprintf("replyto=%s", cfg.ReplyTo))
+			args = append(args, "-S", fmt.Sprintf("replyto='%s'", cfg.ReplyTo))
 		}
 		if cfg.Attachments != nil {
 			for _, path := range cfg.Attachments {
@@ -58,13 +58,13 @@ func prepMUAArgs(cfg config.Data, prdata map[string]string, subject string, reci
 		}
 	} else {
 		if cfg.Cc != nil {
-			args = append(args, "-a", fmt.Sprintf("Cc: %s", strings.Join(cfg.Cc, ", ")))
+			args = append(args, "-a", fmt.Sprintf("Cc: '%s'", strings.Join(cfg.Cc, ", ")))
 		}
 		if cfg.From != "" {
-			args = append(args, "-a", fmt.Sprintf("From: %s", cfg.From))
+			args = append(args, "-a", fmt.Sprintf("From: '%s'", cfg.From))
 		}
 		if cfg.ReplyTo != "" {
-			args = append(args, "-a", fmt.Sprintf("Reply-To: %s", cfg.ReplyTo))
+			args = append(args, "-a", fmt.Sprintf("Reply-To: '%s'", cfg.ReplyTo))
 		}
 		if cfg.Attachments != nil {
 			for _, path := range cfg.Attachments {
@@ -73,7 +73,7 @@ func prepMUAArgs(cfg config.Data, prdata map[string]string, subject string, reci
 		}
 	}
 	if cfg.MailProg != "sendmail" {
-		args = append(args, "-s", subject, recipient)
+		args = append(args, "-s", fmt.Sprintf("'%s'", subject), recipient)
 	}
 	return
 }

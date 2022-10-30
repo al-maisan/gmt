@@ -26,6 +26,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/al-maisan/gmt/config"
 	"github.com/al-maisan/gmt/email"
@@ -126,15 +127,16 @@ func send(mails []email.Mail) {
 func sendEmail(mail email.Mail, ch chan string) {
 	file, err := tempFile([]byte(mail.Body))
 	if err != nil {
-		ch <- fmt.Sprintf("!! Error sending to %s (%s)", mail.Recipient, err.Error())
+		ch <- fmt.Sprintf("!1! Error sending to %s (%s)", mail.Recipient, err.Error())
 		return
 	}
 	defer os.Remove(file)
 
-	cmd1 := exec.Command("cat", file)
-	cmd2 := exec.Command(mail.Cmdline[0], mail.Cmdline[1:]...)
-	if _, err = pipeCmds(cmd1, cmd2); err != nil {
-		ch <- fmt.Sprintf("!! Error sending to %s (%s)", mail.Recipient, err.Error())
+	cmd := fmt.Sprintf("cat %s | %s", file, strings.Join(mail.Cmdline, " "))
+
+	_, err = exec.Command("bash", "-c", cmd).Output()
+	if err != nil {
+		ch <- fmt.Sprintf("!2! Error sending to %s (%s)", mail.Recipient, err.Error())
 		return
 	} else {
 		ch <- fmt.Sprintf("-> %s", mail.Recipient)
