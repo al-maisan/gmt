@@ -32,36 +32,36 @@ func GetConfig(input string) config.Data {
 }
 
 func TestPipeCmds(t *testing.T) {
-	Convey("Test pipeCmds() with  cat / wc", t, func() {
+	Convey("Test pipeCmds() with  cat / wc", t, func(c C) {
 		fname, err := tempFile([]byte("line1\nline2\nline3\n"))
-		So(err, ShouldBeNil)
+		c.So(err, ShouldBeNil)
 
 		defer os.Remove(fname)
 		cmd1 := exec.Command("cat", fname)
 		cmd2 := exec.Command("wc", "-l")
 		result, err := pipeCmds(cmd1, cmd2)
 
-		So(err, ShouldBeNil)
-		So(strings.TrimSpace(result), ShouldEqual, "3")
+		c.So(err, ShouldBeNil)
+		c.So(strings.TrimSpace(result), ShouldEqual, "3")
 	})
 }
 
 func TestPipeCmdsWithCmd1Fail(t *testing.T) {
-	Convey("Test pipeCmds() with  cmd1 failure", t, func() {
+	Convey("Test pipeCmds() with  cmd1 failure", t, func(c C) {
 		cmd1 := exec.Command("ls", "-cdjkgfrgf")
 		cmd2 := exec.Command("wc", "-l")
 		_, err := pipeCmds(cmd1, cmd2)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "cmd1 wait failure ([ls -cdjkgfrgf] -- exit status 2)")
+		c.So(err, ShouldNotBeNil)
+		c.So(err.Error(), ShouldEqual, "cmd1 wait failure ([ls -cdjkgfrgf] -- exit status 2)")
 	})
 }
 
 func TestPipeCmdsWithCmd2Fail(t *testing.T) {
-	Convey("Test pipeCmds() with  cmd2 failure", t, func() {
+	Convey("Test pipeCmds() with  cmd2 failure", t, func(c C) {
 		cmd1 := exec.Command("ls", "-l")
 		cmd2 := exec.Command("wc", "-dksvgdk")
 		_, err := pipeCmds(cmd1, cmd2)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "cmd2 wait failure ([wc -dksvgdk] -- exit status 1)")
+		c.So(err, ShouldNotBeNil)
+		c.So(err.Error(), ShouldEqual, "cmd2 wait failure ([wc -dksvgdk] -- exit status 1)")
 	})
 }

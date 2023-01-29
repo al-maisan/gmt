@@ -26,7 +26,7 @@ import (
 // ------------- non-sendmail -------------
 
 func TestPrepBodyForMailxWithNoAdditionalData(t *testing.T) {
-	Convey("body for mailx", t, func() {
+	Convey("body for mailx", t, func(c C) {
 		cfg := config.Data{
 			MailProg: "mailx",
 		}
@@ -39,12 +39,12 @@ func TestPrepBodyForMailxWithNoAdditionalData(t *testing.T) {
 
 		expected := "body #1"
 		body := prepBody(cfg, recipient, subject, "body #1")
-		So(body, ShouldEqual, expected)
+		c.So(body, ShouldEqual, expected)
 	})
 }
 
 func TestPrepBodyForMailxWithCc(t *testing.T) {
-	Convey("body, mailx [Cc]", t, func() {
+	Convey("body, mailx [Cc]", t, func(c C) {
 		cfg := config.Data{
 			MailProg: "mailx",
 			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
@@ -58,12 +58,12 @@ func TestPrepBodyForMailxWithCc(t *testing.T) {
 
 		expected := "body #2"
 		body := prepBody(cfg, recipient, subject, "body #2")
-		So(body, ShouldEqual, expected)
+		c.So(body, ShouldEqual, expected)
 	})
 }
 
 func TestPrepBodyForMailxWithSender(t *testing.T) {
-	Convey("body, mailx [From]", t, func() {
+	Convey("body, mailx [From]", t, func(c C) {
 		cfg := config.Data{
 			MailProg: "mailx",
 			From:     "Hello Go <hello@go.go>",
@@ -77,12 +77,12 @@ func TestPrepBodyForMailxWithSender(t *testing.T) {
 
 		expected := "body #3"
 		body := prepBody(cfg, recipient, subject, "body #3")
-		So(body, ShouldEqual, expected)
+		c.So(body, ShouldEqual, expected)
 	})
 }
 
 func TestPrepBodyForMailxWithReplyTo(t *testing.T) {
-	Convey("body, mailx [Reply-To]", t, func() {
+	Convey("body, mailx [Reply-To]", t, func(c C) {
 		cfg := config.Data{
 			MailProg: "mailx",
 			ReplyTo:  "Ja Mann <ja@mango.go>",
@@ -96,12 +96,12 @@ func TestPrepBodyForMailxWithReplyTo(t *testing.T) {
 
 		expected := "body #4"
 		body := prepBody(cfg, recipient, subject, "body #4")
-		So(body, ShouldEqual, expected)
+		c.So(body, ShouldEqual, expected)
 	})
 }
 
 func TestPrepBodyForMailxWithCcAndSender(t *testing.T) {
-	Convey("body, mailx [Reply-To]", t, func() {
+	Convey("body, mailx [Reply-To]", t, func(c C) {
 		cfg := config.Data{
 			MailProg: "mailx",
 			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
@@ -116,12 +116,12 @@ func TestPrepBodyForMailxWithCcAndSender(t *testing.T) {
 
 		expected := "body #5"
 		body := prepBody(cfg, recipient, subject, "body #5")
-		So(body, ShouldEqual, expected)
+		c.So(body, ShouldEqual, expected)
 	})
 }
 
 func TestPrepBodyForMailxWithAll(t *testing.T) {
-	Convey("body, mailx [Reply-To]", t, func() {
+	Convey("body, mailx [Reply-To]", t, func(c C) {
 		cfg := config.Data{
 			MailProg: "mailx",
 			Cc:       []string{"ab@cd.org", "ef@gh.com", "ij@kl.net"},
@@ -138,14 +138,14 @@ func TestPrepBodyForMailxWithAll(t *testing.T) {
 
 		expected := "body #6"
 		body := prepBody(cfg, recipient, subject, "body #6")
-		So(body, ShouldEqual, expected)
+		c.So(body, ShouldEqual, expected)
 	})
 }
 
 // ------------- sendmail -------------
 
 func TestPrepBodyForSendmailWithNoAdditionalData(t *testing.T) {
-	Convey("body for sendmail", t, func() {
+	Convey("body for sendmail", t, func(c C) {
 		cfg := config.Data{
 			MailProg: "sendmail",
 			Version:  "0.99.7",
@@ -163,12 +163,12 @@ X-Mailer: gmt, version 0.99.7, https://301.mx/gmt
 
 body #7`
 		body := prepBody(cfg, recipient, subject, "body #7")
-		So(body, ShouldEqual, expected)
+		c.So(body, ShouldEqual, expected)
 	})
 }
 
 func TestPrepBodyForSendmailWithCc(t *testing.T) {
-	Convey("body, sendmail [Cc]", t, func() {
+	Convey("body, sendmail [Cc]", t, func(c C) {
 		cfg := config.Data{
 			MailProg: "sendmail",
 			Version:  "0.99.8",
@@ -188,12 +188,12 @@ X-Mailer: gmt, version 0.99.8, https://301.mx/gmt
 
 body #8`
 		body := prepBody(cfg, recipient, subject, "body #8")
-		So(body, ShouldEqual, expected)
+		c.So(body, ShouldEqual, expected)
 	})
 }
 
 func TestPrepBodyForSendmailWithSender(t *testing.T) {
-	Convey("body, sendmail [From]", t, func() {
+	Convey("body, sendmail [From]", t, func(c C) {
 		cfg := config.Data{
 			MailProg: "sendmail",
 			Version:  "0.99.9",
@@ -213,12 +213,12 @@ X-Mailer: gmt, version 0.99.9, https://301.mx/gmt
 
 body #9`
 		body := prepBody(cfg, recipient, subject, "body #9")
-		So(body, ShouldEqual, expected)
+		c.So(body, ShouldEqual, expected)
 	})
 }
 
 func TestPrepBodyForSendmailWithReplyTo(t *testing.T) {
-	Convey("body, sendmail [Reply-To]", t, func() {
+	Convey("body, sendmail [Reply-To]", t, func(c C) {
 		cfg := config.Data{
 			MailProg: "sendmail",
 			Version:  "0.99.A",
@@ -238,12 +238,12 @@ X-Mailer: gmt, version 0.99.A, https://301.mx/gmt
 
 body #A`
 		body := prepBody(cfg, recipient, subject, "body #A")
-		So(body, ShouldEqual, expected)
+		c.So(body, ShouldEqual, expected)
 	})
 }
 
 func TestPrepBodyForSendmailWithCcAndSender(t *testing.T) {
-	Convey("body, sendmail [Reply-To]", t, func() {
+	Convey("body, sendmail [Reply-To]", t, func(c C) {
 		cfg := config.Data{
 			MailProg: "sendmail",
 			Version:  "0.99.B",
@@ -265,12 +265,12 @@ X-Mailer: gmt, version 0.99.B, https://301.mx/gmt
 
 body #B`
 		body := prepBody(cfg, recipient, subject, "body #B")
-		So(body, ShouldEqual, expected)
+		c.So(body, ShouldEqual, expected)
 	})
 }
 
 func TestPrepBodyForSendmailWithAll(t *testing.T) {
-	Convey("body, sendmail [Reply-To]", t, func() {
+	Convey("body, sendmail [Reply-To]", t, func(c C) {
 		cfg := config.Data{
 			MailProg: "sendmail",
 			Version:  "0.99.C",
@@ -295,6 +295,6 @@ X-Mailer: gmt, version 0.99.C, https://301.mx/gmt
 
 body #C`
 		body := prepBody(cfg, recipient, subject, "body #C")
-		So(body, ShouldEqual, expected)
+		c.So(body, ShouldEqual, expected)
 	})
 }

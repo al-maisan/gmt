@@ -155,7 +155,12 @@ subject=Hello %%FN%%!
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|Cc:-bl@kf.io,info@ex.org
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 # The 'Cc' setting below *adds* to the global 'Cc' value above
-daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org`
+daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org
+# The 'As' setting below *redefines* the global 'attachments' value above
+jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|As:-file1.txt,file2.md
+mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
+# The 'As' setting below *adds* to the global 'attachments' value above
+daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|As:-+file3.pdf`
 	return fmt.Sprintf(fs, version)
 }
 

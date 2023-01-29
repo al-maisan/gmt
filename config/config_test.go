@@ -25,7 +25,7 @@ import (
 )
 
 func TestLoadDefault(t *testing.T) {
-	Convey("Load sample config, test general parts", t, func() {
+	Convey("Load sample config, test general parts", t, func(c C) {
 		cfg, err := New([]byte(`
 [general]
 mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
@@ -39,12 +39,12 @@ jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 `),
 		)
-		So(err, ShouldBeNil)
-		So(cfg, ShouldNotBeNil)
+		c.So(err, ShouldBeNil)
+		c.So(cfg, ShouldNotBeNil)
 
-		So(cfg.MailProg, ShouldEqual, "gnu-mail")
-		So(cfg.From, ShouldEqual, "Frodo Baggins <rts@example.com>")
-		So(len(cfg.Cc), ShouldEqual, 0)
+		c.So(cfg.MailProg, ShouldEqual, "gnu-mail")
+		c.So(cfg.From, ShouldEqual, "Frodo Baggins <rts@example.com>")
+		c.So(len(cfg.Cc), ShouldEqual, 0)
 		expected := []Recipient{
 			{
 				Email: "jd@example.com",
@@ -69,49 +69,49 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		sort.Slice(cfg.Recipients, func(i, j int) bool {
 			return cfg.Recipients[i].Email > cfg.Recipients[j].Email
 		})
-		So(cfg.Recipients, ShouldResemble, expected)
+		c.So(cfg.Recipients, ShouldResemble, expected)
 	})
 }
 
 func TestLoadEmpty(t *testing.T) {
-	Convey("Load sample config missing a 'mail-prog' definition", t, func() {
+	Convey("Load sample config missing a 'mail-prog' definition", t, func(c C) {
 		_, err := New([]byte(`
 [general]
 subject=Hello %FN%!
 `),
 		)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "'mail-prog' not configured!")
+		c.So(err, ShouldNotBeNil)
+		c.So(err.Error(), ShouldEqual, "'mail-prog' not configured!")
 	})
 }
 
 func TestLoadNoRecipients(t *testing.T) {
-	Convey("Load sample config missing a 'recipients' section", t, func() {
+	Convey("Load sample config missing a 'recipients' section", t, func(c C) {
 		_, err := New([]byte(`
 [general]
 mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 subject=Hello %FN%!
 `),
 		)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "section 'recipients' does not exist")
+		c.So(err, ShouldNotBeNil)
+		c.So(err.Error(), ShouldEqual, "section 'recipients' does not exist")
 	})
 }
 
 func TestLoadNoSubject(t *testing.T) {
-	Convey("Load sample config missing a subject definition", t, func() {
+	Convey("Load sample config missing a subject definition", t, func(c C) {
 		_, err := New([]byte(`
 [general]
 mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 `),
 		)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "'subject' not configured!")
+		c.So(err, ShouldNotBeNil)
+		c.So(err.Error(), ShouldEqual, "'subject' not configured!")
 	})
 }
 
 func TestLoadSendmailWithAttachments(t *testing.T) {
-	Convey("We cannot use sendmail with attachments", t, func() {
+	Convey("We cannot use sendmail with attachments", t, func(c C) {
 		_, err := New([]byte(`
 [general]
 mail-prog=sendmail
@@ -123,13 +123,13 @@ jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 `),
 		)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "Cannot use 'sendmail' with attachments!")
+		c.So(err, ShouldNotBeNil)
+		c.So(err.Error(), ShouldEqual, "Cannot use 'sendmail' with attachments!")
 	})
 }
 
 func TestLoadFull(t *testing.T) {
-	Convey("Load full config, test general parts", t, func() {
+	Convey("Load full config, test general parts", t, func(c C) {
 		cfg, err := New([]byte(`
 [general]
 mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
@@ -143,15 +143,15 @@ jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 `),
 		)
-		So(err, ShouldBeNil)
-		So(cfg, ShouldNotBeNil)
+		c.So(err, ShouldBeNil)
+		c.So(cfg, ShouldNotBeNil)
 
-		So(cfg.MailProg, ShouldEqual, "gnu-mail")
-		So(cfg.From, ShouldEqual, "Frodo Baggins <rts@example.com>")
-		So(cfg.ReplyTo, ShouldEqual, "John Doe <jd@mail.com>")
-		So(len(cfg.Cc), ShouldEqual, 2)
-		So(cfg.Subject, ShouldEqual, "Hello %FN%!")
-		So(cfg.Cc, ShouldResemble, []string{"weirdo@nsb.gov", "cc@example.com"})
+		c.So(cfg.MailProg, ShouldEqual, "gnu-mail")
+		c.So(cfg.From, ShouldEqual, "Frodo Baggins <rts@example.com>")
+		c.So(cfg.ReplyTo, ShouldEqual, "John Doe <jd@mail.com>")
+		c.So(len(cfg.Cc), ShouldEqual, 2)
+		c.So(cfg.Subject, ShouldEqual, "Hello %FN%!")
+		c.So(cfg.Cc, ShouldResemble, []string{"weirdo@nsb.gov", "cc@example.com"})
 		expected := []Recipient{
 			{
 				Email: "jd@example.com",
@@ -176,12 +176,12 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		sort.Slice(cfg.Recipients, func(i, j int) bool {
 			return cfg.Recipients[i].Email > cfg.Recipients[j].Email
 		})
-		So(cfg.Recipients, ShouldResemble, expected)
+		c.So(cfg.Recipients, ShouldResemble, expected)
 	})
 }
 
 func TestParseRecipients(t *testing.T) {
-	Convey("Load the recipients", t, func() {
+	Convey("Load the recipients", t, func(c C) {
 		cfg, err := ini.Load([]byte(`
 [general]
 mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
@@ -192,15 +192,15 @@ jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 `),
 		)
-		So(err, ShouldBeNil)
-		So(cfg, ShouldNotBeNil)
+		c.So(err, ShouldBeNil)
+		c.So(cfg, ShouldNotBeNil)
 
 		var recipients *ini.Section
 		recipients, err = cfg.GetSection("recipients")
-		So(err, ShouldBeNil)
+		c.So(err, ShouldBeNil)
 
 		actual := parseRecipients(recipients)
-		So(actual, ShouldNotBeNil)
+		c.So(actual, ShouldNotBeNil)
 
 		expected := []Recipient{
 			{
@@ -228,6 +228,6 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		sort.Slice(actual, func(i, j int) bool {
 			return actual[i].Email > actual[j].Email
 		})
-		So(actual, ShouldResemble, expected)
+		c.So(actual, ShouldResemble, expected)
 	})
 }
