@@ -236,6 +236,64 @@ func TestPrepMUAArgsForMailxWithAllAndPRCcAdded(t *testing.T) {
 	})
 }
 
+// An `As` is set for the recipient and it redefines/overrides the global
+// `attachments` header value
+func TestPrepMUAArgsForMailxWithAllAndPRAsRedef(t *testing.T) {
+	Convey("command line args, mailx [Reply-To, Cc, From]", t, func(c C) {
+		cfg := config.Data{
+			MailProg:    "mailx",
+			From:        "Hello Go <hello@go.go>",
+			Attachments: []string{"oa1.txt", "oa2.txt"},
+			Subject:     "This is spam!",
+		}
+		prdata := map[string]string{
+			"As": "a1.txt,   	a2.md",
+		}
+		subject := "Hello! How are things? #1"
+		recipient := "r1@example.com"
+
+		args := prepMUAArgs(cfg, prdata, subject, recipient)
+
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "-S", "from='Hello Go <hello@go.go>'")
+		expected = append(expected, "-a", "a1.txt")
+		expected = append(expected, "-a", "a2.md")
+		expected = append(expected, "-s", fmt.Sprintf("'%s'", subject), recipient)
+
+		c.So(args, ShouldResemble, expected)
+	})
+}
+
+// An `As` is set for the recipient and it adds to the global `attachments`
+// header value
+func TestPrepMUAArgsForMailxWithAllAndPRAsAdded(t *testing.T) {
+	Convey("command line args, mailx [Reply-To, Cc, From]", t, func(c C) {
+		cfg := config.Data{
+			MailProg:    "mailx",
+			From:        "Hello Go <hello@go.go>",
+			Attachments: []string{"oa1.txt", "oa2.txt"},
+			Subject:     "This is spam!",
+		}
+		prdata := map[string]string{
+			"As": "+a5.txt,   	a6.md",
+		}
+		subject := "Hello! How are things? #1"
+		recipient := "r1@example.com"
+
+		args := prepMUAArgs(cfg, prdata, subject, recipient)
+
+		expected := []string{cfg.MailProg}
+		expected = append(expected, "-S", "from='Hello Go <hello@go.go>'")
+		expected = append(expected, "-a", "oa1.txt")
+		expected = append(expected, "-a", "oa2.txt")
+		expected = append(expected, "-a", "a5.txt")
+		expected = append(expected, "-a", "a6.md")
+		expected = append(expected, "-s", fmt.Sprintf("'%s'", subject), recipient)
+
+		c.So(args, ShouldResemble, expected)
+	})
+}
+
 // ------------- non-mailx & non-sendmail -------------
 
 func TestPrepMUAArgsForNonMailxWithNoAdditionalData(t *testing.T) {

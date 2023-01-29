@@ -37,6 +37,15 @@ func prepMUAArgs(cfg config.Data, prdata map[string]string, subject string, reci
 			cfg.Cc = re.Split(prccv, -1)
 		}
 	}
+	if prasv, ok := prdata["As"]; ok {
+		re := regexp.MustCompile("\\s*,\\s*")
+		if strings.HasPrefix(prasv, "+") {
+			val := strings.Trim(prasv[1:], " 	")
+			cfg.Attachments = append(cfg.Attachments, re.Split(val, -1)...)
+		} else {
+			cfg.Attachments = re.Split(prasv, -1)
+		}
+	}
 
 	args = []string{cfg.MailProg}
 	if cfg.MailProg == "sendmail" {
