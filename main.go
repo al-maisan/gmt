@@ -17,10 +17,8 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -74,7 +72,7 @@ func main() {
 	}
 
 	// read the config file
-	bytes, err := ioutil.ReadFile(*configPath)
+	bytes, err := os.ReadFile(*configPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to read config file!")
 		fmt.Fprintln(os.Stderr, err)
@@ -91,7 +89,7 @@ func main() {
 	}
 
 	// read the template file
-	bytes, err = ioutil.ReadFile(*templatePath)
+	bytes, err = os.ReadFile(*templatePath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to read template file!")
 		fmt.Fprintln(os.Stderr, err)
@@ -103,7 +101,7 @@ func main() {
 	mails := email.PrepMails(cfg, string(bytes))
 
 	// is this a dry run? print what would be done if so and exit
-	if *doDryRun == true {
+	if *doDryRun {
 		for _, mail := range mails {
 			fmt.Printf("--\n%s\n%s\n%s\n", mail.Recipient, mail.Subject, mail.Body)
 		}
@@ -128,7 +126,6 @@ func send(cfg config.Data, mails []email.Mail) {
 			fmt.Printf("! %s (failed to send)\n", to)
 		}
 	}
-	return
 }
 
 func sendEmailWithAttachments(
@@ -141,11 +138,8 @@ func sendEmailWithAttachments(
 		return email.Recipient, err
 	}
 
-	recipients := append(append([]string{}, email.Recipient), cfg.Cc...)
-	log.Printf("\n%s", recipients)
-
 	d := mail.NewDialer(smtpHost, smtpPort, from, password)
-	d.DialAndSend(msg)
+	err = d.DialAndSend(msg)
 	if err != nil {
 		log.Errorf("failed to send email for %s, %v", email.Recipient, err)
 		return email.Recipient, err
@@ -169,36 +163,9 @@ func createEmailMessage(from, to string, cc []string, replyTo, subject, body str
 	return m
 }
 
-func createEmailMessage2(from, to string, cc []string, replyTo, subject, body string) *bytes.Buffer {
-	msg := &bytes.Buffer{}
-
-	headers := fmt.Sprintf("From: %s\r\n", from)
-	headers += fmt.Sprintf("To: %s\r\n", to)
-
-	if len(cc) > 0 {
-		headers += fmt.Sprintf("Cc: %s\r\n", strings.Join(cc, ","))
-	}
-
-	headers += fmt.Sprintf("Reply-To: %s\r\n", replyTo)
-	headers += fmt.Sprintf("Subject: %s\r\n", subject)
-	headers += "MIME-Version: 1.0\r\n"
-	headers += "Content-Type: multipart/mixed; boundary=boundary123\r\n"
-	headers += "\r\n"
-
-	msg.Write([]byte(headers))
-
-	msg.Write([]byte("--boundary123\r\n"))
-	msg.Write([]byte("Content-Type: text/plain; charset=utf-8\r\n"))
-	msg.Write([]byte("\r\n"))
-	msg.Write([]byte(body))
-	msg.Write([]byte("\r\n"))
-
-	return msg
-}
-
 func addAttachments(msg *mail.Message, attachments []string) error {
 	for _, attachmentPath := range attachments {
-		_, err := ioutil.ReadFile(attachmentPath)
+		_, err := os.ReadFile(attachmentPath)
 		if err != nil {
 			log.Errorf("failed to read attachment %s, %v", attachmentPath, err)
 			return err

@@ -71,7 +71,7 @@ func New(bs []byte) (result Data, err error) {
 		result.ReplyTo = val
 	}
 	if val, ok := keys["Cc"]; ok {
-		re := regexp.MustCompile("\\s*,\\s*")
+		re := regexp.MustCompile(`\s*,\s*`)
 		result.Cc = re.Split(val, -1)
 	}
 	if val, ok := keys["attachments"]; ok {
@@ -79,10 +79,10 @@ func New(bs []byte) (result Data, err error) {
 			err = errors.New("Cannot use 'sendmail' with attachments!")
 			return
 		}
-		re := regexp.MustCompile("\\s*,\\s*")
+		re := regexp.MustCompile(`\s*,\s*`)
 		result.Attachments = re.Split(val, -1)
 		if path, err2 := checkAttachments(result.Attachments); err2 != nil {
-			err = errors.New(fmt.Sprintf("Attachment '%s' does not exist!", path))
+			err = fmt.Errorf("Attachment '%s' does not exist!", path)
 			return
 		}
 	}
@@ -105,9 +105,9 @@ func checkAttachments(attachments []string) (path string, err error) {
 }
 
 func parseRecipients(sec *ini.Section) (recipients []Recipient) {
-	re_pipe := regexp.MustCompile("\\s*\\|\\s*")
-	re_space := regexp.MustCompile("\\s+")
-	re_rdata := regexp.MustCompile("\\s*\\:-\\s*")
+	re_pipe := regexp.MustCompile(`\s*\|\s*`)
+	re_space := regexp.MustCompile(`\s+`)
+	re_rdata := regexp.MustCompile(`\s*\:-\s*`)
 	for k, v := range sec.KeysHash() {
 		// jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 		rdata := re_pipe.Split(v, -1)
