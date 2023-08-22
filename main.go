@@ -114,7 +114,6 @@ func main() {
 }
 
 func send(cfg config.Data, mails []email.Mail) {
-	log.Printf("%#v", cfg)
 	smtpHost := os.Getenv("SMTP_HOST")
 	smtpPort, _ := strconv.Atoi(os.Getenv("SMTP_PORT"))
 	from := os.Getenv("SENDER_EMAIL")
@@ -145,7 +144,6 @@ func sendEmailWithAttachments(
 	recipients := append(append([]string{}, email.Recipient), cfg.Cc...)
 	log.Printf("\n%s", recipients)
 
-	log.Printf("\n%s", msg)
 	d := mail.NewDialer(smtpHost, smtpPort, from, password)
 	d.DialAndSend(msg)
 	if err != nil {
