@@ -18,19 +18,21 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/al-maisan/gmt/config"
 	"github.com/al-maisan/gmt/email"
+	"github.com/go-mail/mail"
+	"github.com/sirupsen/logrus"
 )
+
+var log = logrus.New()
 
 func help() {
 	fmt.Fprintf(flag.CommandLine.Output(), "\n%s, version %s\nThis tool sends emails in bulk based on a template and a config file\n\n", filepath.Base(os.Args[0]), version())
@@ -103,94 +105,109 @@ func main() {
 	// is this a dry run? print what would be done if so and exit
 	if *doDryRun == true {
 		for _, mail := range mails {
-			fmt.Fprintf(os.Stdout, "--\n%s\n%s\n", mail.Cmdline, mail.Body)
+			fmt.Printf("--\n%s\n%s\n%s\n", mail.Recipient, mail.Subject, mail.Body)
 		}
 		os.Exit(0)
 	}
 
-	send(mails)
+	send(cfg, mails)
 }
 
-func send(mails []email.Mail) {
-	ch := make(chan string)
-	for _, mail := range mails {
-		go sendEmail(mail, ch)
-	}
+func send(cfg config.Data, mails []email.Mail) {
+	log.Printf("%#v", cfg)
+	smtpHost := os.Getenv("SMTP_HOST")
+	smtpPort, _ := strconv.Atoi(os.Getenv("SMTP_PORT"))
+	from := os.Getenv("SENDER_EMAIL")
+	password := os.Getenv("SENDER_PASSWORD")
+
 	fmt.Println("\nSending emails now..")
-	for i := len(mails); i > 0; i-- {
-		msg := <-ch
-		fmt.Println(msg)
+	for _, mail := range mails {
+		to, err := sendEmailWithAttachments(from, password, smtpHost, smtpPort, cfg, mail)
+		if err == nil {
+			fmt.Printf("- %s\n", to)
+		} else {
+			fmt.Printf("! %s (failed to send)\n", to)
+		}
 	}
 	return
 }
 
-func sendEmail(mail email.Mail, ch chan string) {
-	file, err := tempFile([]byte(mail.Body))
-	if err != nil {
-		ch <- fmt.Sprintf("!1! Error sending to %s (%s)", mail.Recipient, err.Error())
-		return
-	}
-	defer os.Remove(file)
+func sendEmailWithAttachments(
+	from, password, smtpHost string, smtpPort int, cfg config.Data, email email.Mail) (string, error) {
+	msg := createEmailMessage(cfg.From, email.Recipient, cfg.Cc, cfg.ReplyTo, email.Subject, email.Body)
 
-	cmd := fmt.Sprintf("cat %s | %s", file, strings.Join(mail.Cmdline, " "))
-
-	_, err = exec.Command("bash", "-c", cmd).Output()
+	err := addAttachments(msg, cfg.Attachments)
 	if err != nil {
-		ch <- fmt.Sprintf("!2! Error sending to %s (%s)", mail.Recipient, err.Error())
-		return
-	} else {
-		ch <- fmt.Sprintf("-> %s", mail.Recipient)
+		log.Errorf("failed to prep attachments for %s, %v", email.Recipient, err)
+		return email.Recipient, err
 	}
+
+	recipients := append(append([]string{}, email.Recipient), cfg.Cc...)
+	log.Printf("\n%s", recipients)
+
+	log.Printf("\n%s", msg)
+	d := mail.NewDialer(smtpHost, smtpPort, from, password)
+	d.DialAndSend(msg)
+	if err != nil {
+		log.Errorf("failed to send email for %s, %v", email.Recipient, err)
+		return email.Recipient, err
+	}
+
+	return email.Recipient, nil
 }
 
-func tempFile(content []byte) (name string, err error) {
-	var tmpfile *os.File
-	tmpfile, err = ioutil.TempFile("", "gmt")
-	if err != nil {
-		return
+func createEmailMessage(from, to string, cc []string, replyTo, subject, body string) *mail.Message {
+	m := mail.NewMessage()
+	m.SetHeader("From", from)
+	m.SetHeader("To", to)
+	if len(cc) > 0 {
+		m.SetHeader("Cc", fmt.Sprintf("Cc: %s\r\n", strings.Join(cc, ",")))
 	}
-	if _, err = tmpfile.Write(content); err != nil {
-		return
+	if replyTo != "" {
+		m.SetHeader("Reply-To", replyTo)
 	}
-	if err = tmpfile.Close(); err != nil {
-		return
-	}
-	name = tmpfile.Name()
-	return
+	m.SetHeader("Subject", subject)
+	m.SetBody("text/plain", body)
+	return m
 }
 
-func pipeCmds(cmd1, cmd2 *exec.Cmd) (result string, err error) {
-	reader, writer := io.Pipe()
+func createEmailMessage2(from, to string, cc []string, replyTo, subject, body string) *bytes.Buffer {
+	msg := &bytes.Buffer{}
 
-	// push first command output to writer
-	cmd1.Stdout = writer
+	headers := fmt.Sprintf("From: %s\r\n", from)
+	headers += fmt.Sprintf("To: %s\r\n", to)
 
-	// read from first command output
-	cmd2.Stdin = reader
-
-	// prepare a buffer to capture the output
-	// after second command finished executing
-	var buf bytes.Buffer
-	cmd2.Stdout = &buf
-
-	if err = cmd1.Start(); err != nil {
-		err = errors.New(fmt.Sprintf("cmd1 start failure (%s -- %s)", cmd1.Args, err.Error()))
-		return
-	}
-	if err = cmd2.Start(); err != nil {
-		err = errors.New(fmt.Sprintf("cmd2 start failure (%s -- %s)", cmd2.Args, err.Error()))
-		return
-	}
-	if err = cmd1.Wait(); err != nil {
-		err = errors.New(fmt.Sprintf("cmd1 wait failure (%s -- %s)", cmd1.Args, err.Error()))
-		return
-	}
-	writer.Close()
-	if err = cmd2.Wait(); err != nil {
-		err = errors.New(fmt.Sprintf("cmd2 wait failure (%s -- %s)", cmd2.Args, err.Error()))
-		return
+	if len(cc) > 0 {
+		headers += fmt.Sprintf("Cc: %s\r\n", strings.Join(cc, ","))
 	}
 
-	result = buf.String()
-	return
+	headers += fmt.Sprintf("Reply-To: %s\r\n", replyTo)
+	headers += fmt.Sprintf("Subject: %s\r\n", subject)
+	headers += "MIME-Version: 1.0\r\n"
+	headers += "Content-Type: multipart/mixed; boundary=boundary123\r\n"
+	headers += "\r\n"
+
+	msg.Write([]byte(headers))
+
+	msg.Write([]byte("--boundary123\r\n"))
+	msg.Write([]byte("Content-Type: text/plain; charset=utf-8\r\n"))
+	msg.Write([]byte("\r\n"))
+	msg.Write([]byte(body))
+	msg.Write([]byte("\r\n"))
+
+	return msg
+}
+
+func addAttachments(msg *mail.Message, attachments []string) error {
+	for _, attachmentPath := range attachments {
+		_, err := ioutil.ReadFile(attachmentPath)
+		if err != nil {
+			log.Errorf("failed to read attachment %s, %v", attachmentPath, err)
+			return err
+		}
+
+		msg.Attach(attachmentPath)
+	}
+
+	return nil
 }

@@ -26,7 +26,7 @@ import (
 type Mail struct {
 	Recipient string
 	Body      string
-	Cmdline   []string
+	Subject   string
 }
 
 func substVars(recipient config.Recipient, text string) (result string) {
@@ -42,36 +42,12 @@ func substVars(recipient config.Recipient, text string) (result string) {
 func PrepMails(cfg config.Data, template string) (mails []Mail) {
 	mails = make([]Mail, 0, len(cfg.Recipients))
 	for _, recipient := range cfg.Recipients {
-		subject := substVars(recipient, cfg.Subject)
 		mail := Mail{
-			Cmdline:   prepMUAArgs(cfg, recipient.Data, subject, recipient.Email),
-			Recipient: recipient.Email,
-			Body:      prepBody(cfg, recipient, subject, substVars(recipient, template)),
+			Subject:   substVars(recipient, cfg.Subject),
+			Recipient: fmt.Sprintf(`"%s %s" <%s>`, recipient.First, recipient.Last, recipient.Email),
+			Body:      substVars(recipient, template),
 		}
 		mails = append(mails, mail)
 	}
 	return
-}
-
-func prepBody(cfg config.Data, recipient config.Recipient, subject string, body string) string {
-	if cfg.MailProg != "sendmail" {
-		return body
-	}
-	lines := []string{fmt.Sprintf("To: %s", recipient.Email)}
-	if subject != "" {
-		lines = append(lines, fmt.Sprintf("Subject: %s", subject))
-	}
-	if cfg.Cc != nil {
-		lines = append(lines, fmt.Sprintf("Cc: %s", strings.Join(cfg.Cc, ", ")))
-	}
-	if cfg.From != "" {
-		lines = append(lines, fmt.Sprintf("From: %s", cfg.From))
-	}
-	if cfg.ReplyTo != "" {
-		lines = append(lines, fmt.Sprintf("Reply-To: %s", cfg.ReplyTo))
-	}
-	lines = append(lines, fmt.Sprintf("X-Mailer: gmt, version %s, https://301.mx/gmt", cfg.Version))
-
-	header := strings.Join(lines, "\n")
-	return strings.Join([]string{header, body}, "\n\n")
 }

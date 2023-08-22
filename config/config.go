@@ -56,12 +56,6 @@ func New(bs []byte) (result Data, err error) {
 	keys := sec.KeysHash()
 
 	// mandatory keys
-	if val, ok := keys["mail-prog"]; ok {
-		result.MailProg = val
-	} else {
-		err = errors.New("'mail-prog' not configured!")
-		return
-	}
 	if val, ok := keys["subject"]; ok {
 		result.Subject = val
 	} else {
