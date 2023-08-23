@@ -1,5 +1,5 @@
 // gmt sends emails in bulk based on a template and a config file.
-// Copyright (C) 2019  "Muharem Hrnjadovic" <gmt@lbox.cc>
+// Copyright (C) 2019-2023  "Muharem Hrnjadovic" <gmt@lbox.cc>
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -148,10 +148,20 @@ func sendEmailWithAttachments(
 	return email.Recipient, nil
 }
 
+func parseRecipientData(to string) (string, string) {
+	var name, addr string
+	pcs := strings.Split(to, " <")
+	addr = pcs[1][:len(pcs[1])-1]
+	name = strings.Trim(pcs[0], `"`)
+
+	return name, addr
+}
+
 func createEmailMessage(from, to string, cc []string, replyTo, subject, body string) *mail.Message {
 	m := mail.NewMessage()
 	m.SetHeader("From", from)
-	m.SetHeader("To", to)
+	name, addr := parseRecipientData(to)
+	m.SetAddressHeader("To", addr, name)
 	if len(cc) > 0 {
 		m.SetHeader("Cc", fmt.Sprintf("Cc: %s\r\n", strings.Join(cc, ",")))
 	}

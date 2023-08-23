@@ -1,5 +1,5 @@
 // gmt sends emails in bulk based on a template and a config file.
-// Copyright (C) 2019  "Muharem Hrnjadovic" <gmt@lbox.cc>
+// Copyright (C) 2019-2023  "Muharem Hrnjadovic" <gmt@lbox.cc>
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -28,7 +28,6 @@ func TestLoadDefault(t *testing.T) {
 	Convey("Load sample config, test general parts", t, func(c C) {
 		cfg, err := New([]byte(`
 [general]
-mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 From=Frodo Baggins <rts@example.com>
 #Cc=weirdo@nsb.gov, cc@example.com
 #Reply-to=John Doe <jd@mail.com>
@@ -42,7 +41,6 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		c.So(err, ShouldBeNil)
 		c.So(cfg, ShouldNotBeNil)
 
-		c.So(cfg.MailProg, ShouldEqual, "gnu-mail")
 		c.So(cfg.From, ShouldEqual, "Frodo Baggins <rts@example.com>")
 		c.So(len(cfg.Cc), ShouldEqual, 0)
 		expected := []Recipient{
@@ -73,23 +71,10 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 	})
 }
 
-func TestLoadEmpty(t *testing.T) {
-	Convey("Load sample config missing a 'mail-prog' definition", t, func(c C) {
-		_, err := New([]byte(`
-[general]
-subject=Hello %FN%!
-`),
-		)
-		c.So(err, ShouldNotBeNil)
-		c.So(err.Error(), ShouldEqual, "'mail-prog' not configured!")
-	})
-}
-
 func TestLoadNoRecipients(t *testing.T) {
 	Convey("Load sample config missing a 'recipients' section", t, func(c C) {
 		_, err := New([]byte(`
 [general]
-mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 subject=Hello %FN%!
 `),
 		)
@@ -102,7 +87,6 @@ func TestLoadNoSubject(t *testing.T) {
 	Convey("Load sample config missing a subject definition", t, func(c C) {
 		_, err := New([]byte(`
 [general]
-mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 `),
 		)
 		c.So(err, ShouldNotBeNil)
@@ -110,29 +94,10 @@ mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 	})
 }
 
-func TestLoadSendmailWithAttachments(t *testing.T) {
-	Convey("We cannot use sendmail with attachments", t, func(c C) {
-		_, err := New([]byte(`
-[general]
-mail-prog=sendmail
-From=Frodo Baggins <rts@example.com>
-subject=Hello %FN%!
-attachments=/home/user/atmt1.ics, ../Documents/doc2.txt
-[recipients]
-jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
-mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
-`),
-		)
-		c.So(err, ShouldNotBeNil)
-		c.So(err.Error(), ShouldEqual, "Cannot use 'sendmail' with attachments!")
-	})
-}
-
 func TestLoadFull(t *testing.T) {
 	Convey("Load full config, test general parts", t, func(c C) {
 		cfg, err := New([]byte(`
 [general]
-mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 From=Frodo Baggins <rts@example.com>
 Cc=weirdo@nsb.gov, cc@example.com
 Reply-To=John Doe <jd@mail.com>
@@ -146,7 +111,6 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 		c.So(err, ShouldBeNil)
 		c.So(cfg, ShouldNotBeNil)
 
-		c.So(cfg.MailProg, ShouldEqual, "gnu-mail")
 		c.So(cfg.From, ShouldEqual, "Frodo Baggins <rts@example.com>")
 		c.So(cfg.ReplyTo, ShouldEqual, "John Doe <jd@mail.com>")
 		c.So(len(cfg.Cc), ShouldEqual, 2)
@@ -184,7 +148,6 @@ func TestParseRecipients(t *testing.T) {
 	Convey("Load the recipients", t, func(c C) {
 		cfg, err := ini.Load([]byte(`
 [general]
-mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'mailx' on Fedora
 From=Frodo Baggins <rts@example.com>
 Cc=weirdo@nsb.gov, cc@example.com
 [recipients]

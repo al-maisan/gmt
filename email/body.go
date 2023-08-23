@@ -1,5 +1,5 @@
 // gmt sends emails in bulk based on a template and a config file.
-// Copyright (C) 2019  "Muharem Hrnjadovic" <gmt@lbox.cc>
+// Copyright (C) 2019-2023  "Muharem Hrnjadovic" <gmt@lbox.cc>
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
