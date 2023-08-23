@@ -163,7 +163,7 @@ func createEmailMessage(from, to string, cc []string, replyTo, subject, body str
 	name, addr := parseRecipientData(to)
 	m.SetAddressHeader("To", addr, name)
 	if len(cc) > 0 {
-		m.SetHeader("Cc", fmt.Sprintf("Cc: %s\r\n", strings.Join(cc, ",")))
+		m.SetHeader("Cc", fmt.Sprintf("Cc: %s", strings.Join(cc, ",")))
 	}
 	if replyTo != "" {
 		m.SetHeader("Reply-To", replyTo)
