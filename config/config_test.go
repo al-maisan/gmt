@@ -67,6 +67,15 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 	assert.Equal(t, expected, cfg.Recipients)
 }
 
+func TestLoadNoGeneralSection(t *testing.T) {
+	_, err := New([]byte(`
+[recipients]
+jd@example.com=John Doe
+`))
+	require.Error(t, err)
+	assert.Equal(t, "config file must have a [general] section", err.Error())
+}
+
 func TestLoadNoRecipients(t *testing.T) {
 	_, err := New([]byte(`
 [general]

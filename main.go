@@ -28,10 +28,7 @@ import (
 	"github.com/al-maisan/gmt/email"
 	"github.com/go-mail/mail"
 	"github.com/joho/godotenv"
-	"github.com/sirupsen/logrus"
 )
-
-var log = logrus.New()
 
 func help() {
 	fmt.Fprintf(flag.CommandLine.Output(), "\n%s, version %s\nThis tool sends emails in bulk based on a template and a config file\n\n", filepath.Base(os.Args[0]), version())
@@ -39,6 +36,11 @@ func help() {
 }
 
 func version() string { return "0.2.1" }
+
+func fatal(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, "Error: "+format+"\n", args...)
+	os.Exit(1)
+}
 
 func main() {
 	// Load .env file if it exists (ignore error if file doesn't exist)
@@ -116,7 +118,15 @@ func main() {
 	// is this a dry run? print what would be done if so and exit
 	if *doDryRun {
 		for _, m := range mails {
-			fmt.Printf("--\n\"%s\" <%s>\n%s\n%s\n", m.Name, m.Address, m.Subject, m.Body)
+			fmt.Printf("--\n\"%s\" <%s>\n", m.Name, m.Address)
+			if len(m.Cc) > 0 {
+				fmt.Printf("Cc: %s\n", strings.Join(m.Cc, ", "))
+			}
+			fmt.Printf("Subject: %s\n", m.Subject)
+			if len(m.Attachments) > 0 {
+				fmt.Printf("Attachments: %s\n", strings.Join(m.Attachments, ", "))
+			}
+			fmt.Printf("%s\n", m.Body)
 		}
 		os.Exit(0)
 	}
@@ -134,11 +144,11 @@ func send(cfg config.Data, mails []email.Mail) int {
 	password := os.Getenv("SENDER_PASSWORD")
 
 	if smtpHost == "" || smtpPortStr == "" || from == "" || password == "" {
-		log.Fatal("SMTP_HOST, SMTP_PORT, SENDER_EMAIL, and SENDER_PASSWORD environment variables must all be set")
+		fatal("SMTP_HOST, SMTP_PORT, SENDER_EMAIL, and SENDER_PASSWORD environment variables must all be set")
 	}
 	smtpPort, err := strconv.Atoi(smtpPortStr)
 	if err != nil {
-		log.Fatalf("SMTP_PORT must be a valid integer, got %q: %v", smtpPortStr, err)
+		fatal("SMTP_PORT must be a valid integer, got %q: %v", smtpPortStr, err)
 	}
 
 	d := mail.NewDialer(smtpHost, smtpPort, from, password)
@@ -146,7 +156,7 @@ func send(cfg config.Data, mails []email.Mail) int {
 
 	sender, err := d.Dial()
 	if err != nil {
-		log.Fatalf("failed to connect to SMTP server: %v", err)
+		fatal("failed to connect to SMTP server: %v", err)
 	}
 	defer sender.Close()
 

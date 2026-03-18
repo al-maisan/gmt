@@ -78,24 +78,25 @@ func PrepMails(cfg config.Data, template string) (mails []Mail) {
 func resolveOverride(global []string, data map[string]string, key string) []string {
 	val, ok := data[key]
 	if !ok {
+		if global == nil {
+			return nil
+		}
 		result := make([]string, len(global))
 		copy(result, global)
 		return result
 	}
 	if strings.HasPrefix(val, "+") {
-		val = val[1:]
 		result := make([]string, len(global))
 		copy(result, global)
-		for _, item := range strings.Split(val, ",") {
-			item = strings.TrimSpace(item)
-			if item != "" {
-				result = append(result, item)
-			}
-		}
-		return result
+		return append(result, splitTrim(val[1:])...)
 	}
+	return splitTrim(val)
+}
+
+// splitTrim splits a comma-separated string and trims whitespace, skipping empty entries.
+func splitTrim(s string) []string {
 	var result []string
-	for _, item := range strings.Split(val, ",") {
+	for _, item := range strings.Split(s, ",") {
 		item = strings.TrimSpace(item)
 		if item != "" {
 			result = append(result, item)

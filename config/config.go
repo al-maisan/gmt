@@ -57,6 +57,7 @@ func New(bs []byte) (result Data, err error) {
 	}
 	sec, err := cfg.GetSection("general")
 	if err != nil {
+		err = errors.New("config file must have a [general] section")
 		return
 	}
 	keys := sec.KeysHash()
