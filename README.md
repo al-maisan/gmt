@@ -4,7 +4,7 @@
 
 ## Installation
 
-Requires [Go](https://go.dev/) 1.19 or later.
+Requires [Go](https://go.dev/) 1.25 or later.
 
     $ go build
     $ ./gmt -h
@@ -44,8 +44,8 @@ The config file uses INI format with two sections. Key names are case-insensitiv
 
 | Key           | Required | Description                                  |
 |---------------|----------|----------------------------------------------|
+| `From`        | yes      | Sender name and address for the email header  |
 | `subject`     | yes      | Email subject line (supports template vars)   |
-| `From`        | no       | Sender name and address for the email header  |
 | `Cc`          | no       | Comma-separated CC addresses                  |
 | `Reply-To`    | no       | Reply-To address                              |
 | `attachments` | no       | Comma-separated file paths to attach          |
@@ -61,7 +61,7 @@ Examples:
     jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
     mm@gmail.com=Mickey Mouse|ORG:-Disney
 
-The first word after `=` is the first name, the rest up to the first `|` is the last name. Custom key-value pairs follow, separated by `|`, with `:-` between key and value.
+The first word after `=` is the first name, the rest up to the first `|` is the last name. Custom key-value pairs follow, separated by `|`, with `:-` between key and value. Recipients with only a first name (no last name) are also supported.
 
 ### Per-recipient overrides
 
@@ -83,7 +83,7 @@ A leading `+` means append to the global list; without `+` the global list is re
 
 ## Template variables
 
-Templates support these placeholders (in both subject and body):
+Templates support these placeholders (in both subject and body). Custom keys are matched in **uppercase** -- use `%ORG%` not `%org%`.
 
 | Placeholder | Value                                    |
 |-------------|------------------------------------------|
@@ -94,24 +94,46 @@ Templates support these placeholders (in both subject and body):
 
 Example template:
 
-    Hello %FN% %LN%, how are things going at %ORG%?
-    This is your email: %EA%
+    Dear %FN% %LN%,
+
+    How are things going at %ORG%?
+
+    Best regards
 
 ## Dry run
 
-Use `-dry-run` to preview all emails without sending:
+Use `-dry-run` to preview all emails without sending. The output includes Cc and attachment information when present:
 
     $ ./gmt -dry-run -config-path config.ini -template-path template.eml
     --
     "John Doe Jr." <jd@example.com>
-    Hello John!
-    Hello John // Doe Jr., how are things going at EFF?
-    this is your email: jd@example.com :)
+    Cc: bl@kf.io, info@ex.org
+    Subject: Hello John!
+    Dear John Doe Jr.,
+
+    How are things going at EFF?
+
+    Best regards
     --
     "Mickey Mouse" <mm@gmail.com>
-    Hello Mickey!
-    Hello Mickey // Mouse, how are things going at Disney?
-    this is your email: mm@gmail.com :)
+    Subject: Hello Mickey!
+    Dear Mickey Mouse,
+
+    How are things going at Disney?
+
+    Best regards
+
+## Exit codes
+
+| Code | Meaning                          |
+|------|----------------------------------|
+| 0    | Success                          |
+| 1    | Missing `-config-path` flag      |
+| 2    | Missing `-template-path` flag    |
+| 3    | Failed to read config file       |
+| 4    | Error parsing config file        |
+| 5    | Failed to read template file     |
+| 6    | One or more emails failed to send|
 
 ## CLI reference
 
@@ -130,6 +152,8 @@ Use `-dry-run` to preview all emails without sending:
             output sample template to stdout
       -template-path string
             path to the template file
+      -version
+            print version and exit
 
 ## License
 

@@ -171,13 +171,10 @@ ef@example.com=Eve Foster|ORG:-CERN|TITLE:-Prof.|As:-+file3.pdf`
 	return fmt.Sprintf(fs, version)
 }
 
-func SampleTemplate(version string) string {
-	fs := `FN / LN / EA = first name / last name / email address
+func SampleTemplate(_ string) string {
+	return `Dear %FN% %LN%,
 
-Hello %%FN%% // %%LN%%, how are things going at %%ORG%%?
-this is your email: %%EA%% :)
+How are things going at %ORG%?
 
-
-Sent with gmt version %s, see https://301.mx/gmt for details.`
-	return fmt.Sprintf(fs, version)
+Best regards`
 }
