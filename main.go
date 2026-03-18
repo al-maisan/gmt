@@ -86,7 +86,8 @@ func main() {
 		os.Exit(2)
 	}
 
-	cfg, mails := loadAndPrepare(*configPath, *templatePath)
+	cfg := loadConfig(*configPath)
+	mails := prepMails(cfg, *templatePath)
 
 	if *doDryRun {
 		printDryRun(mails)
@@ -110,39 +111,43 @@ func main() {
 	}
 }
 
-func loadAndPrepare(configPath, templatePath string) (config.Data, []email.Mail) {
-	cfgBytes, err := os.ReadFile(configPath)
+func loadConfig(path string) config.Data {
+	bs, err := os.ReadFile(path)
 	if err != nil {
-		log.Fatalf("Failed to read config file %q: %v", configPath, err)
+		log.Fatalf("Failed to read config file %q: %v", path, err)
 	}
 
-	c, err := config.New(cfgBytes)
+	c, err := config.New(bs)
 	if err != nil {
-		log.Fatalf("Failed to parse config file %q: %v", configPath, err)
+		log.Fatalf("Failed to parse config file %q: %v", path, err)
 	}
 
 	cfg, err := c.ParseGeneral()
 	if err != nil {
-		log.Fatalf("Invalid [general] section in %q: %v", configPath, err)
+		log.Fatalf("Invalid [general] section in %q: %v", path, err)
 	}
 
 	cfg.Recipients, err = c.ParseRecipients()
 	if err != nil {
-		log.Fatalf("Invalid [recipients] section in %q: %v", configPath, err)
+		log.Fatalf("Invalid [recipients] section in %q: %v", path, err)
 	}
 
-	tmplBytes, err := os.ReadFile(templatePath)
+	return cfg
+}
+
+func prepMails(cfg config.Data, templatePath string) []email.Mail {
+	bs, err := os.ReadFile(templatePath)
 	if err != nil {
 		log.Fatalf("Failed to read template file %q: %v", templatePath, err)
 	}
 
-	mails := email.PrepMails(cfg, string(tmplBytes))
+	mails := email.PrepMails(cfg, string(bs))
 	if len(mails) == 0 {
 		log.Print("Warning: no recipients found in config file")
 		os.Exit(0)
 	}
 
-	return cfg, mails
+	return mails
 }
 
 func printDryRun(mails []email.Mail) {
