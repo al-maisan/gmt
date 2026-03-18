@@ -45,7 +45,6 @@ type Data struct {
 	ReplyTo     string
 	Cc          []string
 	Subject     string
-	Version     string
 	Recipients  []Recipient
 	Attachments []string
 }
@@ -70,9 +69,12 @@ func New(bs []byte) (result Data, err error) {
 		return
 	}
 
-	// optional keys
+	// mandatory keys
 	if val, ok := keys["from"]; ok {
 		result.From = val
+	} else {
+		err = errors.New("'from' not configured!")
+		return
 	}
 	if val, ok := keys["reply-to"]; ok {
 		result.ReplyTo = val
@@ -98,7 +100,7 @@ func New(bs []byte) (result Data, err error) {
 
 func checkAttachments(attachments []string) (path string, err error) {
 	for _, path = range attachments {
-		if _, err = os.Lstat(path); err != nil {
+		if _, err = os.Stat(path); err != nil {
 			return
 		}
 	}

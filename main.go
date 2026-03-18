@@ -99,14 +99,18 @@ func main() {
 		os.Exit(5)
 	}
 
-	cfg.Version = version()
 	// prepare the emails, substitute vars in subject & body
 	mails := email.PrepMails(cfg, string(bytes))
 
+	if len(mails) == 0 {
+		fmt.Fprintln(os.Stderr, "Warning: no recipients found in config file")
+		os.Exit(0)
+	}
+
 	// is this a dry run? print what would be done if so and exit
 	if *doDryRun {
-		for _, mail := range mails {
-			fmt.Printf("--\n%s\n%s\n%s\n", mail.Recipient, mail.Subject, mail.Body)
+		for _, m := range mails {
+			fmt.Printf("--\n%s\n%s\n%s\n", m.Recipient, m.Subject, m.Body)
 		}
 		os.Exit(0)
 	}
@@ -128,40 +132,46 @@ func send(cfg config.Data, mails []email.Mail) {
 		log.Fatalf("SMTP_PORT must be a valid integer, got %q: %v", smtpPortStr, err)
 	}
 
-	fmt.Println("\nSending emails now..")
-	for _, m := range mails {
-		to, err := sendEmailWithAttachments(from, password, smtpHost, smtpPort, cfg, m)
-		if err == nil {
-			fmt.Printf("- %s\n", to)
-		} else {
-			fmt.Printf("! %s (failed to send)\n", to)
-		}
-	}
-}
-
-func sendEmailWithAttachments(
-	from, password, smtpHost string, smtpPort int, cfg config.Data, em email.Mail) (string, error) {
-	msg, err := createEmailMessage(cfg.From, em.Recipient, em.Cc, cfg.ReplyTo, em.Subject, em.Body)
-	if err != nil {
-		log.Errorf("failed to create email for %s: %v", em.Recipient, err)
-		return em.Recipient, err
-	}
-
-	err = addAttachments(msg, em.Attachments)
-	if err != nil {
-		log.Errorf("failed to prep attachments for %s: %v", em.Recipient, err)
-		return em.Recipient, err
-	}
-
 	d := mail.NewDialer(smtpHost, smtpPort, from, password)
 	d.StartTLSPolicy = mail.MandatoryStartTLS
-	err = d.DialAndSend(msg)
-	if err != nil {
-		log.Errorf("failed to send email for %s: %v", em.Recipient, err)
-		return em.Recipient, err
-	}
 
-	return em.Recipient, nil
+	sender, err := d.Dial()
+	if err != nil {
+		log.Fatalf("failed to connect to SMTP server: %v", err)
+	}
+	defer sender.Close()
+
+	fmt.Println("\nSending emails now..")
+	var sent, failed int
+	for _, m := range mails {
+		msg, err := createEmailMessage(cfg.From, m.Recipient, m.Cc, cfg.ReplyTo, m.Subject, m.Body)
+		if err != nil {
+			log.Errorf("failed to create email for %s: %v", m.Recipient, err)
+			fmt.Printf("! %s (failed to create)\n", m.Recipient)
+			failed++
+			continue
+		}
+
+		err = addAttachments(msg, m.Attachments)
+		if err != nil {
+			log.Errorf("failed to prep attachments for %s: %v", m.Recipient, err)
+			fmt.Printf("! %s (failed to attach)\n", m.Recipient)
+			failed++
+			continue
+		}
+
+		err = mail.Send(sender, msg)
+		if err != nil {
+			log.Errorf("failed to send email for %s: %v", m.Recipient, err)
+			fmt.Printf("! %s (failed to send)\n", m.Recipient)
+			failed++
+			continue
+		}
+
+		fmt.Printf("- %s\n", m.Recipient)
+		sent++
+	}
+	fmt.Printf("\nDone: %d sent, %d failed, %d total\n", sent, failed, sent+failed)
 }
 
 func parseRecipientData(to string) (string, string, error) {

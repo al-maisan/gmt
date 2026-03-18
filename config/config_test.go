@@ -21,12 +21,18 @@ import (
 	"testing"
 
 	"github.com/go-ini/ini"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
+func sortRecipients(r []Recipient) {
+	sort.Slice(r, func(i, j int) bool {
+		return r[i].Email > r[j].Email
+	})
+}
+
 func TestLoadDefault(t *testing.T) {
-	Convey("Load sample config, test general parts", t, func(c C) {
-		cfg, err := New([]byte(`
+	cfg, err := New([]byte(`
 [general]
 From=Frodo Baggins <rts@example.com>
 #Cc=weirdo@nsb.gov, cc@example.com
@@ -36,81 +42,73 @@ subject=Hello %FN%!
 [recipients]
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
-`),
-		)
-		c.So(err, ShouldBeNil)
-		c.So(cfg, ShouldNotBeNil)
+`))
+	require.NoError(t, err)
 
-		c.So(cfg.From, ShouldEqual, "Frodo Baggins <rts@example.com>")
-		c.So(len(cfg.Cc), ShouldEqual, 0)
-		expected := []Recipient{
-			{
-				Email: "jd@example.com",
-				First: "John",
-				Last:  "Doe Jr.",
-				Data: map[string]string{
-					"ORG": "EFF", "TITLE": "PhD",
-				},
-			},
-			{
-				Email: "mm@gmail.com",
-				First: "Mickey",
-				Last:  "Mouse",
-				Data: map[string]string{
-					"ORG": "Disney",
-				},
-			},
-		}
-		sort.Slice(expected, func(i, j int) bool {
-			return expected[i].Email > expected[j].Email
-		})
-		sort.Slice(cfg.Recipients, func(i, j int) bool {
-			return cfg.Recipients[i].Email > cfg.Recipients[j].Email
-		})
-		c.So(cfg.Recipients, ShouldResemble, expected)
-	})
+	assert.Equal(t, "Frodo Baggins <rts@example.com>", cfg.From)
+	assert.Empty(t, cfg.Cc)
+
+	expected := []Recipient{
+		{
+			Email: "jd@example.com",
+			First: "John",
+			Last:  "Doe Jr.",
+			Data:  map[string]string{"ORG": "EFF", "TITLE": "PhD"},
+		},
+		{
+			Email: "mm@gmail.com",
+			First: "Mickey",
+			Last:  "Mouse",
+			Data:  map[string]string{"ORG": "Disney"},
+		},
+	}
+	sortRecipients(expected)
+	sortRecipients(cfg.Recipients)
+	assert.Equal(t, expected, cfg.Recipients)
 }
 
 func TestLoadNoRecipients(t *testing.T) {
-	Convey("Load sample config missing a 'recipients' section", t, func(c C) {
-		_, err := New([]byte(`
+	_, err := New([]byte(`
 [general]
+From=Frodo Baggins <rts@example.com>
 subject=Hello %FN%!
-`),
-		)
-		c.So(err, ShouldNotBeNil)
-		c.So(err.Error(), ShouldContainSubstring, "recipients")
-	})
+`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "recipients")
 }
 
 func TestLoadNoSubject(t *testing.T) {
-	Convey("Load sample config missing a subject definition", t, func(c C) {
-		_, err := New([]byte(`
+	_, err := New([]byte(`
 [general]
-`),
-		)
-		c.So(err, ShouldNotBeNil)
-		c.So(err.Error(), ShouldEqual, "'subject' not configured!")
-	})
+From=Frodo Baggins <rts@example.com>
+`))
+	require.Error(t, err)
+	assert.Equal(t, "'subject' not configured!", err.Error())
+}
+
+func TestLoadNoFrom(t *testing.T) {
+	_, err := New([]byte(`
+[general]
+subject=Hello %FN%!
+`))
+	require.Error(t, err)
+	assert.Equal(t, "'from' not configured!", err.Error())
 }
 
 func TestLoadSubjectCaseInsensitive(t *testing.T) {
-	Convey("Load config with title-case Subject key", t, func(c C) {
-		cfg, err := New([]byte(`
+	cfg, err := New([]byte(`
 [general]
+From=Frodo Baggins <rts@example.com>
 Subject=Hello %FN%!
 [recipients]
 jd@example.com=John Doe
-`),
-		)
-		c.So(err, ShouldBeNil)
-		c.So(cfg.Subject, ShouldEqual, "Hello %FN%!")
-	})
+`))
+	require.NoError(t, err)
+	assert.Equal(t, "Hello %FN%!", cfg.Subject)
 }
 
 func TestLoadFull(t *testing.T) {
-	Convey("Load full config, test general parts", t, func(c C) {
-		cfg, err := New([]byte(`
+	cfg, err := New([]byte(`
 [general]
 From=Frodo Baggins <rts@example.com>
 Cc=weirdo@nsb.gov, cc@example.com
@@ -120,130 +118,97 @@ subject=Hello %FN%!
 [recipients]
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
-`),
-		)
-		c.So(err, ShouldBeNil)
-		c.So(cfg, ShouldNotBeNil)
+`))
+	require.NoError(t, err)
 
-		c.So(cfg.From, ShouldEqual, "Frodo Baggins <rts@example.com>")
-		c.So(cfg.ReplyTo, ShouldEqual, "John Doe <jd@mail.com>")
-		c.So(len(cfg.Cc), ShouldEqual, 2)
-		c.So(cfg.Subject, ShouldEqual, "Hello %FN%!")
-		c.So(cfg.Cc, ShouldResemble, []string{"weirdo@nsb.gov", "cc@example.com"})
-		expected := []Recipient{
-			{
-				Email: "jd@example.com",
-				First: "John",
-				Last:  "Doe Jr.",
-				Data: map[string]string{
-					"ORG": "EFF", "TITLE": "PhD",
-				},
-			},
-			{
-				Email: "mm@gmail.com",
-				First: "Mickey",
-				Last:  "Mouse",
-				Data: map[string]string{
-					"ORG": "Disney",
-				},
-			},
-		}
-		sort.Slice(expected, func(i, j int) bool {
-			return expected[i].Email > expected[j].Email
-		})
-		sort.Slice(cfg.Recipients, func(i, j int) bool {
-			return cfg.Recipients[i].Email > cfg.Recipients[j].Email
-		})
-		c.So(cfg.Recipients, ShouldResemble, expected)
-	})
+	assert.Equal(t, "Frodo Baggins <rts@example.com>", cfg.From)
+	assert.Equal(t, "John Doe <jd@mail.com>", cfg.ReplyTo)
+	assert.Equal(t, "Hello %FN%!", cfg.Subject)
+	assert.Equal(t, []string{"weirdo@nsb.gov", "cc@example.com"}, cfg.Cc)
+
+	expected := []Recipient{
+		{
+			Email: "jd@example.com",
+			First: "John",
+			Last:  "Doe Jr.",
+			Data:  map[string]string{"ORG": "EFF", "TITLE": "PhD"},
+		},
+		{
+			Email: "mm@gmail.com",
+			First: "Mickey",
+			Last:  "Mouse",
+			Data:  map[string]string{"ORG": "Disney"},
+		},
+	}
+	sortRecipients(expected)
+	sortRecipients(cfg.Recipients)
+	assert.Equal(t, expected, cfg.Recipients)
 }
 
 func TestParseRecipients(t *testing.T) {
-	Convey("Load the recipients", t, func(c C) {
-		cfg, err := ini.InsensitiveLoad([]byte(`
+	cfg, err := ini.InsensitiveLoad([]byte(`
 [general]
 From=Frodo Baggins <rts@example.com>
 Cc=weirdo@nsb.gov, cc@example.com
 [recipients]
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
-`),
-		)
-		c.So(err, ShouldBeNil)
-		c.So(cfg, ShouldNotBeNil)
+`))
+	require.NoError(t, err)
 
-		var recipients *ini.Section
-		recipients, err = cfg.GetSection("recipients")
-		c.So(err, ShouldBeNil)
+	recipients, err := cfg.GetSection("recipients")
+	require.NoError(t, err)
 
-		actual := parseRecipients(recipients)
-		c.So(actual, ShouldNotBeNil)
+	actual := parseRecipients(recipients)
+	require.NotNil(t, actual)
 
-		expected := []Recipient{
-			{
-				Email: "jd@example.com",
-				First: "John",
-				Last:  "Doe Jr.",
-				Data: map[string]string{
-					"ORG": "EFF", "TITLE": "PhD",
-				},
-			},
-			{
-				Email: "mm@gmail.com",
-				First: "Mickey",
-				Last:  "Mouse",
-				Data: map[string]string{
-					"ORG": "Disney",
-				},
-			},
-		}
-		// sort expected / actual so different element ordering does not break
-		// the test
-		sort.Slice(expected, func(i, j int) bool {
-			return expected[i].Email > expected[j].Email
-		})
-		sort.Slice(actual, func(i, j int) bool {
-			return actual[i].Email > actual[j].Email
-		})
-		c.So(actual, ShouldResemble, expected)
-	})
+	expected := []Recipient{
+		{
+			Email: "jd@example.com",
+			First: "John",
+			Last:  "Doe Jr.",
+			Data:  map[string]string{"ORG": "EFF", "TITLE": "PhD"},
+		},
+		{
+			Email: "mm@gmail.com",
+			First: "Mickey",
+			Last:  "Mouse",
+			Data:  map[string]string{"ORG": "Disney"},
+		},
+	}
+	sortRecipients(expected)
+	sortRecipients(actual)
+	assert.Equal(t, expected, actual)
 }
 
 func TestParseRecipientsSingleName(t *testing.T) {
-	Convey("Parse a recipient with only a first name", t, func(c C) {
-		cfg, err := ini.InsensitiveLoad([]byte(`
+	cfg, err := ini.InsensitiveLoad([]byte(`
 [recipients]
 madonna@example.com=Madonna
-`),
-		)
-		c.So(err, ShouldBeNil)
+`))
+	require.NoError(t, err)
 
-		recipients, err := cfg.GetSection("recipients")
-		c.So(err, ShouldBeNil)
+	recipients, err := cfg.GetSection("recipients")
+	require.NoError(t, err)
 
-		actual := parseRecipients(recipients)
-		c.So(len(actual), ShouldEqual, 1)
-		c.So(actual[0].First, ShouldEqual, "Madonna")
-		c.So(actual[0].Last, ShouldEqual, "")
-		c.So(actual[0].Email, ShouldEqual, "madonna@example.com")
-	})
+	actual := parseRecipients(recipients)
+	require.Len(t, actual, 1)
+	assert.Equal(t, "Madonna", actual[0].First)
+	assert.Equal(t, "", actual[0].Last)
+	assert.Equal(t, "madonna@example.com", actual[0].Email)
 }
 
 func TestParseRecipientsMalformedData(t *testing.T) {
-	Convey("Parse a recipient with malformed custom data (missing :-)", t, func(c C) {
-		cfg, err := ini.InsensitiveLoad([]byte(`
+	cfg, err := ini.InsensitiveLoad([]byte(`
 [recipients]
 jd@example.com=John Doe|BADDATA|ORG:-EFF
-`),
-		)
-		c.So(err, ShouldBeNil)
+`))
+	require.NoError(t, err)
 
-		recipients, err := cfg.GetSection("recipients")
-		c.So(err, ShouldBeNil)
+	recipients, err := cfg.GetSection("recipients")
+	require.NoError(t, err)
 
-		actual := parseRecipients(recipients)
-		c.So(len(actual), ShouldEqual, 1)
-		// BADDATA should be skipped, ORG should be parsed
-		c.So(actual[0].Data, ShouldResemble, map[string]string{"ORG": "EFF"})
-	})
+	actual := parseRecipients(recipients)
+	require.Len(t, actual, 1)
+	assert.Equal(t, map[string]string{"ORG": "EFF"}, actual[0].Data)
 }

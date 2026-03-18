@@ -50,9 +50,10 @@ func PrepMails(cfg config.Data, template string) (mails []Mail) {
 		delete(recipient.Data, "CC")
 		delete(recipient.Data, "AS")
 
+		name := strings.TrimSpace(recipient.First + " " + recipient.Last)
 		mail := Mail{
 			Subject:     substVars(recipient, cfg.Subject),
-			Recipient:   fmt.Sprintf(`"%s %s" <%s>`, recipient.First, recipient.Last, recipient.Email),
+			Recipient:   fmt.Sprintf(`"%s" <%s>`, name, recipient.Email),
 			Body:        substVars(recipient, template),
 			Cc:          cc,
 			Attachments: attachments,
