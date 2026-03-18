@@ -21,8 +21,16 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/go-ini/ini"
+)
+
+var (
+	rePipe  = regexp.MustCompile(`\s*\|\s*`)
+	reSpace = regexp.MustCompile(`\s+`)
+	reRdata = regexp.MustCompile(`\s*:-\s*`)
+	reComma = regexp.MustCompile(`\s*,\s*`)
 )
 
 type Recipient struct {
@@ -33,7 +41,6 @@ type Recipient struct {
 }
 
 type Data struct {
-	MailProg    string
 	From        string
 	ReplyTo     string
 	Cc          []string
@@ -45,7 +52,7 @@ type Data struct {
 
 func New(bs []byte) (result Data, err error) {
 	var cfg *ini.File
-	cfg, err = ini.Load(bs)
+	cfg, err = ini.InsensitiveLoad(bs)
 	if err != nil {
 		return
 	}
@@ -55,7 +62,7 @@ func New(bs []byte) (result Data, err error) {
 	}
 	keys := sec.KeysHash()
 
-	// mandatory keys
+	// mandatory keys (all keys are lowercase due to InsensitiveLoad)
 	if val, ok := keys["subject"]; ok {
 		result.Subject = val
 	} else {
@@ -64,23 +71,17 @@ func New(bs []byte) (result Data, err error) {
 	}
 
 	// optional keys
-	if val, ok := keys["From"]; ok {
+	if val, ok := keys["from"]; ok {
 		result.From = val
 	}
-	if val, ok := keys["Reply-To"]; ok {
+	if val, ok := keys["reply-to"]; ok {
 		result.ReplyTo = val
 	}
-	if val, ok := keys["Cc"]; ok {
-		re := regexp.MustCompile(`\s*,\s*`)
-		result.Cc = re.Split(val, -1)
+	if val, ok := keys["cc"]; ok {
+		result.Cc = reComma.Split(val, -1)
 	}
 	if val, ok := keys["attachments"]; ok {
-		if result.MailProg == "sendmail" {
-			err = errors.New("Cannot use 'sendmail' with attachments!")
-			return
-		}
-		re := regexp.MustCompile(`\s*,\s*`)
-		result.Attachments = re.Split(val, -1)
+		result.Attachments = reComma.Split(val, -1)
 		if path, err2 := checkAttachments(result.Attachments); err2 != nil {
 			err = fmt.Errorf("Attachment '%s' does not exist!", path)
 			return
@@ -105,25 +106,30 @@ func checkAttachments(attachments []string) (path string, err error) {
 }
 
 func parseRecipients(sec *ini.Section) (recipients []Recipient) {
-	re_pipe := regexp.MustCompile(`\s*\|\s*`)
-	re_space := regexp.MustCompile(`\s+`)
-	re_rdata := regexp.MustCompile(`\s*\:-\s*`)
 	for k, v := range sec.KeysHash() {
 		// jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
-		rdata := re_pipe.Split(v, -1)
+		rdata := rePipe.Split(v, -1)
 		if len(rdata) < 1 {
 			continue
 		}
-		names := re_space.Split(rdata[0], 2)
+		names := reSpace.Split(rdata[0], 2)
+		first := names[0]
+		last := ""
+		if len(names) > 1 {
+			last = names[1]
+		}
 		data := make(map[string]string)
 		for _, rdatum := range rdata[1:] {
-			split_rdatum := re_rdata.Split(rdatum, 2)
-			data[split_rdatum[0]] = split_rdatum[1]
+			splitRdatum := reRdata.Split(rdatum, 2)
+			if len(splitRdatum) != 2 {
+				continue
+			}
+			data[strings.ToUpper(splitRdatum[0])] = splitRdatum[1]
 		}
 		recipient := Recipient{
 			Email: k,
-			First: names[0],
-			Last:  names[1],
+			First: first,
+			Last:  last,
 			Data:  data,
 		}
 		recipients = append(recipients, recipient)
@@ -137,8 +143,13 @@ func SampleConfig(version string) string {
 # anything that follows a hash is a comment
 # email address is to the left of the '=' sign, first word after is
 # the first name, the rest is the surname
+#
+# SMTP configuration should be set via environment variables or .env file:
+# SMTP_HOST=smtp.example.com
+# SMTP_PORT=587
+# SENDER_EMAIL=your-email@example.com
+# SENDER_PASSWORD=your-password
 [general]
-mail-prog=gnu-mail # arch linux, 'mail' on ubuntu, 'sendmail' on Fedora
 From="Frodo Baggins" <rts@example.com>
 #Cc=weirdo@nsb.gov, cc@example.com
 #Reply-To="John Doe" <jd@mail.com>
@@ -147,14 +158,13 @@ subject=Hello %%FN%%!
 [recipients]
 # The 'Cc' setting below *redefines* the global 'Cc' value above
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|Cc:-bl@kf.io,info@ex.org
-mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 # The 'Cc' setting below *adds* to the global 'Cc' value above
 daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org
 # The 'As' setting below *redefines* the global 'attachments' value above
-jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|As:-file1.txt,file2.md
+ab@example.com=Alice Brown|ORG:-MIT|As:-file1.txt,file2.md
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 # The 'As' setting below *adds* to the global 'attachments' value above
-daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|As:-+file3.pdf`
+ef@example.com=Eve Foster|ORG:-CERN|TITLE:-Prof.|As:-+file3.pdf`
 	return fmt.Sprintf(fs, version)
 }
 

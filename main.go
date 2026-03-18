@@ -27,6 +27,7 @@ import (
 	"github.com/al-maisan/gmt/config"
 	"github.com/al-maisan/gmt/email"
 	"github.com/go-mail/mail"
+	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 )
 
@@ -40,6 +41,8 @@ func help() {
 func version() string { return "0.2.1" }
 
 func main() {
+	// Load .env file if it exists (ignore error if file doesn't exist)
+	_ = godotenv.Load()
 
 	flag.Usage = help
 	configPath := flag.String("config-path", "", "path to the config file")
@@ -113,13 +116,21 @@ func main() {
 
 func send(cfg config.Data, mails []email.Mail) {
 	smtpHost := os.Getenv("SMTP_HOST")
-	smtpPort, _ := strconv.Atoi(os.Getenv("SMTP_PORT"))
+	smtpPortStr := os.Getenv("SMTP_PORT")
 	from := os.Getenv("SENDER_EMAIL")
 	password := os.Getenv("SENDER_PASSWORD")
 
+	if smtpHost == "" || smtpPortStr == "" || from == "" || password == "" {
+		log.Fatal("SMTP_HOST, SMTP_PORT, SENDER_EMAIL, and SENDER_PASSWORD environment variables must all be set")
+	}
+	smtpPort, err := strconv.Atoi(smtpPortStr)
+	if err != nil {
+		log.Fatalf("SMTP_PORT must be a valid integer, got %q: %v", smtpPortStr, err)
+	}
+
 	fmt.Println("\nSending emails now..")
-	for _, mail := range mails {
-		to, err := sendEmailWithAttachments(from, password, smtpHost, smtpPort, cfg, mail)
+	for _, m := range mails {
+		to, err := sendEmailWithAttachments(from, password, smtpHost, smtpPort, cfg, m)
 		if err == nil {
 			fmt.Printf("- %s\n", to)
 		} else {
@@ -129,60 +140,66 @@ func send(cfg config.Data, mails []email.Mail) {
 }
 
 func sendEmailWithAttachments(
-	from, password, smtpHost string, smtpPort int, cfg config.Data, email email.Mail) (string, error) {
-	msg := createEmailMessage(cfg.From, email.Recipient, cfg.Cc, cfg.ReplyTo, email.Subject, email.Body)
-
-	err := addAttachments(msg, cfg.Attachments)
+	from, password, smtpHost string, smtpPort int, cfg config.Data, em email.Mail) (string, error) {
+	msg, err := createEmailMessage(cfg.From, em.Recipient, em.Cc, cfg.ReplyTo, em.Subject, em.Body)
 	if err != nil {
-		log.Errorf("failed to prep attachments for %s, %v", email.Recipient, err)
-		return email.Recipient, err
+		log.Errorf("failed to create email for %s: %v", em.Recipient, err)
+		return em.Recipient, err
+	}
+
+	err = addAttachments(msg, em.Attachments)
+	if err != nil {
+		log.Errorf("failed to prep attachments for %s: %v", em.Recipient, err)
+		return em.Recipient, err
 	}
 
 	d := mail.NewDialer(smtpHost, smtpPort, from, password)
+	d.StartTLSPolicy = mail.MandatoryStartTLS
 	err = d.DialAndSend(msg)
 	if err != nil {
-		log.Errorf("failed to send email for %s, %v", email.Recipient, err)
-		return email.Recipient, err
+		log.Errorf("failed to send email for %s: %v", em.Recipient, err)
+		return em.Recipient, err
 	}
 
-	return email.Recipient, nil
+	return em.Recipient, nil
 }
 
-func parseRecipientData(to string) (string, string) {
-	var name, addr string
+func parseRecipientData(to string) (string, string, error) {
 	pcs := strings.Split(to, " <")
-	addr = pcs[1][:len(pcs[1])-1]
-	name = strings.Trim(pcs[0], `"`)
-
-	return name, addr
+	if len(pcs) != 2 || len(pcs[1]) < 2 || pcs[1][len(pcs[1])-1] != '>' {
+		return "", "", fmt.Errorf("malformed recipient: %q", to)
+	}
+	addr := pcs[1][:len(pcs[1])-1]
+	name := strings.Trim(pcs[0], `"`)
+	return name, addr, nil
 }
 
-func createEmailMessage(from, to string, cc []string, replyTo, subject, body string) *mail.Message {
+func createEmailMessage(from, to string, cc []string, replyTo, subject, body string) (*mail.Message, error) {
 	m := mail.NewMessage()
 	m.SetHeader("From", from)
-	name, addr := parseRecipientData(to)
+	name, addr, err := parseRecipientData(to)
+	if err != nil {
+		return nil, err
+	}
 	m.SetAddressHeader("To", addr, name)
 	if len(cc) > 0 {
-		m.SetHeader("Cc", fmt.Sprintf("Cc: %s", strings.Join(cc, ",")))
+		m.SetHeader("Cc", strings.Join(cc, ","))
 	}
 	if replyTo != "" {
 		m.SetHeader("Reply-To", replyTo)
 	}
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/plain", body)
-	return m
+	return m, nil
 }
 
 func addAttachments(msg *mail.Message, attachments []string) error {
 	for _, attachmentPath := range attachments {
-		_, err := os.ReadFile(attachmentPath)
-		if err != nil {
-			log.Errorf("failed to read attachment %s, %v", attachmentPath, err)
+		if _, err := os.Stat(attachmentPath); err != nil {
+			log.Errorf("failed to read attachment %s: %v", attachmentPath, err)
 			return err
 		}
-
 		msg.Attach(attachmentPath)
 	}
-
 	return nil
 }

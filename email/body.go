@@ -24,17 +24,19 @@ import (
 )
 
 type Mail struct {
-	Recipient string
-	Body      string
-	Subject   string
+	Recipient   string
+	Body        string
+	Subject     string
+	Cc          []string
+	Attachments []string
 }
 
 func substVars(recipient config.Recipient, text string) (result string) {
-	result = strings.Replace(text, "%EA%", recipient.Email, -1)
-	result = strings.Replace(result, "%FN%", recipient.First, -1)
-	result = strings.Replace(result, "%LN%", recipient.Last, -1)
+	result = strings.ReplaceAll(text, "%EA%", recipient.Email)
+	result = strings.ReplaceAll(result, "%FN%", recipient.First)
+	result = strings.ReplaceAll(result, "%LN%", recipient.Last)
 	for k, v := range recipient.Data {
-		result = strings.Replace(result, fmt.Sprintf("%%%s%%", k), v, -1)
+		result = strings.ReplaceAll(result, fmt.Sprintf("%%%s%%", k), v)
 	}
 	return
 }
@@ -42,12 +44,52 @@ func substVars(recipient config.Recipient, text string) (result string) {
 func PrepMails(cfg config.Data, template string) (mails []Mail) {
 	mails = make([]Mail, 0, len(cfg.Recipients))
 	for _, recipient := range cfg.Recipients {
+		cc := resolveOverride(cfg.Cc, recipient.Data, "CC")
+		attachments := resolveOverride(cfg.Attachments, recipient.Data, "AS")
+		// remove Cc/As from Data so they are not used as template variables
+		delete(recipient.Data, "CC")
+		delete(recipient.Data, "AS")
+
 		mail := Mail{
-			Subject:   substVars(recipient, cfg.Subject),
-			Recipient: fmt.Sprintf(`"%s %s" <%s>`, recipient.First, recipient.Last, recipient.Email),
-			Body:      substVars(recipient, template),
+			Subject:     substVars(recipient, cfg.Subject),
+			Recipient:   fmt.Sprintf(`"%s %s" <%s>`, recipient.First, recipient.Last, recipient.Email),
+			Body:        substVars(recipient, template),
+			Cc:          cc,
+			Attachments: attachments,
 		}
 		mails = append(mails, mail)
 	}
 	return
+}
+
+// resolveOverride applies per-recipient override logic for Cc and Attachments.
+// If the recipient has a value starting with "+", it is appended to the global list.
+// Otherwise the recipient value replaces the global list entirely.
+func resolveOverride(global []string, data map[string]string, key string) []string {
+	val, ok := data[key]
+	if !ok {
+		result := make([]string, len(global))
+		copy(result, global)
+		return result
+	}
+	if strings.HasPrefix(val, "+") {
+		val = val[1:]
+		result := make([]string, len(global))
+		copy(result, global)
+		for _, item := range strings.Split(val, ",") {
+			item = strings.TrimSpace(item)
+			if item != "" {
+				result = append(result, item)
+			}
+		}
+		return result
+	}
+	var result []string
+	for _, item := range strings.Split(val, ",") {
+		item = strings.TrimSpace(item)
+		if item != "" {
+			result = append(result, item)
+		}
+	}
+	return result
 }

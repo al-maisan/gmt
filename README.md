@@ -1,49 +1,124 @@
 # Go mailing tool (gmt)
 
-## What is it?
-`gmt` is a simple utility that allows the automated sending of emails using a configuration file and a template for the email body.
-It was written in [Go](https://golang.org/) and used mainly on linux systems like [Arch Linux](https://www.archlinux.org/), [Fedora](https://getfedora.org/) and [Ubuntu](http://www.ubuntu.com/).
+`gmt` is a simple utility that sends personalized emails in bulk using a configuration file and a template for the email body. It connects directly via SMTP with mandatory TLS.
 
-## Using `gmt`
-The easiest way to use the tool is to generate a sample configuration (`-sample-config`) and a template file (`-sample-template`) and take it from there.
+## Installation
+
+Requires [Go](https://go.dev/) 1.19 or later.
 
     $ go build
-    $ ./gmt -sample-config > /tmp/sc.ini
-    $ ./gmt -sample-template > /tmp/st.eml
-    $ ./gmt -dry-run -config-path /tmp/sc.ini  -template-path /tmp/st.eml
-    --
-    [gnu-mail -a Cc: bl@kf.io, info@ex.org -a From: "Frodo Baggins" <rts@example.com>]
-    To: jd@example.com
-    Subject: Hello John!
-    FN / LN / EA = first name / last name / email address
+    $ ./gmt -h
 
+Or install directly:
+
+    $ go install github.com/al-maisan/gmt@latest
+
+## Quick start
+
+Generate sample files, configure SMTP credentials, preview, then send:
+
+    $ ./gmt -sample-config > config.ini
+    $ ./gmt -sample-template > template.eml
+    $ cp .env.example .env    # edit .env with your SMTP credentials
+    $ ./gmt -dry-run -config-path config.ini -template-path template.eml
+    $ ./gmt -config-path config.ini -template-path template.eml
+
+## SMTP setup
+
+SMTP credentials are read from environment variables. Copy `.env.example` to `.env` and fill in:
+
+    SMTP_HOST=smtp.gmail.com
+    SMTP_PORT=587
+    SENDER_EMAIL=your-email@gmail.com
+    SENDER_PASSWORD=your-app-password
+
+For Gmail you must use an [App Password](https://myaccount.google.com/apppasswords) (requires 2-Step Verification). Other providers (Outlook, Yahoo, etc.) are documented in `.env.example`.
+
+TLS is enforced -- credentials are never sent in plaintext.
+
+## Configuration file
+
+The config file uses INI format with two sections. Key names are case-insensitive.
+
+### `[general]` section
+
+| Key           | Required | Description                                  |
+|---------------|----------|----------------------------------------------|
+| `subject`     | yes      | Email subject line (supports template vars)   |
+| `From`        | no       | Sender name and address for the email header  |
+| `Cc`          | no       | Comma-separated CC addresses                  |
+| `Reply-To`    | no       | Reply-To address                              |
+| `attachments` | no       | Comma-separated file paths to attach          |
+
+### `[recipients]` section
+
+Each line defines one recipient:
+
+    email=First Last|KEY:-VALUE|KEY:-VALUE|...
+
+Examples:
+
+    jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
+    mm@gmail.com=Mickey Mouse|ORG:-Disney
+
+The first word after `=` is the first name, the rest up to the first `|` is the last name. Custom key-value pairs follow, separated by `|`, with `:-` between key and value.
+
+### Per-recipient overrides
+
+Individual recipients can override the global `Cc` and `attachments`:
+
+    # Replace global Cc entirely
+    jd@example.com=John Doe|Cc:-alt@cc.com,other@cc.com
+
+    # Append to global Cc
+    daisy@example.com=Daisy Lila|Cc:-+extra@cc.com
+
+    # Replace global attachments
+    ab@example.com=Alice Brown|As:-file1.txt,file2.md
+
+    # Append to global attachments
+    ef@example.com=Eve Foster|As:-+file3.pdf
+
+A leading `+` means append to the global list; without `+` the global list is replaced.
+
+## Template variables
+
+Templates support these placeholders (in both subject and body):
+
+| Placeholder | Value                                    |
+|-------------|------------------------------------------|
+| `%FN%`      | First name                               |
+| `%LN%`      | Last name                                |
+| `%EA%`      | Email address                            |
+| `%KEY%`     | Any custom key from recipient data       |
+
+Example template:
+
+    Hello %FN% %LN%, how are things going at %ORG%?
+    This is your email: %EA%
+
+## Dry run
+
+Use `-dry-run` to preview all emails without sending:
+
+    $ ./gmt -dry-run -config-path config.ini -template-path template.eml
+    --
+    "John Doe Jr." <jd@example.com>
+    Hello John!
     Hello John // Doe Jr., how are things going at EFF?
     this is your email: jd@example.com :)
-
     --
-    [gnu-mail -a From: "Frodo Baggins" <rts@example.com>]
-    To: mm@gmail.com
-    Subject: Hello Mickey!
-    FN / LN / EA = first name / last name / email address
-
+    "Mickey Mouse" <mm@gmail.com>
+    Hello Mickey!
     Hello Mickey // Mouse, how are things going at Disney?
     this is your email: mm@gmail.com :)
 
-    --
-    [gnu-mail -a Cc: inc@gg.org -a From: "Frodo Baggins" <rts@example.com>]
-    To: daisy@example.com
-    Subject: Hello Daisy!
-    FN / LN / EA = first name / last name / email address
-
-    Hello Daisy // Lila, how are things going at NASA?
-    this is your email: daisy@example.com :)
-
-
-Last but not least use `-h` to see all the options:
+## CLI reference
 
     $ ./gmt -h
 
-    gmt sends emails in bulk based on a template and a config file
+    gmt, version 0.2.1
+    This tool sends emails in bulk based on a template and a config file
 
       -config-path string
             path to the config file
@@ -55,3 +130,7 @@ Last but not least use `-h` to see all the options:
             output sample template to stdout
       -template-path string
             path to the template file
+
+## License
+
+[GNU General Public License v3](LICENSE)
