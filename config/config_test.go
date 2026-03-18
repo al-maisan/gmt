@@ -94,6 +94,20 @@ func TestLoadNoSubject(t *testing.T) {
 	})
 }
 
+func TestLoadSubjectCaseInsensitive(t *testing.T) {
+	Convey("Load config with title-case Subject key", t, func(c C) {
+		cfg, err := New([]byte(`
+[general]
+Subject=Hello %FN%!
+[recipients]
+jd@example.com=John Doe
+`),
+		)
+		c.So(err, ShouldBeNil)
+		c.So(cfg.Subject, ShouldEqual, "Hello %FN%!")
+	})
+}
+
 func TestLoadFull(t *testing.T) {
 	Convey("Load full config, test general parts", t, func(c C) {
 		cfg, err := New([]byte(`
@@ -146,7 +160,7 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 
 func TestParseRecipients(t *testing.T) {
 	Convey("Load the recipients", t, func(c C) {
-		cfg, err := ini.Load([]byte(`
+		cfg, err := ini.InsensitiveLoad([]byte(`
 [general]
 From=Frodo Baggins <rts@example.com>
 Cc=weirdo@nsb.gov, cc@example.com
@@ -192,5 +206,44 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 			return actual[i].Email > actual[j].Email
 		})
 		c.So(actual, ShouldResemble, expected)
+	})
+}
+
+func TestParseRecipientsSingleName(t *testing.T) {
+	Convey("Parse a recipient with only a first name", t, func(c C) {
+		cfg, err := ini.InsensitiveLoad([]byte(`
+[recipients]
+madonna@example.com=Madonna
+`),
+		)
+		c.So(err, ShouldBeNil)
+
+		recipients, err := cfg.GetSection("recipients")
+		c.So(err, ShouldBeNil)
+
+		actual := parseRecipients(recipients)
+		c.So(len(actual), ShouldEqual, 1)
+		c.So(actual[0].First, ShouldEqual, "Madonna")
+		c.So(actual[0].Last, ShouldEqual, "")
+		c.So(actual[0].Email, ShouldEqual, "madonna@example.com")
+	})
+}
+
+func TestParseRecipientsMalformedData(t *testing.T) {
+	Convey("Parse a recipient with malformed custom data (missing :-)", t, func(c C) {
+		cfg, err := ini.InsensitiveLoad([]byte(`
+[recipients]
+jd@example.com=John Doe|BADDATA|ORG:-EFF
+`),
+		)
+		c.So(err, ShouldBeNil)
+
+		recipients, err := cfg.GetSection("recipients")
+		c.So(err, ShouldBeNil)
+
+		actual := parseRecipients(recipients)
+		c.So(len(actual), ShouldEqual, 1)
+		// BADDATA should be skipped, ORG should be parsed
+		c.So(actual[0].Data, ShouldResemble, map[string]string{"ORG": "EFF"})
 	})
 }

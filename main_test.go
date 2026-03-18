@@ -23,9 +23,32 @@ import (
 )
 
 func TestParseRecipientData(t *testing.T) {
-
-	// assert equality
-	name, addr := parseRecipientData(`"abc ähm" <abc@example.com>`)
+	name, addr, err := parseRecipientData(`"abc ähm" <abc@example.com>`)
+	assert.NoError(t, err)
 	assert.Equal(t, "abc ähm", name, "utf-8 name matches")
 	assert.Equal(t, "abc@example.com", addr, "email address matches")
+}
+
+func TestParseRecipientDataSimple(t *testing.T) {
+	name, addr, err := parseRecipientData(`"John Doe" <jd@example.com>`)
+	assert.NoError(t, err)
+	assert.Equal(t, "John Doe", name)
+	assert.Equal(t, "jd@example.com", addr)
+}
+
+func TestParseRecipientDataMalformedNoAngleBracket(t *testing.T) {
+	_, _, err := parseRecipientData("just-an-email@example.com")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "malformed recipient")
+}
+
+func TestParseRecipientDataMalformedNoClosingBracket(t *testing.T) {
+	_, _, err := parseRecipientData(`"John" <jd@example.com`)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "malformed recipient")
+}
+
+func TestParseRecipientDataEmptyString(t *testing.T) {
+	_, _, err := parseRecipientData("")
+	assert.Error(t, err)
 }

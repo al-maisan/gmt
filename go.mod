@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/go-ini/ini v1.40.0
 	github.com/go-mail/mail v2.3.1+incompatible
+	github.com/joho/godotenv v1.5.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/smartystreets/goconvey v0.0.0-20181108003508-044398e4856c
 	github.com/stretchr/testify v1.2.2
