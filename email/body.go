@@ -24,7 +24,8 @@ import (
 )
 
 type Mail struct {
-	Recipient   string
+	Name        string
+	Address     string
 	Body        string
 	Subject     string
 	Cc          []string
@@ -44,6 +45,13 @@ func substVars(recipient config.Recipient, text string) (result string) {
 func PrepMails(cfg config.Data, template string) (mails []Mail) {
 	mails = make([]Mail, 0, len(cfg.Recipients))
 	for _, recipient := range cfg.Recipients {
+		// copy the Data map so we don't mutate the original
+		data := make(map[string]string, len(recipient.Data))
+		for k, v := range recipient.Data {
+			data[k] = v
+		}
+		recipient.Data = data
+
 		cc := resolveOverride(cfg.Cc, recipient.Data, "CC")
 		attachments := resolveOverride(cfg.Attachments, recipient.Data, "AS")
 		// remove Cc/As from Data so they are not used as template variables
@@ -52,8 +60,9 @@ func PrepMails(cfg config.Data, template string) (mails []Mail) {
 
 		name := strings.TrimSpace(recipient.First + " " + recipient.Last)
 		mail := Mail{
+			Name:        name,
+			Address:     recipient.Email,
 			Subject:     substVars(recipient, cfg.Subject),
-			Recipient:   fmt.Sprintf(`"%s" <%s>`, name, recipient.Email),
 			Body:        substVars(recipient, template),
 			Cc:          cc,
 			Attachments: attachments,

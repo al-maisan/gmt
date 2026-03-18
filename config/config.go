@@ -68,14 +68,14 @@ func New(bs []byte) (result Data, err error) {
 		err = errors.New("'subject' not configured!")
 		return
 	}
-
-	// mandatory keys
 	if val, ok := keys["from"]; ok {
 		result.From = val
 	} else {
 		err = errors.New("'from' not configured!")
 		return
 	}
+
+	// optional keys
 	if val, ok := keys["reply-to"]; ok {
 		result.ReplyTo = val
 	}

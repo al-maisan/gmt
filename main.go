@@ -50,8 +50,14 @@ func main() {
 	templatePath := flag.String("template-path", "", "path to the template file")
 	doSampleConfig := flag.Bool("sample-config", false, "output sample configuration to stdout")
 	doSampleTemplate := flag.Bool("sample-template", false, "output sample template to stdout")
+	doVersion := flag.Bool("version", false, "print version and exit")
 
 	flag.Parse()
+
+	if *doVersion {
+		fmt.Println(version())
+		os.Exit(0)
+	}
 
 	if *doSampleConfig {
 		fmt.Println(config.SampleConfig(version()))
@@ -110,15 +116,18 @@ func main() {
 	// is this a dry run? print what would be done if so and exit
 	if *doDryRun {
 		for _, m := range mails {
-			fmt.Printf("--\n%s\n%s\n%s\n", m.Recipient, m.Subject, m.Body)
+			fmt.Printf("--\n\"%s\" <%s>\n%s\n%s\n", m.Name, m.Address, m.Subject, m.Body)
 		}
 		os.Exit(0)
 	}
 
-	send(cfg, mails)
+	failed := send(cfg, mails)
+	if failed > 0 {
+		os.Exit(6)
+	}
 }
 
-func send(cfg config.Data, mails []email.Mail) {
+func send(cfg config.Data, mails []email.Mail) int {
 	smtpHost := os.Getenv("SMTP_HOST")
 	smtpPortStr := os.Getenv("SMTP_PORT")
 	from := os.Getenv("SENDER_EMAIL")
@@ -144,54 +153,33 @@ func send(cfg config.Data, mails []email.Mail) {
 	fmt.Println("\nSending emails now..")
 	var sent, failed int
 	for _, m := range mails {
-		msg, err := createEmailMessage(cfg.From, m.Recipient, m.Cc, cfg.ReplyTo, m.Subject, m.Body)
-		if err != nil {
-			log.Errorf("failed to create email for %s: %v", m.Recipient, err)
-			fmt.Printf("! %s (failed to create)\n", m.Recipient)
+		recipient := fmt.Sprintf("%s <%s>", m.Name, m.Address)
+
+		msg := createEmailMessage(cfg.From, m.Name, m.Address, m.Cc, cfg.ReplyTo, m.Subject, m.Body)
+
+		if err := addAttachments(msg, m.Attachments); err != nil {
+			fmt.Printf("! %s (failed to attach: %v)\n", recipient, err)
 			failed++
 			continue
 		}
 
-		err = addAttachments(msg, m.Attachments)
-		if err != nil {
-			log.Errorf("failed to prep attachments for %s: %v", m.Recipient, err)
-			fmt.Printf("! %s (failed to attach)\n", m.Recipient)
+		if err := mail.Send(sender, msg); err != nil {
+			fmt.Printf("! %s (failed to send: %v)\n", recipient, err)
 			failed++
 			continue
 		}
 
-		err = mail.Send(sender, msg)
-		if err != nil {
-			log.Errorf("failed to send email for %s: %v", m.Recipient, err)
-			fmt.Printf("! %s (failed to send)\n", m.Recipient)
-			failed++
-			continue
-		}
-
-		fmt.Printf("- %s\n", m.Recipient)
+		fmt.Printf("- %s\n", recipient)
 		sent++
 	}
 	fmt.Printf("\nDone: %d sent, %d failed, %d total\n", sent, failed, sent+failed)
+	return failed
 }
 
-func parseRecipientData(to string) (string, string, error) {
-	pcs := strings.Split(to, " <")
-	if len(pcs) != 2 || len(pcs[1]) < 2 || pcs[1][len(pcs[1])-1] != '>' {
-		return "", "", fmt.Errorf("malformed recipient: %q", to)
-	}
-	addr := pcs[1][:len(pcs[1])-1]
-	name := strings.Trim(pcs[0], `"`)
-	return name, addr, nil
-}
-
-func createEmailMessage(from, to string, cc []string, replyTo, subject, body string) (*mail.Message, error) {
+func createEmailMessage(from, toName, toAddr string, cc []string, replyTo, subject, body string) *mail.Message {
 	m := mail.NewMessage()
 	m.SetHeader("From", from)
-	name, addr, err := parseRecipientData(to)
-	if err != nil {
-		return nil, err
-	}
-	m.SetAddressHeader("To", addr, name)
+	m.SetAddressHeader("To", toAddr, toName)
 	if len(cc) > 0 {
 		m.SetHeader("Cc", strings.Join(cc, ","))
 	}
@@ -200,14 +188,13 @@ func createEmailMessage(from, to string, cc []string, replyTo, subject, body str
 	}
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/plain", body)
-	return m, nil
+	return m
 }
 
 func addAttachments(msg *mail.Message, attachments []string) error {
 	for _, attachmentPath := range attachments {
 		if _, err := os.Stat(attachmentPath); err != nil {
-			log.Errorf("failed to read attachment %s: %v", attachmentPath, err)
-			return err
+			return fmt.Errorf("attachment %s: %w", attachmentPath, err)
 		}
 		msg.Attach(attachmentPath)
 	}
