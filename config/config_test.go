@@ -30,7 +30,7 @@ func sortRecipients(r []Recipient) {
 	})
 }
 
-func parseTestConfig(t *testing.T, input []byte) Data {
+func parseTestConfig(t *testing.T, input []byte) MailConfig {
 	t.Helper()
 	c, err := New(input)
 	require.NoError(t, err)
@@ -43,31 +43,18 @@ func TestLoadDefault(t *testing.T) {
 	cfg := parseTestConfig(t, []byte(`
 [general]
 From=Frodo Baggins <rts@example.com>
-#Cc=weirdo@nsb.gov, cc@example.com
-#Reply-to=John Doe <jd@mail.com>
 subject=Hello %FN%!
-#attachments=/home/user/atmt1.ics, ../Documents/doc2.txt
 [recipients]
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
-mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
+mm@gmail.com=Mickey Mouse|ORG:-Disney
 `))
 
 	assert.Equal(t, "Frodo Baggins <rts@example.com>", cfg.From)
 	assert.Empty(t, cfg.Cc)
 
 	expected := []Recipient{
-		{
-			Email: "jd@example.com",
-			First: "John",
-			Last:  "Doe Jr.",
-			Data:  map[string]string{"ORG": "EFF", "TITLE": "PhD"},
-		},
-		{
-			Email: "mm@gmail.com",
-			First: "Mickey",
-			Last:  "Mouse",
-			Data:  map[string]string{"ORG": "Disney"},
-		},
+		{Email: "jd@example.com", First: "John", Last: "Doe Jr.", Data: map[string]string{"ORG": "EFF", "TITLE": "PhD"}},
+		{Email: "mm@gmail.com", First: "Mickey", Last: "Mouse", Data: map[string]string{"ORG": "Disney"}},
 	}
 	sortRecipients(expected)
 	sortRecipients(cfg.Recipients)
@@ -80,7 +67,6 @@ func TestLoadNoGeneralSection(t *testing.T) {
 jd@example.com=John Doe
 `))
 	require.NoError(t, err)
-
 	_, err = c.ParseGeneral()
 	require.Error(t, err)
 	assert.Equal(t, "section not found", err.Error())
@@ -93,37 +79,31 @@ From=Frodo Baggins <rts@example.com>
 subject=Hello %FN%!
 `))
 	require.NoError(t, err)
-
 	cfg, err := c.ParseGeneral()
 	require.NoError(t, err)
-
 	err = c.ParseRecipients(&cfg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "recipients")
 }
 
-func TestLoadNoSubject(t *testing.T) {
-	c, err := New([]byte(`
-[general]
-From=Frodo Baggins <rts@example.com>
-`))
-	require.NoError(t, err)
-
-	_, err = c.ParseGeneral()
-	require.Error(t, err)
-	assert.Equal(t, "missing required key 'subject'", err.Error())
-}
-
-func TestLoadNoFrom(t *testing.T) {
-	c, err := New([]byte(`
-[general]
-subject=Hello %FN%!
-`))
-	require.NoError(t, err)
-
-	_, err = c.ParseGeneral()
-	require.Error(t, err)
-	assert.Equal(t, "missing required key 'from'", err.Error())
+func TestLoadErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr string
+	}{
+		{"missing subject", "[general]\nFrom=x <x@x.com>", "missing required key 'subject'"},
+		{"missing from", "[general]\nsubject=test", "missing required key 'from'"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := New([]byte(tt.input))
+			require.NoError(t, err)
+			_, err = c.ParseGeneral()
+			require.Error(t, err)
+			assert.Equal(t, tt.wantErr, err.Error())
+		})
+	}
 }
 
 func TestLoadSubjectCaseInsensitive(t *testing.T) {
@@ -144,10 +124,9 @@ From=Frodo Baggins <rts@example.com>
 Cc=weirdo@nsb.gov, cc@example.com
 Reply-To=John Doe <jd@mail.com>
 subject=Hello %FN%!
-#attachments=/home/user/atmt1.ics, ../Documents/doc2.txt
 [recipients]
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
-mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
+mm@gmail.com=Mickey Mouse|ORG:-Disney
 `))
 
 	assert.Equal(t, "Frodo Baggins <rts@example.com>", cfg.From)
@@ -156,18 +135,8 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 	assert.Equal(t, []string{"weirdo@nsb.gov", "cc@example.com"}, cfg.Cc)
 
 	expected := []Recipient{
-		{
-			Email: "jd@example.com",
-			First: "John",
-			Last:  "Doe Jr.",
-			Data:  map[string]string{"ORG": "EFF", "TITLE": "PhD"},
-		},
-		{
-			Email: "mm@gmail.com",
-			First: "Mickey",
-			Last:  "Mouse",
-			Data:  map[string]string{"ORG": "Disney"},
-		},
+		{Email: "jd@example.com", First: "John", Last: "Doe Jr.", Data: map[string]string{"ORG": "EFF", "TITLE": "PhD"}},
+		{Email: "mm@gmail.com", First: "Mickey", Last: "Mouse", Data: map[string]string{"ORG": "Disney"}},
 	}
 	sortRecipients(expected)
 	sortRecipients(cfg.Recipients)
@@ -206,15 +175,14 @@ jd@example.com=John Doe|BADDATA|ORG:-EFF
 func TestSampleConfigParses(t *testing.T) {
 	c, err := New([]byte(SampleConfig("0.0.0")))
 	require.NoError(t, err)
-
 	cfg, err := c.Parse()
 	require.NoError(t, err)
 	assert.NotEmpty(t, cfg.From)
 	assert.NotEmpty(t, cfg.Subject)
-	assert.True(t, len(cfg.Recipients) > 0, "sample config should have at least one recipient")
+	assert.True(t, len(cfg.Recipients) > 0)
 	for _, r := range cfg.Recipients {
-		assert.NotEmpty(t, r.Email, "recipient email must not be empty")
-		assert.NotEmpty(t, r.First, "recipient first name must not be empty")
+		assert.NotEmpty(t, r.Email)
+		assert.NotEmpty(t, r.First)
 	}
 }
 

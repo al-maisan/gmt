@@ -55,62 +55,49 @@ func TestCreateMessageUTF8Name(t *testing.T) {
 }
 
 func TestAttachFilesNonexistent(t *testing.T) {
-	msg := createMessage(
-		`"Sender" <s@example.com>`,
-		"A", "a@b.com",
-		nil, "", "s", "b",
-	)
+	msg := createMessage(`"S" <s@s.com>`, "A", "a@b.com", nil, "", "s", "b")
 	err := attachFiles(msg, []string{"/nonexistent/file.txt"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "attachment /nonexistent/file.txt")
 }
 
 func TestAttachFilesEmpty(t *testing.T) {
-	msg := createMessage(
-		`"Sender" <s@example.com>`,
-		"A", "a@b.com",
-		nil, "", "s", "b",
-	)
-	err := attachFiles(msg, nil)
-	assert.NoError(t, err)
+	msg := createMessage(`"S" <s@s.com>`, "A", "a@b.com", nil, "", "s", "b")
+	assert.NoError(t, attachFiles(msg, nil))
 }
 
-func TestLoadSMTPCredentialsMissing(t *testing.T) {
-	t.Setenv("SMTP_HOST", "")
-	t.Setenv("SMTP_PORT", "")
-	t.Setenv("SENDER_EMAIL", "")
-	t.Setenv("SENDER_PASSWORD", "")
-
-	_, err := LoadSMTPCredentials()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "SMTP_HOST")
-	assert.Contains(t, err.Error(), "SMTP_PORT")
-	assert.Contains(t, err.Error(), "SENDER_EMAIL")
-	assert.Contains(t, err.Error(), "SENDER_PASSWORD")
-}
-
-func TestLoadSMTPCredentialsPartialMissing(t *testing.T) {
-	t.Setenv("SMTP_HOST", "smtp.example.com")
-	t.Setenv("SMTP_PORT", "587")
-	t.Setenv("SENDER_EMAIL", "")
-	t.Setenv("SENDER_PASSWORD", "secret")
-
-	_, err := LoadSMTPCredentials()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "SENDER_EMAIL")
-	assert.NotContains(t, err.Error(), "SMTP_HOST")
-}
-
-func TestLoadSMTPCredentialsBadPort(t *testing.T) {
-	t.Setenv("SMTP_HOST", "smtp.example.com")
-	t.Setenv("SMTP_PORT", "abc")
-	t.Setenv("SENDER_EMAIL", "user@example.com")
-	t.Setenv("SENDER_PASSWORD", "secret")
-
-	_, err := LoadSMTPCredentials()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "SMTP_PORT")
-	assert.Contains(t, err.Error(), "abc")
+func TestLoadSMTPCredentials(t *testing.T) {
+	tests := []struct {
+		name    string
+		env     map[string]string
+		wantErr string
+	}{
+		{
+			name:    "all missing",
+			env:     map[string]string{"SMTP_HOST": "", "SMTP_PORT": "", "SENDER_EMAIL": "", "SENDER_PASSWORD": ""},
+			wantErr: "SMTP_HOST",
+		},
+		{
+			name:    "partial missing",
+			env:     map[string]string{"SMTP_HOST": "smtp.example.com", "SMTP_PORT": "587", "SENDER_EMAIL": "", "SENDER_PASSWORD": "secret"},
+			wantErr: "SENDER_EMAIL",
+		},
+		{
+			name:    "bad port",
+			env:     map[string]string{"SMTP_HOST": "smtp.example.com", "SMTP_PORT": "abc", "SENDER_EMAIL": "u@e.com", "SENDER_PASSWORD": "secret"},
+			wantErr: "SMTP_PORT",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for k, v := range tt.env {
+				t.Setenv(k, v)
+			}
+			_, err := LoadSMTPCredentials()
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
 }
 
 func TestLoadSMTPCredentialsValid(t *testing.T) {

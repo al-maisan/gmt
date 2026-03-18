@@ -30,8 +30,8 @@ import (
 
 var rePlaceholder = regexp.MustCompile(`%[A-Z][A-Z0-9_]*%`)
 
-// Mail holds a fully prepared email ready for sending.
-type Mail struct {
+// Message holds a fully prepared email ready for sending.
+type Message struct {
 	Name        string
 	Address     string
 	Body        string
@@ -41,7 +41,6 @@ type Mail struct {
 }
 
 func substVars(recipient config.Recipient, text string) string {
-	// build replacer pairs: oldval, newval, oldval, newval, ...
 	pairs := []string{
 		"%EA%", recipient.Email,
 		"%FN%", recipient.First,
@@ -53,18 +52,16 @@ func substVars(recipient config.Recipient, text string) string {
 	return strings.NewReplacer(pairs...).Replace(text)
 }
 
-// PrepMails generates a Mail for each recipient by substituting template variables
-// and resolving per-recipient Cc and attachment overrides. Warnings about
-// unresolved placeholders are appended to cfg.Warnings.
-func PrepMails(cfg *config.Data, template string) []Mail {
-	mails := make([]Mail, 0, len(cfg.Recipients))
+// PrepMails generates a Message for each recipient by substituting template
+// variables and resolving per-recipient Cc and attachment overrides.
+// Warnings about unresolved placeholders are appended to cfg.Warnings.
+func PrepMails(cfg *config.MailConfig, template string) []Message {
+	mails := make([]Message, 0, len(cfg.Recipients))
 	for _, recipient := range cfg.Recipients {
-		// copy the Data map so we don't mutate the original
 		recipient.Data = maps.Clone(recipient.Data)
 
 		cc := resolveOverride(cfg.Cc, recipient.Data, "CC")
 		attachments := resolveOverride(cfg.Attachments, recipient.Data, "AS")
-		// remove Cc/As from Data so they are not used as template variables
 		delete(recipient.Data, "CC")
 		delete(recipient.Data, "AS")
 
@@ -79,7 +76,7 @@ func PrepMails(cfg *config.Data, template string) []Mail {
 		}
 
 		name := strings.TrimSpace(recipient.First + " " + recipient.Last)
-		mails = append(mails, Mail{
+		mails = append(mails, Message{
 			Name:        name,
 			Address:     recipient.Email,
 			Subject:     subject,
@@ -91,9 +88,6 @@ func PrepMails(cfg *config.Data, template string) []Mail {
 	return mails
 }
 
-// resolveOverride applies per-recipient override logic for Cc and Attachments.
-// If the recipient has a value starting with "+", it is appended to the global list.
-// Otherwise the recipient value replaces the global list entirely.
 func resolveOverride(global []string, data map[string]string, key string) []string {
 	val, ok := data[key]
 	if !ok {
@@ -105,7 +99,6 @@ func resolveOverride(global []string, data map[string]string, key string) []stri
 	return splitTrim(val)
 }
 
-// splitTrim splits a comma-separated string and trims whitespace, skipping empty entries.
 func splitTrim(s string) []string {
 	var result []string
 	for _, item := range strings.Split(s, ",") {

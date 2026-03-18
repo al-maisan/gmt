@@ -11,7 +11,7 @@ Requires [Go](https://go.dev/) 1.25 or later.
     $ make build
     $ ./gmt -h
 
-The Makefile embeds the git commit hash and build date into the binary. Targets: `build`, `test`, `vet`, `clean`.
+The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `clean`.
 
 ## Quick start
 
@@ -132,12 +132,10 @@ Use `-dry-run` to preview all emails without sending. The output includes Cc and
 | Code | Meaning                          |
 |------|----------------------------------|
 | 0    | Success                          |
-| 1    | Missing `-config-path` flag      |
-| 2    | Missing `-template-path` flag    |
-| 3    | Failed to read config file       |
-| 4    | Error parsing config file        |
-| 5    | Failed to read template file     |
-| 6    | One or more emails failed to send|
+| 1    | Usage error (missing flags)      |
+| 2    | Config or template file error    |
+| 3    | SMTP connection error            |
+| 4    | One or more emails failed to send|
 
 ## CLI reference
 

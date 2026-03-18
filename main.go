@@ -29,13 +29,22 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var (
-	// Set via -ldflags at build time
-	gitCommit = "unknown"
-	buildDate = "unknown"
+const (
+	exitOK          = 0
+	exitUsageError  = 1
+	exitConfigError = 2
+	exitSMTPError   = 3
+	exitSendFailure = 4
 )
 
-func version() string { return "0.2.1-" + gitCommit + " (" + buildDate + ")" }
+var (
+	// Set via -ldflags at build time
+	appVersion = "dev"
+	gitCommit  = "unknown"
+	buildDate  = "unknown"
+)
+
+func version() string { return appVersion + "-" + gitCommit + " (" + buildDate + ")" }
 
 func help() {
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "\n%s, version %s\nThis tool sends emails in bulk based on a template and a config file\n\n", filepath.Base(os.Args[0]), version())
@@ -45,7 +54,6 @@ func help() {
 func main() {
 	log.SetFlags(0)
 
-	// Load .env file if it exists
 	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
 		log.Printf("Warning: failed to load .env file: %v", err)
 	}
@@ -62,95 +70,103 @@ func main() {
 
 	if *doVersion {
 		fmt.Println(version())
-		os.Exit(0)
+		os.Exit(exitOK)
 	}
-
 	if *doSampleConfig {
 		fmt.Println(config.SampleConfig(version()))
-		os.Exit(0)
+		os.Exit(exitOK)
 	}
-
 	if *doSampleTemplate {
 		fmt.Println(config.SampleTemplate())
-		os.Exit(0)
+		os.Exit(exitOK)
 	}
 
 	if *configPath == "" {
 		log.Print("Error: -config-path flag is required")
 		flag.Usage()
-		os.Exit(1)
+		os.Exit(exitUsageError)
 	}
 	if *templatePath == "" {
 		log.Print("Error: -template-path flag is required")
 		flag.Usage()
-		os.Exit(2)
+		os.Exit(exitUsageError)
 	}
 
-	cfg := loadConfig(*configPath)
-	mails := prepMails(&cfg, *templatePath)
+	cfg, err := loadConfig(*configPath)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		os.Exit(exitConfigError)
+	}
+
+	msgs, err := prepMails(&cfg, *templatePath)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		os.Exit(exitConfigError)
+	}
 
 	for _, w := range cfg.Warnings {
 		log.Printf("Warning: %s", w)
 	}
 
 	if *doDryRun {
-		printDryRun(mails)
-		os.Exit(0)
+		printDryRun(msgs)
+		os.Exit(exitOK)
 	}
 
 	creds, err := email.LoadSMTPCredentials()
 	if err != nil {
-		log.Fatalf("SMTP configuration error: %v", err)
+		log.Printf("SMTP configuration error: %v", err)
+		os.Exit(exitSMTPError)
 	}
 
 	fmt.Println("\nSending emails now..")
-	result, err := email.SendAll(creds, cfg, mails)
+	result, err := email.SendAll(os.Stdout, creds, cfg, msgs)
 	if err != nil {
-		log.Fatalf("SMTP error: %v", err)
+		log.Printf("SMTP error: %v", err)
+		os.Exit(exitSMTPError)
 	}
 	fmt.Printf("\nDone: %d sent, %d failed, %d total\n", result.Sent, result.Failed, result.Sent+result.Failed)
 
 	if result.Failed > 0 {
-		os.Exit(6)
+		os.Exit(exitSendFailure)
 	}
 }
 
-func loadConfig(path string) config.Data {
+func loadConfig(path string) (config.MailConfig, error) {
 	bs, err := os.ReadFile(path)
 	if err != nil {
-		log.Fatalf("Failed to read config file %q: %v", path, err)
+		return config.MailConfig{}, fmt.Errorf("failed to read config file %q: %w", path, err)
 	}
 
 	c, err := config.New(bs)
 	if err != nil {
-		log.Fatalf("Failed to parse config file %q: %v", path, err)
+		return config.MailConfig{}, fmt.Errorf("failed to parse config file %q: %w", path, err)
 	}
 
 	cfg, err := c.Parse()
 	if err != nil {
-		log.Fatalf("Invalid config file %q: %v", path, err)
+		return config.MailConfig{}, fmt.Errorf("invalid config file %q: %w", path, err)
 	}
 
-	return cfg
+	return cfg, nil
 }
 
-func prepMails(cfg *config.Data, templatePath string) []email.Mail {
+func prepMails(cfg *config.MailConfig, templatePath string) ([]email.Message, error) {
 	bs, err := os.ReadFile(templatePath)
 	if err != nil {
-		log.Fatalf("Failed to read template file %q: %v", templatePath, err)
+		return nil, fmt.Errorf("failed to read template file %q: %w", templatePath, err)
 	}
 
-	mails := email.PrepMails(cfg, string(bs))
-	if len(mails) == 0 {
-		log.Print("Warning: no recipients found in config file")
-		os.Exit(0)
+	msgs := email.PrepMails(cfg, string(bs))
+	if len(msgs) == 0 {
+		return nil, fmt.Errorf("no recipients found in config file")
 	}
 
-	return mails
+	return msgs, nil
 }
 
-func printDryRun(mails []email.Mail) {
-	for _, m := range mails {
+func printDryRun(msgs []email.Message) {
+	for _, m := range msgs {
 		fmt.Printf("--\n\"%s\" <%s>\n", m.Name, m.Address)
 		if len(m.Cc) > 0 {
 			fmt.Printf("Cc: %s\n", strings.Join(m.Cc, ", "))

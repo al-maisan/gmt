@@ -18,6 +18,7 @@ package email
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -73,8 +74,9 @@ type SendResult struct {
 	Failed int
 }
 
-// SendAll sends all prepared mails over a single SMTP connection.
-func SendAll(creds SMTPCredentials, cfg config.Data, mails []Mail) (SendResult, error) {
+// SendAll sends all prepared messages over a single SMTP connection.
+// Progress is written to w; errors are logged to w but do not stop the batch.
+func SendAll(w io.Writer, creds SMTPCredentials, cfg config.MailConfig, msgs []Message) (SendResult, error) {
 	d := mail.NewDialer(creds.Host, creds.Port, creds.User, creds.Password)
 	d.StartTLSPolicy = mail.MandatoryStartTLS
 
@@ -84,29 +86,29 @@ func SendAll(creds SMTPCredentials, cfg config.Data, mails []Mail) (SendResult, 
 	}
 	defer func() {
 		if err := sender.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to close SMTP connection to %s:%d: %v\n", creds.Host, creds.Port, err)
+			_, _ = fmt.Fprintf(w, "Warning: failed to close SMTP connection to %s:%d: %v\n", creds.Host, creds.Port, err)
 		}
 	}()
 
 	var result SendResult
-	for _, m := range mails {
+	for _, m := range msgs {
 		recipient := fmt.Sprintf("%s <%s>", m.Name, m.Address)
 
 		msg := createMessage(cfg.From, m.Name, m.Address, m.Cc, cfg.ReplyTo, m.Subject, m.Body)
 
 		if err := attachFiles(msg, m.Attachments); err != nil {
-			fmt.Printf("! %s (failed to attach: %v)\n", recipient, err)
+			_, _ = fmt.Fprintf(w, "! %s (failed to attach: %v)\n", recipient, err)
 			result.Failed++
 			continue
 		}
 
 		if err := mail.Send(sender, msg); err != nil {
-			fmt.Printf("! %s (failed to send: %v)\n", recipient, err)
+			_, _ = fmt.Fprintf(w, "! %s (failed to send: %v)\n", recipient, err)
 			result.Failed++
 			continue
 		}
 
-		fmt.Printf("- %s\n", recipient)
+		_, _ = fmt.Fprintf(w, "- %s\n", recipient)
 		result.Sent++
 	}
 	return result, nil

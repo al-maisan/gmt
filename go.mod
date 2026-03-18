@@ -3,10 +3,10 @@ module github.com/al-maisan/gmt
 go 1.25.0
 
 require (
-	github.com/go-ini/ini v1.67.0
 	github.com/go-mail/mail v2.3.1+incompatible
 	github.com/joho/godotenv v1.5.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
+	gopkg.in/ini.v1 v1.67.1
 )
 
 require (

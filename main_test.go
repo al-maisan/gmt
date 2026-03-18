@@ -17,12 +17,65 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/al-maisan/gmt/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestVersion(t *testing.T) {
-	v := version()
-	assert.Contains(t, v, "0.2.1")
+	assert.Contains(t, version(), "dev")
+}
+
+func TestLoadConfigValid(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.ini")
+	require.NoError(t, os.WriteFile(path, []byte(config.SampleConfig("0.0.0")), 0o644))
+
+	cfg, err := loadConfig(path)
+	require.NoError(t, err)
+	assert.NotEmpty(t, cfg.From)
+	assert.NotEmpty(t, cfg.Subject)
+	assert.True(t, len(cfg.Recipients) > 0)
+}
+
+func TestLoadConfigMissingFile(t *testing.T) {
+	_, err := loadConfig("/nonexistent/config.ini")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read")
+}
+
+func TestLoadConfigInvalid(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad.ini")
+	require.NoError(t, os.WriteFile(path, []byte("[general]\n"), 0o644))
+
+	_, err := loadConfig(path)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid config")
+}
+
+func TestPrepMailsValid(t *testing.T) {
+	dir := t.TempDir()
+	tmplPath := filepath.Join(dir, "template.eml")
+	require.NoError(t, os.WriteFile(tmplPath, []byte(config.SampleTemplate()), 0o644))
+
+	c, err := config.New([]byte(config.SampleConfig("0.0.0")))
+	require.NoError(t, err)
+	cfg, err := c.Parse()
+	require.NoError(t, err)
+
+	msgs, err := prepMails(&cfg, tmplPath)
+	require.NoError(t, err)
+	assert.True(t, len(msgs) > 0)
+}
+
+func TestPrepMailsMissingTemplate(t *testing.T) {
+	cfg := config.MailConfig{}
+	_, err := prepMails(&cfg, "/nonexistent/template.eml")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read template")
 }
