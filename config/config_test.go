@@ -69,7 +69,7 @@ jd@example.com=John Doe
 	require.NoError(t, err)
 	_, err = c.ParseGeneral()
 	require.Error(t, err)
-	assert.Equal(t, "section not found", err.Error())
+	assert.Equal(t, "missing required [general] section", err.Error())
 }
 
 func TestLoadNoRecipients(t *testing.T) {
@@ -83,7 +83,7 @@ subject=Hello %FN%!
 	require.NoError(t, err)
 	err = c.ParseRecipients(&cfg)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "recipients")
+	assert.Equal(t, "missing required [recipients] section", err.Error())
 }
 
 func TestLoadErrors(t *testing.T) {

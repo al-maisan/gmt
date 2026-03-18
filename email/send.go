@@ -137,7 +137,7 @@ func createMessage(from, toName, toAddr string, cc []string, replyTo, subject, b
 	}
 	if len(cc) > 0 {
 		if err := m.Cc(cc...); err != nil {
-			return nil, fmt.Errorf("invalid Cc address: %w", err)
+			return nil, fmt.Errorf("invalid Cc address(es) %v: %w", cc, err)
 		}
 	}
 	if replyTo != "" {

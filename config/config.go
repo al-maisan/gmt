@@ -86,7 +86,7 @@ func (c *Config) Parse() (MailConfig, error) {
 func (c *Config) ParseGeneral() (MailConfig, error) {
 	sec, err := c.file.GetSection("general")
 	if err != nil {
-		return MailConfig{}, errors.New("section not found")
+		return MailConfig{}, errors.New("missing required [general] section")
 	}
 	keys := sec.KeysHash()
 
@@ -127,7 +127,7 @@ func (c *Config) ParseGeneral() (MailConfig, error) {
 func (c *Config) ParseRecipients(cfg *MailConfig) error {
 	sec, err := c.file.GetSection("recipients")
 	if err != nil {
-		return err
+		return errors.New("missing required [recipients] section")
 	}
 	cfg.Recipients, cfg.Warnings = parseRecipients(sec)
 	return nil
@@ -136,7 +136,10 @@ func (c *Config) ParseRecipients(cfg *MailConfig) error {
 func checkAttachments(attachments []string) error {
 	for _, path := range attachments {
 		if _, err := os.Stat(path); err != nil {
-			return fmt.Errorf("attachment '%s' does not exist", path)
+			if os.IsNotExist(err) {
+				return fmt.Errorf("attachment not found: %s", path)
+			}
+			return fmt.Errorf("attachment not accessible: %s: %w", path, err)
 		}
 	}
 	return nil
