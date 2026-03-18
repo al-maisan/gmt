@@ -31,7 +31,7 @@ import (
 )
 
 func help() {
-	fmt.Fprintf(flag.CommandLine.Output(), "\n%s, version %s\nThis tool sends emails in bulk based on a template and a config file\n\n", filepath.Base(os.Args[0]), version())
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "\n%s, version %s\nThis tool sends emails in bulk based on a template and a config file\n\n", filepath.Base(os.Args[0]), version())
 	flag.PrintDefaults()
 }
 
@@ -164,7 +164,7 @@ func send(cfg config.Data, mails []email.Mail) int {
 	if err != nil {
 		fatal("failed to connect to SMTP server: %v", err)
 	}
-	defer sender.Close()
+	defer func() { _ = sender.Close() }()
 
 	fmt.Println("\nSending emails now..")
 	var sent, failed int

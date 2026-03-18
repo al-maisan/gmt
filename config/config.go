@@ -66,13 +66,13 @@ func New(bs []byte) (result Data, err error) {
 	if val, ok := keys["subject"]; ok {
 		result.Subject = val
 	} else {
-		err = errors.New("'subject' not configured!")
+		err = errors.New("'subject' not configured")
 		return
 	}
 	if val, ok := keys["from"]; ok {
 		result.From = val
 	} else {
-		err = errors.New("'from' not configured!")
+		err = errors.New("'from' not configured")
 		return
 	}
 
@@ -86,7 +86,7 @@ func New(bs []byte) (result Data, err error) {
 	if val, ok := keys["attachments"]; ok {
 		result.Attachments = reComma.Split(val, -1)
 		if path, err2 := checkAttachments(result.Attachments); err2 != nil {
-			err = fmt.Errorf("Attachment '%s' does not exist!", path)
+			err = fmt.Errorf("attachment '%s' does not exist", path)
 			return
 		}
 	}

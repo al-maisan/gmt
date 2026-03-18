@@ -4,9 +4,9 @@ COMMIT  := $(shell git rev-parse --short HEAD)
 DATE    := $(shell date -u +%Y-%m-%d)
 LDFLAGS := -X main.gitCommit=$(COMMIT) -X main.buildDate=$(DATE)
 
-.PHONY: build test vet clean
+.PHONY: build test vet lint clean
 
-build:
+build: lint
 	go build -ldflags "$(LDFLAGS)" -o $(BINARY)
 
 test:
@@ -14,6 +14,9 @@ test:
 
 vet:
 	go vet ./...
+
+lint: vet
+	golangci-lint run ./...
 
 clean:
 	rm -f $(BINARY)

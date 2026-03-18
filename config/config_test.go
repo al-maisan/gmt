@@ -92,7 +92,7 @@ func TestLoadNoSubject(t *testing.T) {
 From=Frodo Baggins <rts@example.com>
 `))
 	require.Error(t, err)
-	assert.Equal(t, "'subject' not configured!", err.Error())
+	assert.Equal(t, "'subject' not configured", err.Error())
 }
 
 func TestLoadNoFrom(t *testing.T) {
@@ -101,7 +101,7 @@ func TestLoadNoFrom(t *testing.T) {
 subject=Hello %FN%!
 `))
 	require.Error(t, err)
-	assert.Equal(t, "'from' not configured!", err.Error())
+	assert.Equal(t, "'from' not configured", err.Error())
 }
 
 func TestLoadSubjectCaseInsensitive(t *testing.T) {
