@@ -87,7 +87,11 @@ func main() {
 	}
 
 	cfg := loadConfig(*configPath)
-	mails := prepMails(cfg, *templatePath)
+	mails := prepMails(&cfg, *templatePath)
+
+	for _, w := range cfg.Warnings {
+		log.Printf("Warning: %s", w)
+	}
 
 	if *doDryRun {
 		printDryRun(mails)
@@ -122,20 +126,15 @@ func loadConfig(path string) config.Data {
 		log.Fatalf("Failed to parse config file %q: %v", path, err)
 	}
 
-	cfg, err := c.ParseGeneral()
+	cfg, err := c.Parse()
 	if err != nil {
-		log.Fatalf("Invalid [general] section in %q: %v", path, err)
-	}
-
-	cfg.Recipients, err = c.ParseRecipients()
-	if err != nil {
-		log.Fatalf("Invalid [recipients] section in %q: %v", path, err)
+		log.Fatalf("Invalid config file %q: %v", path, err)
 	}
 
 	return cfg
 }
 
-func prepMails(cfg config.Data, templatePath string) []email.Mail {
+func prepMails(cfg *config.Data, templatePath string) []email.Mail {
 	bs, err := os.ReadFile(templatePath)
 	if err != nil {
 		log.Fatalf("Failed to read template file %q: %v", templatePath, err)

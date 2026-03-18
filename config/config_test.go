@@ -30,23 +30,17 @@ func sortRecipients(r []Recipient) {
 	})
 }
 
-// loadTestConfig is a test helper that calls New, ParseGeneral, and ParseRecipients.
-func loadTestConfig(t *testing.T, input []byte) Data {
+func parseTestConfig(t *testing.T, input []byte) Data {
 	t.Helper()
 	c, err := New(input)
 	require.NoError(t, err)
-
-	cfg, err := c.ParseGeneral()
+	cfg, err := c.Parse()
 	require.NoError(t, err)
-
-	cfg.Recipients, err = c.ParseRecipients()
-	require.NoError(t, err)
-
 	return cfg
 }
 
 func TestLoadDefault(t *testing.T) {
-	cfg := loadTestConfig(t, []byte(`
+	cfg := parseTestConfig(t, []byte(`
 [general]
 From=Frodo Baggins <rts@example.com>
 #Cc=weirdo@nsb.gov, cc@example.com
@@ -100,10 +94,10 @@ subject=Hello %FN%!
 `))
 	require.NoError(t, err)
 
-	_, err = c.ParseGeneral()
+	cfg, err := c.ParseGeneral()
 	require.NoError(t, err)
 
-	_, err = c.ParseRecipients()
+	err = c.ParseRecipients(&cfg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "recipients")
 }
@@ -133,7 +127,7 @@ subject=Hello %FN%!
 }
 
 func TestLoadSubjectCaseInsensitive(t *testing.T) {
-	cfg := loadTestConfig(t, []byte(`
+	cfg := parseTestConfig(t, []byte(`
 [general]
 From=Frodo Baggins <rts@example.com>
 Subject=Hello %FN%!
@@ -144,7 +138,7 @@ jd@example.com=John Doe
 }
 
 func TestLoadFull(t *testing.T) {
-	cfg := loadTestConfig(t, []byte(`
+	cfg := parseTestConfig(t, []byte(`
 [general]
 From=Frodo Baggins <rts@example.com>
 Cc=weirdo@nsb.gov, cc@example.com
@@ -181,50 +175,42 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 }
 
 func TestParseRecipientsSingleName(t *testing.T) {
-	c, err := New([]byte(`
+	cfg := parseTestConfig(t, []byte(`
 [general]
 From=test <t@example.com>
 subject=test
 [recipients]
 madonna@example.com=Madonna
 `))
-	require.NoError(t, err)
-
-	recipients, err := c.ParseRecipients()
-	require.NoError(t, err)
-	require.Len(t, recipients, 1)
-	assert.Equal(t, "Madonna", recipients[0].First)
-	assert.Equal(t, "", recipients[0].Last)
-	assert.Equal(t, "madonna@example.com", recipients[0].Email)
+	require.Len(t, cfg.Recipients, 1)
+	assert.Equal(t, "Madonna", cfg.Recipients[0].First)
+	assert.Equal(t, "", cfg.Recipients[0].Last)
+	assert.Equal(t, "madonna@example.com", cfg.Recipients[0].Email)
 }
 
 func TestParseRecipientsMalformedData(t *testing.T) {
-	c, err := New([]byte(`
+	cfg := parseTestConfig(t, []byte(`
 [general]
 From=test <t@example.com>
 subject=test
 [recipients]
 jd@example.com=John Doe|BADDATA|ORG:-EFF
 `))
-	require.NoError(t, err)
-
-	recipients, err := c.ParseRecipients()
-	require.NoError(t, err)
-	require.Len(t, recipients, 1)
-	assert.Equal(t, map[string]string{"ORG": "EFF"}, recipients[0].Data)
+	require.Len(t, cfg.Recipients, 1)
+	assert.Equal(t, map[string]string{"ORG": "EFF"}, cfg.Recipients[0].Data)
+	require.Len(t, cfg.Warnings, 1)
+	assert.Contains(t, cfg.Warnings[0], "jd@example.com")
+	assert.Contains(t, cfg.Warnings[0], "BADDATA")
 }
 
 func TestSampleConfigParses(t *testing.T) {
 	c, err := New([]byte(SampleConfig("0.0.0")))
 	require.NoError(t, err)
 
-	cfg, err := c.ParseGeneral()
+	cfg, err := c.Parse()
 	require.NoError(t, err)
 	assert.NotEmpty(t, cfg.From)
 	assert.NotEmpty(t, cfg.Subject)
-
-	cfg.Recipients, err = c.ParseRecipients()
-	require.NoError(t, err)
 	assert.True(t, len(cfg.Recipients) > 0, "sample config should have at least one recipient")
 	for _, r := range cfg.Recipients {
 		assert.NotEmpty(t, r.Email, "recipient email must not be empty")

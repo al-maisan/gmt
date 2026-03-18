@@ -56,6 +56,7 @@ type Data struct {
 	Subject     string
 	Recipients  []Recipient
 	Attachments []string
+	Warnings    []string
 }
 
 // New loads an INI-format configuration from the given bytes.
@@ -65,6 +66,19 @@ func New(bs []byte) (*Config, error) {
 		return nil, err
 	}
 	return &Config{file: f}, nil
+}
+
+// Parse is a convenience method that parses both [general] and [recipients]
+// sections in one call.
+func (c *Config) Parse() (Data, error) {
+	cfg, err := c.ParseGeneral()
+	if err != nil {
+		return Data{}, err
+	}
+	if err := c.ParseRecipients(&cfg); err != nil {
+		return Data{}, err
+	}
+	return cfg, nil
 }
 
 // ParseGeneral extracts the [general] section fields into a Data struct.
@@ -107,13 +121,15 @@ func (c *Config) ParseGeneral() (Data, error) {
 	return result, nil
 }
 
-// ParseRecipients extracts the [recipients] section into a slice of Recipient.
-func (c *Config) ParseRecipients() ([]Recipient, error) {
+// ParseRecipients extracts the [recipients] section into cfg.Recipients,
+// appending any warnings about malformed entries to cfg.Warnings.
+func (c *Config) ParseRecipients(cfg *Data) error {
 	sec, err := c.file.GetSection("recipients")
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return parseRecipients(sec), nil
+	cfg.Recipients, cfg.Warnings = parseRecipients(sec)
+	return nil
 }
 
 func checkAttachments(attachments []string) error {
@@ -125,12 +141,14 @@ func checkAttachments(attachments []string) error {
 	return nil
 }
 
-func parseRecipients(sec *ini.Section) []Recipient {
+func parseRecipients(sec *ini.Section) ([]Recipient, []string) {
 	var recipients []Recipient
-	for k, v := range sec.KeysHash() {
+	var warnings []string
+	for email, v := range sec.KeysHash() {
 		// jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 		rdata := rePipe.Split(v, -1)
-		if len(rdata) < 1 {
+		if len(rdata) < 1 || strings.TrimSpace(rdata[0]) == "" {
+			warnings = append(warnings, fmt.Sprintf("recipient '%s': empty name field", email))
 			continue
 		}
 		names := reSpace.Split(rdata[0], 2)
@@ -143,18 +161,19 @@ func parseRecipients(sec *ini.Section) []Recipient {
 		for _, rdatum := range rdata[1:] {
 			parts := reRdata.Split(rdatum, 2)
 			if len(parts) != 2 {
+				warnings = append(warnings, fmt.Sprintf("recipient '%s': malformed data field '%s' (expected KEY:-VALUE)", email, rdatum))
 				continue
 			}
 			data[strings.ToUpper(parts[0])] = parts[1]
 		}
 		recipients = append(recipients, Recipient{
-			Email: k,
+			Email: email,
 			First: first,
 			Last:  last,
 			Data:  data,
 		})
 	}
-	return recipients
+	return recipients, warnings
 }
 
 // SampleConfig returns a commented example configuration file.

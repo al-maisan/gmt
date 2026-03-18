@@ -20,10 +20,15 @@ package email
 
 import (
 	"fmt"
+	"maps"
+	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/al-maisan/gmt/config"
 )
+
+var rePlaceholder = regexp.MustCompile(`%[A-Z][A-Z0-9_]*%`)
 
 // Mail holds a fully prepared email ready for sending.
 type Mail struct {
@@ -35,27 +40,27 @@ type Mail struct {
 	Attachments []string
 }
 
-func substVars(recipient config.Recipient, text string) (result string) {
-	result = strings.ReplaceAll(text, "%EA%", recipient.Email)
-	result = strings.ReplaceAll(result, "%FN%", recipient.First)
-	result = strings.ReplaceAll(result, "%LN%", recipient.Last)
-	for k, v := range recipient.Data {
-		result = strings.ReplaceAll(result, fmt.Sprintf("%%%s%%", k), v)
+func substVars(recipient config.Recipient, text string) string {
+	// build replacer pairs: oldval, newval, oldval, newval, ...
+	pairs := []string{
+		"%EA%", recipient.Email,
+		"%FN%", recipient.First,
+		"%LN%", recipient.Last,
 	}
-	return
+	for k, v := range recipient.Data {
+		pairs = append(pairs, fmt.Sprintf("%%%s%%", k), v)
+	}
+	return strings.NewReplacer(pairs...).Replace(text)
 }
 
 // PrepMails generates a Mail for each recipient by substituting template variables
-// and resolving per-recipient Cc and attachment overrides.
-func PrepMails(cfg config.Data, template string) (mails []Mail) {
-	mails = make([]Mail, 0, len(cfg.Recipients))
+// and resolving per-recipient Cc and attachment overrides. Warnings about
+// unresolved placeholders are appended to cfg.Warnings.
+func PrepMails(cfg *config.Data, template string) []Mail {
+	mails := make([]Mail, 0, len(cfg.Recipients))
 	for _, recipient := range cfg.Recipients {
 		// copy the Data map so we don't mutate the original
-		data := make(map[string]string, len(recipient.Data))
-		for k, v := range recipient.Data {
-			data[k] = v
-		}
-		recipient.Data = data
+		recipient.Data = maps.Clone(recipient.Data)
 
 		cc := resolveOverride(cfg.Cc, recipient.Data, "CC")
 		attachments := resolveOverride(cfg.Attachments, recipient.Data, "AS")
@@ -63,18 +68,27 @@ func PrepMails(cfg config.Data, template string) (mails []Mail) {
 		delete(recipient.Data, "CC")
 		delete(recipient.Data, "AS")
 
+		subject := substVars(recipient, cfg.Subject)
+		body := substVars(recipient, template)
+
+		if unresolved := rePlaceholder.FindAllString(subject, -1); len(unresolved) > 0 {
+			cfg.Warnings = append(cfg.Warnings, fmt.Sprintf("recipient '%s': unresolved placeholder(s) in subject: %s", recipient.Email, strings.Join(unresolved, ", ")))
+		}
+		if unresolved := rePlaceholder.FindAllString(body, -1); len(unresolved) > 0 {
+			cfg.Warnings = append(cfg.Warnings, fmt.Sprintf("recipient '%s': unresolved placeholder(s) in body: %s", recipient.Email, strings.Join(unresolved, ", ")))
+		}
+
 		name := strings.TrimSpace(recipient.First + " " + recipient.Last)
-		mail := Mail{
+		mails = append(mails, Mail{
 			Name:        name,
 			Address:     recipient.Email,
-			Subject:     substVars(recipient, cfg.Subject),
-			Body:        substVars(recipient, template),
+			Subject:     subject,
+			Body:        body,
 			Cc:          cc,
 			Attachments: attachments,
-		}
-		mails = append(mails, mail)
+		})
 	}
-	return
+	return mails
 }
 
 // resolveOverride applies per-recipient override logic for Cc and Attachments.
@@ -83,17 +97,10 @@ func PrepMails(cfg config.Data, template string) (mails []Mail) {
 func resolveOverride(global []string, data map[string]string, key string) []string {
 	val, ok := data[key]
 	if !ok {
-		if global == nil {
-			return nil
-		}
-		result := make([]string, len(global))
-		copy(result, global)
-		return result
+		return slices.Clone(global)
 	}
 	if strings.HasPrefix(val, "+") {
-		result := make([]string, len(global))
-		copy(result, global)
-		return append(result, splitTrim(val[1:])...)
+		return append(slices.Clone(global), splitTrim(val[1:])...)
 	}
 	return splitTrim(val)
 }

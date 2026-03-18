@@ -64,8 +64,9 @@ func TestPrepMailsBasic(t *testing.T) {
 			{Email: "jd@example.com", First: "John", Last: "Doe", Data: map[string]string{}},
 		},
 	}
-	mails := PrepMails(cfg, "Hello %FN% %LN%")
+	mails := PrepMails(&cfg, "Hello %FN% %LN%")
 	assert.Len(t, mails, 1)
+	assert.Empty(t, cfg.Warnings)
 	assert.Equal(t, "John Doe", mails[0].Name)
 	assert.Equal(t, "jd@example.com", mails[0].Address)
 }
@@ -77,7 +78,7 @@ func TestPrepMailsSingleName(t *testing.T) {
 			{Email: "m@example.com", First: "Madonna", Last: "", Data: map[string]string{}},
 		},
 	}
-	mails := PrepMails(cfg, "Hello %FN%")
+	mails := PrepMails(&cfg, "Hello %FN%")
 	assert.Len(t, mails, 1)
 	assert.Equal(t, "Madonna", mails[0].Name)
 	assert.Equal(t, "m@example.com", mails[0].Address)
@@ -93,7 +94,7 @@ func TestPrepMailsGlobalCcCopied(t *testing.T) {
 			{Email: "a@b.com", First: "A", Last: "B", Data: map[string]string{}},
 		},
 	}
-	mails := PrepMails(cfg, "body")
+	mails := PrepMails(&cfg, "body")
 	assert.Equal(t, []string{"cc1@example.com", "cc2@example.com"}, mails[0].Cc)
 }
 
@@ -107,7 +108,7 @@ func TestPrepMailsPerRecipientCcReplace(t *testing.T) {
 			}},
 		},
 	}
-	mails := PrepMails(cfg, "body")
+	mails := PrepMails(&cfg, "body")
 	assert.Equal(t, []string{"override@cc.com"}, mails[0].Cc)
 }
 
@@ -121,7 +122,7 @@ func TestPrepMailsPerRecipientCcAppend(t *testing.T) {
 			}},
 		},
 	}
-	mails := PrepMails(cfg, "body")
+	mails := PrepMails(&cfg, "body")
 	assert.Equal(t, []string{"global@cc.com", "extra@cc.com"}, mails[0].Cc)
 }
 
@@ -135,7 +136,7 @@ func TestPrepMailsPerRecipientAttachmentReplace(t *testing.T) {
 			}},
 		},
 	}
-	mails := PrepMails(cfg, "body")
+	mails := PrepMails(&cfg, "body")
 	assert.Equal(t, []string{"local.txt"}, mails[0].Attachments)
 }
 
@@ -149,7 +150,7 @@ func TestPrepMailsPerRecipientAttachmentAppend(t *testing.T) {
 			}},
 		},
 	}
-	mails := PrepMails(cfg, "body")
+	mails := PrepMails(&cfg, "body")
 	assert.Equal(t, []string{"global.txt", "extra.txt"}, mails[0].Attachments)
 }
 
@@ -162,8 +163,7 @@ func TestPrepMailsCcNotUsedAsTemplateVar(t *testing.T) {
 			}},
 		},
 	}
-	mails := PrepMails(cfg, "cc is %CC%")
-	// CC should be extracted, not substituted as a template var
+	mails := PrepMails(&cfg, "cc is %CC%")
 	assert.Equal(t, "cc is %CC%", mails[0].Body)
 }
 
@@ -177,10 +177,36 @@ func TestPrepMailsDoesNotMutateConfig(t *testing.T) {
 			}},
 		},
 	}
-	PrepMails(cfg, "body")
-	// original Data map must still have CC and ORG
+	PrepMails(&cfg, "body")
 	assert.Equal(t, "override@cc.com", cfg.Recipients[0].Data["CC"])
 	assert.Equal(t, "EFF", cfg.Recipients[0].Data["ORG"])
+}
+
+func TestPrepMailsUnresolvedPlaceholderWarning(t *testing.T) {
+	cfg := config.Data{
+		Subject: "Hi %FN% from %DEPT%!",
+		Recipients: []config.Recipient{
+			{Email: "a@b.com", First: "Alice", Last: "Bob", Data: map[string]string{}},
+		},
+	}
+	mails := PrepMails(&cfg, "Hello %FN%, your role is %ROLE%")
+	assert.Len(t, mails, 1)
+	assert.Len(t, cfg.Warnings, 2)
+	assert.Contains(t, cfg.Warnings[0], "%DEPT%")
+	assert.Contains(t, cfg.Warnings[0], "subject")
+	assert.Contains(t, cfg.Warnings[1], "%ROLE%")
+	assert.Contains(t, cfg.Warnings[1], "body")
+}
+
+func TestPrepMailsNoWarningWhenAllResolved(t *testing.T) {
+	cfg := config.Data{
+		Subject: "Hi %FN%!",
+		Recipients: []config.Recipient{
+			{Email: "a@b.com", First: "Alice", Last: "Bob", Data: map[string]string{"ORG": "EFF"}},
+		},
+	}
+	PrepMails(&cfg, "Hello %FN% from %ORG%")
+	assert.Empty(t, cfg.Warnings)
 }
 
 func TestResolveOverrideNoOverride(t *testing.T) {
@@ -207,24 +233,21 @@ func TestSampleConfigAndTemplateIntegration(t *testing.T) {
 	c, err := config.New([]byte(config.SampleConfig("0.0.0")))
 	require.NoError(t, err)
 
-	cfg, err := c.ParseGeneral()
+	cfg, err := c.Parse()
 	require.NoError(t, err)
 
-	cfg.Recipients, err = c.ParseRecipients()
-	require.NoError(t, err)
+	mails := PrepMails(&cfg, config.SampleTemplate())
 
-	tmpl := config.SampleTemplate()
-	mails := PrepMails(cfg, tmpl)
-
+	assert.Empty(t, cfg.Warnings, "sample config+template should produce no warnings")
 	assert.True(t, len(mails) > 0, "should produce at least one mail")
 	for _, m := range mails {
-		assert.NotEmpty(t, m.Name, "mail name must not be empty")
-		assert.NotEmpty(t, m.Address, "mail address must not be empty")
-		assert.NotEmpty(t, m.Subject, "mail subject must not be empty")
-		assert.NotEmpty(t, m.Body, "mail body must not be empty")
-		assert.NotContains(t, m.Subject, "%FN%", "subject should have FN substituted")
-		assert.NotContains(t, m.Body, "%FN%", "body should have FN substituted")
-		assert.NotContains(t, m.Body, "%LN%", "body should have LN substituted")
-		assert.NotContains(t, m.Body, "%ORG%", "body should have ORG substituted")
+		assert.NotEmpty(t, m.Name)
+		assert.NotEmpty(t, m.Address)
+		assert.NotEmpty(t, m.Subject)
+		assert.NotEmpty(t, m.Body)
+		assert.NotContains(t, m.Subject, "%FN%")
+		assert.NotContains(t, m.Body, "%FN%")
+		assert.NotContains(t, m.Body, "%LN%")
+		assert.NotContains(t, m.Body, "%ORG%")
 	}
 }
