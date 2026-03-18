@@ -221,3 +221,22 @@ jd@example.com=John Doe|BADDATA|ORG:-EFF
 	require.Len(t, actual, 1)
 	assert.Equal(t, map[string]string{"ORG": "EFF"}, actual[0].Data)
 }
+
+func TestSampleConfigParses(t *testing.T) {
+	cfg, err := New([]byte(SampleConfig("0.0.0")))
+	require.NoError(t, err)
+	assert.NotEmpty(t, cfg.From)
+	assert.NotEmpty(t, cfg.Subject)
+	assert.True(t, len(cfg.Recipients) > 0, "sample config should have at least one recipient")
+	for _, r := range cfg.Recipients {
+		assert.NotEmpty(t, r.Email, "recipient email must not be empty")
+		assert.NotEmpty(t, r.First, "recipient first name must not be empty")
+	}
+}
+
+func TestSampleTemplateNotEmpty(t *testing.T) {
+	tmpl := SampleTemplate("0.0.0")
+	assert.NotEmpty(t, tmpl)
+	assert.Contains(t, tmpl, "%FN%")
+	assert.Contains(t, tmpl, "%LN%")
+}

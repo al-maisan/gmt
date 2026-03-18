@@ -6,12 +6,12 @@
 
 Requires [Go](https://go.dev/) 1.25 or later.
 
-    $ go build -ldflags "-X main.gitCommit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%Y-%m-%d)"
+    $ git clone https://github.com/al-maisan/gmt.git
+    $ cd gmt
+    $ make build
     $ ./gmt -h
 
-Or install directly:
-
-    $ go install -ldflags "-X main.gitCommit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%Y-%m-%d)" github.com/al-maisan/gmt@latest
+The Makefile embeds the git commit hash and build date into the binary. Targets: `build`, `test`, `vet`, `clean`.
 
 ## Quick start
 
@@ -25,12 +25,16 @@ Generate sample files, configure SMTP credentials, preview, then send:
 
 ## SMTP setup
 
-SMTP credentials are read from environment variables. Copy `.env.example` to `.env` and fill in:
+SMTP credentials are read from environment variables. If a `.env` file exists in the working directory, it is loaded automatically.
+
+Copy `.env.example` to `.env` and fill in:
 
     SMTP_HOST=smtp.gmail.com
     SMTP_PORT=587
     SENDER_EMAIL=your-email@gmail.com
     SENDER_PASSWORD=your-app-password
+
+`SENDER_EMAIL` / `SENDER_PASSWORD` are used for SMTP authentication. The `From` header in the config file controls what recipients see as the sender -- these can differ if your mail server allows it.
 
 For Gmail you must use an [App Password](https://myaccount.google.com/apppasswords) (requires 2-Step Verification). Other providers (Outlook, Yahoo, etc.) are documented in `.env.example`.
 

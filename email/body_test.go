@@ -5,6 +5,7 @@ import (
 
 	"github.com/al-maisan/gmt/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSubstVarsBasic(t *testing.T) {
@@ -184,4 +185,24 @@ func TestResolveOverrideAppend(t *testing.T) {
 func TestResolveOverrideEmptyGlobal(t *testing.T) {
 	result := resolveOverride(nil, map[string]string{"CC": "x"}, "CC")
 	assert.Equal(t, []string{"x"}, result)
+}
+
+func TestSampleConfigAndTemplateIntegration(t *testing.T) {
+	cfg, err := config.New([]byte(config.SampleConfig("0.0.0")))
+	require.NoError(t, err)
+
+	tmpl := config.SampleTemplate("0.0.0")
+	mails := PrepMails(cfg, tmpl)
+
+	assert.True(t, len(mails) > 0, "should produce at least one mail")
+	for _, m := range mails {
+		assert.NotEmpty(t, m.Name, "mail name must not be empty")
+		assert.NotEmpty(t, m.Address, "mail address must not be empty")
+		assert.NotEmpty(t, m.Subject, "mail subject must not be empty")
+		assert.NotEmpty(t, m.Body, "mail body must not be empty")
+		assert.NotContains(t, m.Subject, "%FN%", "subject should have FN substituted")
+		assert.NotContains(t, m.Body, "%FN%", "body should have FN substituted")
+		assert.NotContains(t, m.Body, "%LN%", "body should have LN substituted")
+		assert.NotContains(t, m.Body, "%ORG%", "body should have ORG substituted")
+	}
 }
