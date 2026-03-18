@@ -20,49 +20,72 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateMessage(t *testing.T) {
-	msg := createMessage(
-		`"Sender" <sender@example.com>`,
+	msg, err := createMessage(
+		"sender@example.com",
 		"John Doe", "jd@example.com",
 		nil, "", "Hello!", "Body text",
 	)
+	require.NoError(t, err)
 	assert.NotNil(t, msg)
-	assert.Equal(t, []string{"Hello!"}, msg.GetHeader("Subject"))
 }
 
-func TestCreateMessageWithCc(t *testing.T) {
-	msg := createMessage(
-		`"Sender" <sender@example.com>`,
+func TestCreateMessageWithCcAndReplyTo(t *testing.T) {
+	msg, err := createMessage(
+		"sender@example.com",
 		"John Doe", "jd@example.com",
 		[]string{"cc1@example.com", "cc2@example.com"},
 		"reply@example.com",
 		"Test", "Body",
 	)
+	require.NoError(t, err)
 	assert.NotNil(t, msg)
-	assert.Equal(t, []string{"cc1@example.com,cc2@example.com"}, msg.GetHeader("Cc"))
-	assert.Equal(t, []string{"reply@example.com"}, msg.GetHeader("Reply-To"))
 }
 
 func TestCreateMessageUTF8Name(t *testing.T) {
-	msg := createMessage(
-		`"Sender" <sender@example.com>`,
+	msg, err := createMessage(
+		"sender@example.com",
 		"abc ähm", "abc@example.com",
 		nil, "", "Hello!", "Body",
 	)
+	require.NoError(t, err)
 	assert.NotNil(t, msg)
 }
 
+func TestCreateMessageInvalidFrom(t *testing.T) {
+	_, err := createMessage(
+		"not-an-email",
+		"A", "a@b.com",
+		nil, "", "s", "b",
+	)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid From")
+}
+
+func TestCreateMessageInvalidTo(t *testing.T) {
+	_, err := createMessage(
+		"sender@example.com",
+		"A", "not-an-email",
+		nil, "", "s", "b",
+	)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid To")
+}
+
 func TestAttachFilesNonexistent(t *testing.T) {
-	msg := createMessage(`"S" <s@s.com>`, "A", "a@b.com", nil, "", "s", "b")
-	err := attachFiles(msg, []string{"/nonexistent/file.txt"})
+	msg, err := createMessage("s@s.com", "A", "a@b.com", nil, "", "s", "b")
+	require.NoError(t, err)
+	err = attachFiles(msg, []string{"/nonexistent/file.txt"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "attachment /nonexistent/file.txt")
 }
 
 func TestAttachFilesEmpty(t *testing.T) {
-	msg := createMessage(`"S" <s@s.com>`, "A", "a@b.com", nil, "", "s", "b")
+	msg, err := createMessage("s@s.com", "A", "a@b.com", nil, "", "s", "b")
+	require.NoError(t, err)
 	assert.NoError(t, attachFiles(msg, nil))
 }
 

@@ -17,6 +17,7 @@
 package email
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -24,7 +25,7 @@ import (
 	"strings"
 
 	"github.com/al-maisan/gmt/config"
-	"github.com/go-mail/mail"
+	mail "github.com/wneessen/go-mail"
 )
 
 // SMTPCredentials holds the SMTP server connection parameters.
@@ -75,17 +76,24 @@ type SendResult struct {
 }
 
 // SendAll sends all prepared messages over a single SMTP connection.
-// Progress is written to w; errors are logged to w but do not stop the batch.
+// Progress is written to w; per-message errors do not stop the batch.
 func SendAll(w io.Writer, creds SMTPCredentials, cfg config.MailConfig, msgs []Message) (SendResult, error) {
-	d := mail.NewDialer(creds.Host, creds.Port, creds.User, creds.Password)
-	d.StartTLSPolicy = mail.MandatoryStartTLS
-
-	sender, err := d.Dial()
+	client, err := mail.NewClient(creds.Host,
+		mail.WithPort(creds.Port),
+		mail.WithUsername(creds.User),
+		mail.WithPassword(creds.Password),
+		mail.WithSMTPAuth(mail.SMTPAuthPlain),
+		mail.WithTLSPolicy(mail.TLSMandatory),
+	)
 	if err != nil {
+		return SendResult{}, fmt.Errorf("failed to create SMTP client for %s:%d: %w", creds.Host, creds.Port, err)
+	}
+
+	if err := client.DialWithContext(context.Background()); err != nil {
 		return SendResult{}, fmt.Errorf("failed to connect to %s:%d: %w", creds.Host, creds.Port, err)
 	}
 	defer func() {
-		if err := sender.Close(); err != nil {
+		if err := client.Close(); err != nil {
 			_, _ = fmt.Fprintf(w, "Warning: failed to close SMTP connection to %s:%d: %v\n", creds.Host, creds.Port, err)
 		}
 	}()
@@ -94,7 +102,12 @@ func SendAll(w io.Writer, creds SMTPCredentials, cfg config.MailConfig, msgs []M
 	for _, m := range msgs {
 		recipient := fmt.Sprintf("%s <%s>", m.Name, m.Address)
 
-		msg := createMessage(cfg.From, m.Name, m.Address, m.Cc, cfg.ReplyTo, m.Subject, m.Body)
+		msg, err := createMessage(cfg.From, m.Name, m.Address, m.Cc, cfg.ReplyTo, m.Subject, m.Body)
+		if err != nil {
+			_, _ = fmt.Fprintf(w, "! %s (failed to create: %v)\n", recipient, err)
+			result.Failed++
+			continue
+		}
 
 		if err := attachFiles(msg, m.Attachments); err != nil {
 			_, _ = fmt.Fprintf(w, "! %s (failed to attach: %v)\n", recipient, err)
@@ -102,7 +115,7 @@ func SendAll(w io.Writer, creds SMTPCredentials, cfg config.MailConfig, msgs []M
 			continue
 		}
 
-		if err := mail.Send(sender, msg); err != nil {
+		if err := client.Send(msg); err != nil {
 			_, _ = fmt.Fprintf(w, "! %s (failed to send: %v)\n", recipient, err)
 			result.Failed++
 			continue
@@ -114,27 +127,35 @@ func SendAll(w io.Writer, creds SMTPCredentials, cfg config.MailConfig, msgs []M
 	return result, nil
 }
 
-func createMessage(from, toName, toAddr string, cc []string, replyTo, subject, body string) *mail.Message {
-	m := mail.NewMessage()
-	m.SetHeader("From", from)
-	m.SetAddressHeader("To", toAddr, toName)
+func createMessage(from, toName, toAddr string, cc []string, replyTo, subject, body string) (*mail.Msg, error) {
+	m := mail.NewMsg()
+	if err := m.From(from); err != nil {
+		return nil, fmt.Errorf("invalid From address %q: %w", from, err)
+	}
+	if err := m.AddToFormat(toName, toAddr); err != nil {
+		return nil, fmt.Errorf("invalid To address %q: %w", toAddr, err)
+	}
 	if len(cc) > 0 {
-		m.SetHeader("Cc", strings.Join(cc, ","))
+		if err := m.Cc(cc...); err != nil {
+			return nil, fmt.Errorf("invalid Cc address: %w", err)
+		}
 	}
 	if replyTo != "" {
-		m.SetHeader("Reply-To", replyTo)
+		if err := m.ReplyTo(replyTo); err != nil {
+			return nil, fmt.Errorf("invalid Reply-To address %q: %w", replyTo, err)
+		}
 	}
-	m.SetHeader("Subject", subject)
-	m.SetBody("text/plain", body)
-	return m
+	m.Subject(subject)
+	m.SetBodyString(mail.TypeTextPlain, body)
+	return m, nil
 }
 
-func attachFiles(msg *mail.Message, attachments []string) error {
+func attachFiles(msg *mail.Msg, attachments []string) error {
 	for _, path := range attachments {
 		if _, err := os.Stat(path); err != nil {
 			return fmt.Errorf("attachment %s: %w", path, err)
 		}
-		msg.Attach(path)
+		msg.AttachFile(path)
 	}
 	return nil
 }
