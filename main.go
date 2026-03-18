@@ -22,12 +22,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/al-maisan/gmt/config"
 	"github.com/al-maisan/gmt/email"
-	"github.com/go-mail/mail"
+	gmtsmtp "github.com/al-maisan/gmt/smtp"
 	"github.com/joho/godotenv"
 )
 
@@ -95,8 +94,19 @@ func main() {
 		os.Exit(0)
 	}
 
-	failed := send(cfg, mails)
-	if failed > 0 {
+	creds, err := gmtsmtp.LoadCredentials()
+	if err != nil {
+		log.Fatalf("SMTP configuration error: %v", err)
+	}
+
+	fmt.Println("\nSending emails now..")
+	result, err := gmtsmtp.SendAll(creds, cfg, mails)
+	if err != nil {
+		log.Fatalf("SMTP error: %v", err)
+	}
+	fmt.Printf("\nDone: %d sent, %d failed, %d total\n", result.Sent, result.Failed, result.Sent+result.Failed)
+
+	if result.Failed > 0 {
 		os.Exit(6)
 	}
 }
@@ -148,109 +158,4 @@ func printDryRun(mails []email.Mail) {
 		}
 		fmt.Printf("%s\n", m.Body)
 	}
-}
-
-type smtpConfig struct {
-	host     string
-	port     int
-	user     string
-	password string
-}
-
-func loadSMTPConfig() smtpConfig {
-	host := os.Getenv("SMTP_HOST")
-	portStr := os.Getenv("SMTP_PORT")
-	user := os.Getenv("SENDER_EMAIL")
-	password := os.Getenv("SENDER_PASSWORD")
-
-	var missing []string
-	if host == "" {
-		missing = append(missing, "SMTP_HOST")
-	}
-	if portStr == "" {
-		missing = append(missing, "SMTP_PORT")
-	}
-	if user == "" {
-		missing = append(missing, "SENDER_EMAIL")
-	}
-	if password == "" {
-		missing = append(missing, "SENDER_PASSWORD")
-	}
-	if len(missing) > 0 {
-		log.Fatalf("Missing required environment variable(s): %s", strings.Join(missing, ", "))
-	}
-
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		log.Fatalf("SMTP_PORT must be a valid integer, got %q", portStr)
-	}
-
-	return smtpConfig{host: host, port: port, user: user, password: password}
-}
-
-func send(cfg config.Data, mails []email.Mail) int {
-	smtp := loadSMTPConfig()
-
-	d := mail.NewDialer(smtp.host, smtp.port, smtp.user, smtp.password)
-	d.StartTLSPolicy = mail.MandatoryStartTLS
-
-	sender, err := d.Dial()
-	if err != nil {
-		log.Fatalf("Failed to connect to SMTP server %s:%d: %v", smtp.host, smtp.port, err)
-	}
-	defer func() {
-		if err := sender.Close(); err != nil {
-			log.Printf("Warning: failed to close SMTP connection to %s:%d: %v", smtp.host, smtp.port, err)
-		}
-	}()
-
-	fmt.Println("\nSending emails now..")
-	var sent, failed int
-	for _, m := range mails {
-		recipient := fmt.Sprintf("%s <%s>", m.Name, m.Address)
-
-		msg := createEmailMessage(cfg.From, m.Name, m.Address, m.Cc, cfg.ReplyTo, m.Subject, m.Body)
-
-		if err := addAttachments(msg, m.Attachments); err != nil {
-			fmt.Printf("! %s (failed to attach: %v)\n", recipient, err)
-			failed++
-			continue
-		}
-
-		if err := mail.Send(sender, msg); err != nil {
-			fmt.Printf("! %s (failed to send: %v)\n", recipient, err)
-			failed++
-			continue
-		}
-
-		fmt.Printf("- %s\n", recipient)
-		sent++
-	}
-	fmt.Printf("\nDone: %d sent, %d failed, %d total\n", sent, failed, sent+failed)
-	return failed
-}
-
-func createEmailMessage(from, toName, toAddr string, cc []string, replyTo, subject, body string) *mail.Message {
-	m := mail.NewMessage()
-	m.SetHeader("From", from)
-	m.SetAddressHeader("To", toAddr, toName)
-	if len(cc) > 0 {
-		m.SetHeader("Cc", strings.Join(cc, ","))
-	}
-	if replyTo != "" {
-		m.SetHeader("Reply-To", replyTo)
-	}
-	m.SetHeader("Subject", subject)
-	m.SetBody("text/plain", body)
-	return m
-}
-
-func addAttachments(msg *mail.Message, attachments []string) error {
-	for _, path := range attachments {
-		if _, err := os.Stat(path); err != nil {
-			return fmt.Errorf("attachment %s: %w", path, err)
-		}
-		msg.Attach(path)
-	}
-	return nil
 }

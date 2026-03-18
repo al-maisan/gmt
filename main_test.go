@@ -22,55 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCreateEmailMessage(t *testing.T) {
-	msg := createEmailMessage(
-		`"Sender" <sender@example.com>`,
-		"John Doe", "jd@example.com",
-		nil, "", "Hello!", "Body text",
-	)
-	assert.NotNil(t, msg)
-	assert.Equal(t, []string{"Hello!"}, msg.GetHeader("Subject"))
-}
-
-func TestCreateEmailMessageWithCc(t *testing.T) {
-	msg := createEmailMessage(
-		`"Sender" <sender@example.com>`,
-		"John Doe", "jd@example.com",
-		[]string{"cc1@example.com", "cc2@example.com"},
-		"reply@example.com",
-		"Test", "Body",
-	)
-	assert.NotNil(t, msg)
-	assert.Equal(t, []string{"cc1@example.com,cc2@example.com"}, msg.GetHeader("Cc"))
-	assert.Equal(t, []string{"reply@example.com"}, msg.GetHeader("Reply-To"))
-}
-
-func TestCreateEmailMessageUTF8Name(t *testing.T) {
-	msg := createEmailMessage(
-		`"Sender" <sender@example.com>`,
-		"abc ähm", "abc@example.com",
-		nil, "", "Hello!", "Body",
-	)
-	assert.NotNil(t, msg)
-}
-
-func TestAddAttachmentsNonexistent(t *testing.T) {
-	msg := createEmailMessage(
-		`"Sender" <s@example.com>`,
-		"A", "a@b.com",
-		nil, "", "s", "b",
-	)
-	err := addAttachments(msg, []string{"/nonexistent/file.txt"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "attachment /nonexistent/file.txt")
-}
-
-func TestAddAttachmentsEmpty(t *testing.T) {
-	msg := createEmailMessage(
-		`"Sender" <s@example.com>`,
-		"A", "a@b.com",
-		nil, "", "s", "b",
-	)
-	err := addAttachments(msg, nil)
-	assert.NoError(t, err)
+func TestVersion(t *testing.T) {
+	v := version()
+	assert.Contains(t, v, "0.2.1")
 }
