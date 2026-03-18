@@ -1,5 +1,5 @@
 // gmt sends emails in bulk based on a template and a config file.
-// Copyright (C) 2019-2023  "Muharem Hrnjadovic" <gmt@lbox.cc>
+// Copyright (C) 2019-2025  "Muharem Hrnjadovic" <muharem@linux.com>
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/go-ini/ini"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,8 +30,23 @@ func sortRecipients(r []Recipient) {
 	})
 }
 
+// loadTestConfig is a test helper that calls New, ParseGeneral, and ParseRecipients.
+func loadTestConfig(t *testing.T, input []byte) Data {
+	t.Helper()
+	c, err := New(input)
+	require.NoError(t, err)
+
+	cfg, err := c.ParseGeneral()
+	require.NoError(t, err)
+
+	cfg.Recipients, err = c.ParseRecipients()
+	require.NoError(t, err)
+
+	return cfg
+}
+
 func TestLoadDefault(t *testing.T) {
-	cfg, err := New([]byte(`
+	cfg := loadTestConfig(t, []byte(`
 [general]
 From=Frodo Baggins <rts@example.com>
 #Cc=weirdo@nsb.gov, cc@example.com
@@ -43,7 +57,6 @@ subject=Hello %FN%!
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 `))
-	require.NoError(t, err)
 
 	assert.Equal(t, "Frodo Baggins <rts@example.com>", cfg.From)
 	assert.Empty(t, cfg.Cc)
@@ -68,56 +81,70 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 }
 
 func TestLoadNoGeneralSection(t *testing.T) {
-	_, err := New([]byte(`
+	c, err := New([]byte(`
 [recipients]
 jd@example.com=John Doe
 `))
+	require.NoError(t, err)
+
+	_, err = c.ParseGeneral()
 	require.Error(t, err)
-	assert.Equal(t, "config file must have a [general] section", err.Error())
+	assert.Equal(t, "section not found", err.Error())
 }
 
 func TestLoadNoRecipients(t *testing.T) {
-	_, err := New([]byte(`
+	c, err := New([]byte(`
 [general]
 From=Frodo Baggins <rts@example.com>
 subject=Hello %FN%!
 `))
+	require.NoError(t, err)
+
+	_, err = c.ParseGeneral()
+	require.NoError(t, err)
+
+	_, err = c.ParseRecipients()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "recipients")
 }
 
 func TestLoadNoSubject(t *testing.T) {
-	_, err := New([]byte(`
+	c, err := New([]byte(`
 [general]
 From=Frodo Baggins <rts@example.com>
 `))
+	require.NoError(t, err)
+
+	_, err = c.ParseGeneral()
 	require.Error(t, err)
-	assert.Equal(t, "'subject' not configured", err.Error())
+	assert.Equal(t, "missing required key 'subject'", err.Error())
 }
 
 func TestLoadNoFrom(t *testing.T) {
-	_, err := New([]byte(`
+	c, err := New([]byte(`
 [general]
 subject=Hello %FN%!
 `))
+	require.NoError(t, err)
+
+	_, err = c.ParseGeneral()
 	require.Error(t, err)
-	assert.Equal(t, "'from' not configured", err.Error())
+	assert.Equal(t, "missing required key 'from'", err.Error())
 }
 
 func TestLoadSubjectCaseInsensitive(t *testing.T) {
-	cfg, err := New([]byte(`
+	cfg := loadTestConfig(t, []byte(`
 [general]
 From=Frodo Baggins <rts@example.com>
 Subject=Hello %FN%!
 [recipients]
 jd@example.com=John Doe
 `))
-	require.NoError(t, err)
 	assert.Equal(t, "Hello %FN%!", cfg.Subject)
 }
 
 func TestLoadFull(t *testing.T) {
-	cfg, err := New([]byte(`
+	cfg := loadTestConfig(t, []byte(`
 [general]
 From=Frodo Baggins <rts@example.com>
 Cc=weirdo@nsb.gov, cc@example.com
@@ -128,7 +155,6 @@ subject=Hello %FN%!
 jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 `))
-	require.NoError(t, err)
 
 	assert.Equal(t, "Frodo Baggins <rts@example.com>", cfg.From)
 	assert.Equal(t, "John Doe <jd@mail.com>", cfg.ReplyTo)
@@ -154,79 +180,51 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 	assert.Equal(t, expected, cfg.Recipients)
 }
 
-func TestParseRecipients(t *testing.T) {
-	cfg, err := ini.InsensitiveLoad([]byte(`
-[general]
-From=Frodo Baggins <rts@example.com>
-Cc=weirdo@nsb.gov, cc@example.com
-[recipients]
-jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
-mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
-`))
-	require.NoError(t, err)
-
-	recipients, err := cfg.GetSection("recipients")
-	require.NoError(t, err)
-
-	actual := parseRecipients(recipients)
-	require.NotNil(t, actual)
-
-	expected := []Recipient{
-		{
-			Email: "jd@example.com",
-			First: "John",
-			Last:  "Doe Jr.",
-			Data:  map[string]string{"ORG": "EFF", "TITLE": "PhD"},
-		},
-		{
-			Email: "mm@gmail.com",
-			First: "Mickey",
-			Last:  "Mouse",
-			Data:  map[string]string{"ORG": "Disney"},
-		},
-	}
-	sortRecipients(expected)
-	sortRecipients(actual)
-	assert.Equal(t, expected, actual)
-}
-
 func TestParseRecipientsSingleName(t *testing.T) {
-	cfg, err := ini.InsensitiveLoad([]byte(`
+	c, err := New([]byte(`
+[general]
+From=test <t@example.com>
+subject=test
 [recipients]
 madonna@example.com=Madonna
 `))
 	require.NoError(t, err)
 
-	recipients, err := cfg.GetSection("recipients")
+	recipients, err := c.ParseRecipients()
 	require.NoError(t, err)
-
-	actual := parseRecipients(recipients)
-	require.Len(t, actual, 1)
-	assert.Equal(t, "Madonna", actual[0].First)
-	assert.Equal(t, "", actual[0].Last)
-	assert.Equal(t, "madonna@example.com", actual[0].Email)
+	require.Len(t, recipients, 1)
+	assert.Equal(t, "Madonna", recipients[0].First)
+	assert.Equal(t, "", recipients[0].Last)
+	assert.Equal(t, "madonna@example.com", recipients[0].Email)
 }
 
 func TestParseRecipientsMalformedData(t *testing.T) {
-	cfg, err := ini.InsensitiveLoad([]byte(`
+	c, err := New([]byte(`
+[general]
+From=test <t@example.com>
+subject=test
 [recipients]
 jd@example.com=John Doe|BADDATA|ORG:-EFF
 `))
 	require.NoError(t, err)
 
-	recipients, err := cfg.GetSection("recipients")
+	recipients, err := c.ParseRecipients()
 	require.NoError(t, err)
-
-	actual := parseRecipients(recipients)
-	require.Len(t, actual, 1)
-	assert.Equal(t, map[string]string{"ORG": "EFF"}, actual[0].Data)
+	require.Len(t, recipients, 1)
+	assert.Equal(t, map[string]string{"ORG": "EFF"}, recipients[0].Data)
 }
 
 func TestSampleConfigParses(t *testing.T) {
-	cfg, err := New([]byte(SampleConfig("0.0.0")))
+	c, err := New([]byte(SampleConfig("0.0.0")))
+	require.NoError(t, err)
+
+	cfg, err := c.ParseGeneral()
 	require.NoError(t, err)
 	assert.NotEmpty(t, cfg.From)
 	assert.NotEmpty(t, cfg.Subject)
+
+	cfg.Recipients, err = c.ParseRecipients()
+	require.NoError(t, err)
 	assert.True(t, len(cfg.Recipients) > 0, "sample config should have at least one recipient")
 	for _, r := range cfg.Recipients {
 		assert.NotEmpty(t, r.Email, "recipient email must not be empty")
@@ -235,7 +233,7 @@ func TestSampleConfigParses(t *testing.T) {
 }
 
 func TestSampleTemplateNotEmpty(t *testing.T) {
-	tmpl := SampleTemplate("0.0.0")
+	tmpl := SampleTemplate()
 	assert.NotEmpty(t, tmpl)
 	assert.Contains(t, tmpl, "%FN%")
 	assert.Contains(t, tmpl, "%LN%")

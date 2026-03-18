@@ -1,5 +1,5 @@
 // gmt sends emails in bulk based on a template and a config file.
-// Copyright (C) 2019-2023  "Muharem Hrnjadovic" <gmt@lbox.cc>
+// Copyright (C) 2019-2025  "Muharem Hrnjadovic" <muharem@linux.com>
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -30,11 +31,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func help() {
-	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "\n%s, version %s\nThis tool sends emails in bulk based on a template and a config file\n\n", filepath.Base(os.Args[0]), version())
-	flag.PrintDefaults()
-}
-
 var (
 	// Set via -ldflags at build time
 	gitCommit = "unknown"
@@ -43,15 +39,17 @@ var (
 
 func version() string { return "0.2.1-" + gitCommit + " (" + buildDate + ")" }
 
-func fatal(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, "Error: "+format+"\n", args...)
-	os.Exit(1)
+func help() {
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "\n%s, version %s\nThis tool sends emails in bulk based on a template and a config file\n\n", filepath.Base(os.Args[0]), version())
+	flag.PrintDefaults()
 }
 
 func main() {
+	log.SetFlags(0)
+
 	// Load .env file if it exists
 	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "Warning: failed to load .env file: %v\n", err)
+		log.Printf("Warning: failed to load .env file: %v", err)
 	}
 
 	flag.Usage = help
@@ -75,67 +73,25 @@ func main() {
 	}
 
 	if *doSampleTemplate {
-		fmt.Println(config.SampleTemplate(version()))
+		fmt.Println(config.SampleTemplate())
 		os.Exit(0)
 	}
 
 	if *configPath == "" {
-		fmt.Fprintln(os.Stderr, "*** Error: please specify config file!")
+		log.Print("Error: -config-path flag is required")
 		flag.Usage()
 		os.Exit(1)
 	}
 	if *templatePath == "" {
-		fmt.Fprintln(os.Stderr, "*** Error: please specify template file!")
+		log.Print("Error: -template-path flag is required")
 		flag.Usage()
 		os.Exit(2)
 	}
 
-	// read the config file
-	bytes, err := os.ReadFile(*configPath)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to read config file!")
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(3)
-	}
+	cfg, mails := loadAndPrepare(*configPath, *templatePath)
 
-	// parse the config file
-	var cfg config.Data
-	cfg, err = config.New(bytes)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error in config file!")
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(4)
-	}
-
-	// read the template file
-	bytes, err = os.ReadFile(*templatePath)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to read template file!")
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(5)
-	}
-
-	// prepare the emails, substitute vars in subject & body
-	mails := email.PrepMails(cfg, string(bytes))
-
-	if len(mails) == 0 {
-		fmt.Fprintln(os.Stderr, "Warning: no recipients found in config file")
-		os.Exit(0)
-	}
-
-	// is this a dry run? print what would be done if so and exit
 	if *doDryRun {
-		for _, m := range mails {
-			fmt.Printf("--\n\"%s\" <%s>\n", m.Name, m.Address)
-			if len(m.Cc) > 0 {
-				fmt.Printf("Cc: %s\n", strings.Join(m.Cc, ", "))
-			}
-			fmt.Printf("Subject: %s\n", m.Subject)
-			if len(m.Attachments) > 0 {
-				fmt.Printf("Attachments: %s\n", strings.Join(m.Attachments, ", "))
-			}
-			fmt.Printf("%s\n", m.Body)
-		}
+		printDryRun(mails)
 		os.Exit(0)
 	}
 
@@ -145,30 +101,106 @@ func main() {
 	}
 }
 
-func send(cfg config.Data, mails []email.Mail) int {
-	smtpHost := os.Getenv("SMTP_HOST")
-	smtpPortStr := os.Getenv("SMTP_PORT")
-	from := os.Getenv("SENDER_EMAIL")
+func loadAndPrepare(configPath, templatePath string) (config.Data, []email.Mail) {
+	cfgBytes, err := os.ReadFile(configPath)
+	if err != nil {
+		log.Fatalf("Failed to read config file %q: %v", configPath, err)
+	}
+
+	c, err := config.New(cfgBytes)
+	if err != nil {
+		log.Fatalf("Failed to parse config file %q: %v", configPath, err)
+	}
+
+	cfg, err := c.ParseGeneral()
+	if err != nil {
+		log.Fatalf("Invalid [general] section in %q: %v", configPath, err)
+	}
+
+	cfg.Recipients, err = c.ParseRecipients()
+	if err != nil {
+		log.Fatalf("Invalid [recipients] section in %q: %v", configPath, err)
+	}
+
+	tmplBytes, err := os.ReadFile(templatePath)
+	if err != nil {
+		log.Fatalf("Failed to read template file %q: %v", templatePath, err)
+	}
+
+	mails := email.PrepMails(cfg, string(tmplBytes))
+	if len(mails) == 0 {
+		log.Print("Warning: no recipients found in config file")
+		os.Exit(0)
+	}
+
+	return cfg, mails
+}
+
+func printDryRun(mails []email.Mail) {
+	for _, m := range mails {
+		fmt.Printf("--\n\"%s\" <%s>\n", m.Name, m.Address)
+		if len(m.Cc) > 0 {
+			fmt.Printf("Cc: %s\n", strings.Join(m.Cc, ", "))
+		}
+		fmt.Printf("Subject: %s\n", m.Subject)
+		if len(m.Attachments) > 0 {
+			fmt.Printf("Attachments: %s\n", strings.Join(m.Attachments, ", "))
+		}
+		fmt.Printf("%s\n", m.Body)
+	}
+}
+
+type smtpConfig struct {
+	host     string
+	port     int
+	user     string
+	password string
+}
+
+func loadSMTPConfig() smtpConfig {
+	host := os.Getenv("SMTP_HOST")
+	portStr := os.Getenv("SMTP_PORT")
+	user := os.Getenv("SENDER_EMAIL")
 	password := os.Getenv("SENDER_PASSWORD")
 
-	if smtpHost == "" || smtpPortStr == "" || from == "" || password == "" {
-		fatal("SMTP_HOST, SMTP_PORT, SENDER_EMAIL, and SENDER_PASSWORD environment variables must all be set")
+	var missing []string
+	if host == "" {
+		missing = append(missing, "SMTP_HOST")
 	}
-	smtpPort, err := strconv.Atoi(smtpPortStr)
-	if err != nil {
-		fatal("SMTP_PORT must be a valid integer, got %q: %v", smtpPortStr, err)
+	if portStr == "" {
+		missing = append(missing, "SMTP_PORT")
+	}
+	if user == "" {
+		missing = append(missing, "SENDER_EMAIL")
+	}
+	if password == "" {
+		missing = append(missing, "SENDER_PASSWORD")
+	}
+	if len(missing) > 0 {
+		log.Fatalf("Missing required environment variable(s): %s", strings.Join(missing, ", "))
 	}
 
-	d := mail.NewDialer(smtpHost, smtpPort, from, password)
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		log.Fatalf("SMTP_PORT must be a valid integer, got %q", portStr)
+	}
+
+	return smtpConfig{host: host, port: port, user: user, password: password}
+}
+
+func send(cfg config.Data, mails []email.Mail) int {
+	smtp := loadSMTPConfig()
+
+	d := mail.NewDialer(smtp.host, smtp.port, smtp.user, smtp.password)
 	d.StartTLSPolicy = mail.MandatoryStartTLS
 
 	sender, err := d.Dial()
 	if err != nil {
-		fatal("failed to connect to SMTP server: %v", err)
+		log.Fatalf("Failed to connect to SMTP server %s:%d: %v", smtp.host, smtp.port, err)
 	}
 	defer func() {
 		if err := sender.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to close SMTP connection: %v\n", err)
+			log.Printf("Warning: failed to close SMTP connection to %s:%d: %v", smtp.host, smtp.port, err)
 		}
 	}()
 
@@ -214,11 +246,11 @@ func createEmailMessage(from, toName, toAddr string, cc []string, replyTo, subje
 }
 
 func addAttachments(msg *mail.Message, attachments []string) error {
-	for _, attachmentPath := range attachments {
-		if _, err := os.Stat(attachmentPath); err != nil {
-			return fmt.Errorf("attachment %s: %w", attachmentPath, err)
+	for _, path := range attachments {
+		if _, err := os.Stat(path); err != nil {
+			return fmt.Errorf("attachment %s: %w", path, err)
 		}
-		msg.Attach(attachmentPath)
+		msg.Attach(path)
 	}
 	return nil
 }

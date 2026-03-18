@@ -1,5 +1,5 @@
 // gmt sends emails in bulk based on a template and a config file.
-// Copyright (C) 2019-2023  "Muharem Hrnjadovic" <gmt@lbox.cc>
+// Copyright (C) 2019-2025  "Muharem Hrnjadovic" <muharem@linux.com>
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// Package config handles parsing of gmt INI configuration files.
 package config
 
 import (
@@ -33,6 +34,7 @@ var (
 	reComma = regexp.MustCompile(`\s*,\s*`)
 )
 
+// Recipient holds a parsed recipient entry from the config file.
 type Recipient struct {
 	Email string
 	First string
@@ -40,6 +42,13 @@ type Recipient struct {
 	Data  map[string]string
 }
 
+// Config wraps a parsed INI file and provides methods to extract
+// the [general] and [recipients] sections.
+type Config struct {
+	file *ini.File
+}
+
+// Data holds the fully parsed configuration for a mailing run.
 type Data struct {
 	From        string
 	ReplyTo     string
@@ -49,32 +58,37 @@ type Data struct {
 	Attachments []string
 }
 
-func New(bs []byte) (result Data, err error) {
-	var cfg *ini.File
-	cfg, err = ini.InsensitiveLoad(bs)
+// New loads an INI-format configuration from the given bytes.
+func New(bs []byte) (*Config, error) {
+	f, err := ini.InsensitiveLoad(bs)
 	if err != nil {
-		return
+		return nil, err
 	}
-	sec, err := cfg.GetSection("general")
+	return &Config{file: f}, nil
+}
+
+// ParseGeneral extracts the [general] section fields into a Data struct.
+func (c *Config) ParseGeneral() (Data, error) {
+	sec, err := c.file.GetSection("general")
 	if err != nil {
-		err = errors.New("config file must have a [general] section")
-		return
+		return Data{}, errors.New("section not found")
 	}
 	keys := sec.KeysHash()
 
+	var result Data
+
 	// mandatory keys (all keys are lowercase due to InsensitiveLoad)
-	if val, ok := keys["subject"]; ok {
-		result.Subject = val
-	} else {
-		err = errors.New("'subject' not configured")
-		return
+	val, ok := keys["subject"]
+	if !ok {
+		return Data{}, errors.New("missing required key 'subject'")
 	}
-	if val, ok := keys["from"]; ok {
-		result.From = val
-	} else {
-		err = errors.New("'from' not configured")
-		return
+	result.Subject = val
+
+	val, ok = keys["from"]
+	if !ok {
+		return Data{}, errors.New("missing required key 'from'")
 	}
+	result.From = val
 
 	// optional keys
 	if val, ok := keys["reply-to"]; ok {
@@ -85,30 +99,34 @@ func New(bs []byte) (result Data, err error) {
 	}
 	if val, ok := keys["attachments"]; ok {
 		result.Attachments = reComma.Split(val, -1)
-		if path, err2 := checkAttachments(result.Attachments); err2 != nil {
-			err = fmt.Errorf("attachment '%s' does not exist", path)
-			return
+		if err := checkAttachments(result.Attachments); err != nil {
+			return Data{}, err
 		}
 	}
 
-	var recipients *ini.Section
-	recipients, err = cfg.GetSection("recipients")
-	if err == nil {
-		result.Recipients = parseRecipients(recipients)
-	}
-	return
+	return result, nil
 }
 
-func checkAttachments(attachments []string) (path string, err error) {
-	for _, path = range attachments {
-		if _, err = os.Stat(path); err != nil {
-			return
+// ParseRecipients extracts the [recipients] section into a slice of Recipient.
+func (c *Config) ParseRecipients() ([]Recipient, error) {
+	sec, err := c.file.GetSection("recipients")
+	if err != nil {
+		return nil, err
+	}
+	return parseRecipients(sec), nil
+}
+
+func checkAttachments(attachments []string) error {
+	for _, path := range attachments {
+		if _, err := os.Stat(path); err != nil {
+			return fmt.Errorf("attachment '%s' does not exist", path)
 		}
 	}
-	return
+	return nil
 }
 
-func parseRecipients(sec *ini.Section) (recipients []Recipient) {
+func parseRecipients(sec *ini.Section) []Recipient {
+	var recipients []Recipient
 	for k, v := range sec.KeysHash() {
 		// jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
 		rdata := rePipe.Split(v, -1)
@@ -123,23 +141,23 @@ func parseRecipients(sec *ini.Section) (recipients []Recipient) {
 		}
 		data := make(map[string]string)
 		for _, rdatum := range rdata[1:] {
-			splitRdatum := reRdata.Split(rdatum, 2)
-			if len(splitRdatum) != 2 {
+			parts := reRdata.Split(rdatum, 2)
+			if len(parts) != 2 {
 				continue
 			}
-			data[strings.ToUpper(splitRdatum[0])] = splitRdatum[1]
+			data[strings.ToUpper(parts[0])] = parts[1]
 		}
-		recipient := Recipient{
+		recipients = append(recipients, Recipient{
 			Email: k,
 			First: first,
 			Last:  last,
 			Data:  data,
-		}
-		recipients = append(recipients, recipient)
+		})
 	}
-	return
+	return recipients
 }
 
+// SampleConfig returns a commented example configuration file.
 func SampleConfig(version string) string {
 	fs := `# gmt version %s
 #
@@ -171,7 +189,8 @@ ef@example.com=Eve Foster|ORG:-CERN|TITLE:-Prof.|As:-+file3.pdf`
 	return fmt.Sprintf(fs, version)
 }
 
-func SampleTemplate(_ string) string {
+// SampleTemplate returns an example email template demonstrating placeholder usage.
+func SampleTemplate() string {
 	return `Dear %FN% %LN%,
 
 How are things going at %ORG%?

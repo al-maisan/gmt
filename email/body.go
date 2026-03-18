@@ -1,5 +1,5 @@
 // gmt sends emails in bulk based on a template and a config file.
-// Copyright (C) 2019-2023  "Muharem Hrnjadovic" <gmt@lbox.cc>
+// Copyright (C) 2019-2025  "Muharem Hrnjadovic" <muharem@linux.com>
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// Package email handles template substitution and per-recipient mail preparation.
 package email
 
 import (
@@ -23,6 +24,7 @@ import (
 	"github.com/al-maisan/gmt/config"
 )
 
+// Mail holds a fully prepared email ready for sending.
 type Mail struct {
 	Name        string
 	Address     string
@@ -42,6 +44,8 @@ func substVars(recipient config.Recipient, text string) (result string) {
 	return
 }
 
+// PrepMails generates a Mail for each recipient by substituting template variables
+// and resolving per-recipient Cc and attachment overrides.
 func PrepMails(cfg config.Data, template string) (mails []Mail) {
 	mails = make([]Mail, 0, len(cfg.Recipients))
 	for _, recipient := range cfg.Recipients {

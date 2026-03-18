@@ -16,3 +16,9 @@
 
 # Compiled binary
 gmt
+
+# Claude Code workspace
+.claude/
+
+# AI review artifacts
+ai/
