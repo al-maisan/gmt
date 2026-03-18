@@ -49,8 +49,10 @@ func fatal(format string, args ...any) {
 }
 
 func main() {
-	// Load .env file if it exists (ignore error if file doesn't exist)
-	_ = godotenv.Load()
+	// Load .env file if it exists
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "Warning: failed to load .env file: %v\n", err)
+	}
 
 	flag.Usage = help
 	configPath := flag.String("config-path", "", "path to the config file")
@@ -164,7 +166,11 @@ func send(cfg config.Data, mails []email.Mail) int {
 	if err != nil {
 		fatal("failed to connect to SMTP server: %v", err)
 	}
-	defer func() { _ = sender.Close() }()
+	defer func() {
+		if err := sender.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to close SMTP connection: %v\n", err)
+		}
+	}()
 
 	fmt.Println("\nSending emails now..")
 	var sent, failed int
