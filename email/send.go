@@ -14,9 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Package smtp handles SMTP connection management, email message construction,
-// and bulk sending.
-package smtp
+package email
 
 import (
 	"fmt"
@@ -25,21 +23,20 @@ import (
 	"strings"
 
 	"github.com/al-maisan/gmt/config"
-	"github.com/al-maisan/gmt/email"
 	"github.com/go-mail/mail"
 )
 
-// Credentials holds the SMTP server connection parameters.
-type Credentials struct {
+// SMTPCredentials holds the SMTP server connection parameters.
+type SMTPCredentials struct {
 	Host     string
 	Port     int
 	User     string
 	Password string
 }
 
-// LoadCredentials reads SMTP credentials from environment variables.
+// LoadSMTPCredentials reads SMTP credentials from environment variables.
 // Returns an error listing any missing variables.
-func LoadCredentials() (Credentials, error) {
+func LoadSMTPCredentials() (SMTPCredentials, error) {
 	host := os.Getenv("SMTP_HOST")
 	portStr := os.Getenv("SMTP_PORT")
 	user := os.Getenv("SENDER_EMAIL")
@@ -59,31 +56,31 @@ func LoadCredentials() (Credentials, error) {
 		missing = append(missing, "SENDER_PASSWORD")
 	}
 	if len(missing) > 0 {
-		return Credentials{}, fmt.Errorf("missing required environment variable(s): %s", strings.Join(missing, ", "))
+		return SMTPCredentials{}, fmt.Errorf("missing required environment variable(s): %s", strings.Join(missing, ", "))
 	}
 
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		return Credentials{}, fmt.Errorf("SMTP_PORT must be a valid integer, got %q", portStr)
+		return SMTPCredentials{}, fmt.Errorf("SMTP_PORT must be a valid integer, got %q", portStr)
 	}
 
-	return Credentials{Host: host, Port: port, User: user, Password: password}, nil
+	return SMTPCredentials{Host: host, Port: port, User: user, Password: password}, nil
 }
 
-// Result holds the outcome of a bulk send operation.
-type Result struct {
+// SendResult holds the outcome of a bulk send operation.
+type SendResult struct {
 	Sent   int
 	Failed int
 }
 
 // SendAll sends all prepared mails over a single SMTP connection.
-func SendAll(creds Credentials, cfg config.Data, mails []email.Mail) (Result, error) {
+func SendAll(creds SMTPCredentials, cfg config.Data, mails []Mail) (SendResult, error) {
 	d := mail.NewDialer(creds.Host, creds.Port, creds.User, creds.Password)
 	d.StartTLSPolicy = mail.MandatoryStartTLS
 
 	sender, err := d.Dial()
 	if err != nil {
-		return Result{}, fmt.Errorf("failed to connect to %s:%d: %w", creds.Host, creds.Port, err)
+		return SendResult{}, fmt.Errorf("failed to connect to %s:%d: %w", creds.Host, creds.Port, err)
 	}
 	defer func() {
 		if err := sender.Close(); err != nil {
@@ -91,13 +88,13 @@ func SendAll(creds Credentials, cfg config.Data, mails []email.Mail) (Result, er
 		}
 	}()
 
-	var result Result
+	var result SendResult
 	for _, m := range mails {
 		recipient := fmt.Sprintf("%s <%s>", m.Name, m.Address)
 
 		msg := createMessage(cfg.From, m.Name, m.Address, m.Cc, cfg.ReplyTo, m.Subject, m.Body)
 
-		if err := addAttachments(msg, m.Attachments); err != nil {
+		if err := attachFiles(msg, m.Attachments); err != nil {
 			fmt.Printf("! %s (failed to attach: %v)\n", recipient, err)
 			result.Failed++
 			continue
@@ -130,7 +127,7 @@ func createMessage(from, toName, toAddr string, cc []string, replyTo, subject, b
 	return m
 }
 
-func addAttachments(msg *mail.Message, attachments []string) error {
+func attachFiles(msg *mail.Message, attachments []string) error {
 	for _, path := range attachments {
 		if _, err := os.Stat(path); err != nil {
 			return fmt.Errorf("attachment %s: %w", path, err)

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package smtp
+package email
 
 import (
 	"testing"
@@ -54,34 +54,34 @@ func TestCreateMessageUTF8Name(t *testing.T) {
 	assert.NotNil(t, msg)
 }
 
-func TestAddAttachmentsNonexistent(t *testing.T) {
+func TestAttachFilesNonexistent(t *testing.T) {
 	msg := createMessage(
 		`"Sender" <s@example.com>`,
 		"A", "a@b.com",
 		nil, "", "s", "b",
 	)
-	err := addAttachments(msg, []string{"/nonexistent/file.txt"})
+	err := attachFiles(msg, []string{"/nonexistent/file.txt"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "attachment /nonexistent/file.txt")
 }
 
-func TestAddAttachmentsEmpty(t *testing.T) {
+func TestAttachFilesEmpty(t *testing.T) {
 	msg := createMessage(
 		`"Sender" <s@example.com>`,
 		"A", "a@b.com",
 		nil, "", "s", "b",
 	)
-	err := addAttachments(msg, nil)
+	err := attachFiles(msg, nil)
 	assert.NoError(t, err)
 }
 
-func TestLoadCredentialsMissing(t *testing.T) {
+func TestLoadSMTPCredentialsMissing(t *testing.T) {
 	t.Setenv("SMTP_HOST", "")
 	t.Setenv("SMTP_PORT", "")
 	t.Setenv("SENDER_EMAIL", "")
 	t.Setenv("SENDER_PASSWORD", "")
 
-	_, err := LoadCredentials()
+	_, err := LoadSMTPCredentials()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "SMTP_HOST")
 	assert.Contains(t, err.Error(), "SMTP_PORT")
@@ -89,37 +89,37 @@ func TestLoadCredentialsMissing(t *testing.T) {
 	assert.Contains(t, err.Error(), "SENDER_PASSWORD")
 }
 
-func TestLoadCredentialsPartialMissing(t *testing.T) {
+func TestLoadSMTPCredentialsPartialMissing(t *testing.T) {
 	t.Setenv("SMTP_HOST", "smtp.example.com")
 	t.Setenv("SMTP_PORT", "587")
 	t.Setenv("SENDER_EMAIL", "")
 	t.Setenv("SENDER_PASSWORD", "secret")
 
-	_, err := LoadCredentials()
+	_, err := LoadSMTPCredentials()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "SENDER_EMAIL")
 	assert.NotContains(t, err.Error(), "SMTP_HOST")
 }
 
-func TestLoadCredentialsBadPort(t *testing.T) {
+func TestLoadSMTPCredentialsBadPort(t *testing.T) {
 	t.Setenv("SMTP_HOST", "smtp.example.com")
 	t.Setenv("SMTP_PORT", "abc")
 	t.Setenv("SENDER_EMAIL", "user@example.com")
 	t.Setenv("SENDER_PASSWORD", "secret")
 
-	_, err := LoadCredentials()
+	_, err := LoadSMTPCredentials()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "SMTP_PORT")
 	assert.Contains(t, err.Error(), "abc")
 }
 
-func TestLoadCredentialsValid(t *testing.T) {
+func TestLoadSMTPCredentialsValid(t *testing.T) {
 	t.Setenv("SMTP_HOST", "smtp.example.com")
 	t.Setenv("SMTP_PORT", "587")
 	t.Setenv("SENDER_EMAIL", "user@example.com")
 	t.Setenv("SENDER_PASSWORD", "secret")
 
-	creds, err := LoadCredentials()
+	creds, err := LoadSMTPCredentials()
 	assert.NoError(t, err)
 	assert.Equal(t, "smtp.example.com", creds.Host)
 	assert.Equal(t, 587, creds.Port)

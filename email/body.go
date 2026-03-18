@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Package email handles template substitution and per-recipient mail preparation.
+// Package email handles template substitution, per-recipient mail preparation,
+// and SMTP delivery.
 package email
 
 import (

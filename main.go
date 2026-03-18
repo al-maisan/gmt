@@ -26,7 +26,6 @@ import (
 
 	"github.com/al-maisan/gmt/config"
 	"github.com/al-maisan/gmt/email"
-	gmtsmtp "github.com/al-maisan/gmt/smtp"
 	"github.com/joho/godotenv"
 )
 
@@ -94,13 +93,13 @@ func main() {
 		os.Exit(0)
 	}
 
-	creds, err := gmtsmtp.LoadCredentials()
+	creds, err := email.LoadSMTPCredentials()
 	if err != nil {
 		log.Fatalf("SMTP configuration error: %v", err)
 	}
 
 	fmt.Println("\nSending emails now..")
-	result, err := gmtsmtp.SendAll(creds, cfg, mails)
+	result, err := email.SendAll(creds, cfg, mails)
 	if err != nil {
 		log.Fatalf("SMTP error: %v", err)
 	}
