@@ -35,7 +35,13 @@ func help() {
 	flag.PrintDefaults()
 }
 
-func version() string { return "0.2.1" }
+var (
+	// Set via -ldflags at build time
+	gitCommit = "unknown"
+	buildDate = "unknown"
+)
+
+func version() string { return "0.2.1-" + gitCommit + " (" + buildDate + ")" }
 
 func fatal(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "Error: "+format+"\n", args...)

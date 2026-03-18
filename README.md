@@ -6,12 +6,12 @@
 
 Requires [Go](https://go.dev/) 1.25 or later.
 
-    $ go build
+    $ go build -ldflags "-X main.gitCommit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%Y-%m-%d)"
     $ ./gmt -h
 
 Or install directly:
 
-    $ go install github.com/al-maisan/gmt@latest
+    $ go install -ldflags "-X main.gitCommit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%Y-%m-%d)" github.com/al-maisan/gmt@latest
 
 ## Quick start
 
@@ -139,7 +139,7 @@ Use `-dry-run` to preview all emails without sending. The output includes Cc and
 
     $ ./gmt -h
 
-    gmt, version 0.2.1
+    gmt, version 0.2.1-a1b2c3d (2026-03-18)
     This tool sends emails in bulk based on a template and a config file
 
       -config-path string
