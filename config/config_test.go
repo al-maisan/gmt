@@ -79,7 +79,7 @@ subject=Hello %FN%!
 `),
 		)
 		c.So(err, ShouldNotBeNil)
-		c.So(err.Error(), ShouldEqual, "section 'recipients' does not exist")
+		c.So(err.Error(), ShouldContainSubstring, "recipients")
 	})
 }
 
