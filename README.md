@@ -1,6 +1,6 @@
-# Go mailing tool (gmt)
+# Go mailing tool (gmt-mail)
 
-`gmt` is a simple utility that sends personalized emails in bulk using a configuration file and a template for the email body. It connects directly via SMTP with mandatory TLS.
+`gmt-mail` is a simple utility that sends personalized emails in bulk using a configuration file and a template for the email body. It connects directly via SMTP with mandatory TLS.
 
 ## Installation
 
@@ -9,19 +9,19 @@ Requires [Go](https://go.dev/) 1.25 or later.
     $ git clone https://github.com/al-maisan/gmt.git
     $ cd gmt
     $ make build
-    $ ./gmt -h
+    $ ./gmt-mail -h
 
-The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `clean`.
+The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `clean`, `srpm`.
 
 ## Quick start
 
 Generate sample files, configure SMTP credentials, preview, then send:
 
-    $ ./gmt -sample-config > config.ini
-    $ ./gmt -sample-template > template.eml
+    $ ./gmt-mail -sample-config > config.ini
+    $ ./gmt-mail -sample-template > template.eml
     $ cp .env.example .env    # edit .env with your SMTP credentials
-    $ ./gmt -dry-run -config-path config.ini -template-path template.eml
-    $ ./gmt -config-path config.ini -template-path template.eml
+    $ ./gmt-mail -dry-run -config-path config.ini -template-path template.eml
+    $ ./gmt-mail -config-path config.ini -template-path template.eml
 
 ## SMTP setup
 
@@ -108,7 +108,7 @@ Example template:
 
 Use `-dry-run` to preview all emails without sending. The output includes Cc and attachment information when present:
 
-    $ ./gmt -dry-run -config-path config.ini -template-path template.eml
+    $ ./gmt-mail -dry-run -config-path config.ini -template-path template.eml
     --
     "John Doe Jr." <jd@example.com>
     Cc: bl@kf.io, info@ex.org
@@ -139,9 +139,9 @@ Use `-dry-run` to preview all emails without sending. The output includes Cc and
 
 ## CLI reference
 
-    $ ./gmt -h
+    $ ./gmt-mail -h
 
-    gmt, version 0.2.1-a1b2c3d (2026-03-18)
+    gmt-mail, version 0.2.1-a1b2c3d (2026-03-18)
     This tool sends emails in bulk based on a template and a config file
 
       -config-path string

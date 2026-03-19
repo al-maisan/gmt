@@ -15,7 +15,10 @@
 .env
 
 # Compiled binary
-gmt
+gmt-mail
+
+# Vendored dependencies (regenerate with: go mod vendor)
+vendor/
 
 # Claude Code workspace
 .claude/

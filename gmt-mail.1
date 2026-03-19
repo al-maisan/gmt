@@ -1,0 +1,224 @@
+.TH GMT\-MAIL 1 "2026-03-18" "gmt-mail dev" "User Commands"
+.SH NAME
+gmt\-mail \- send personalized emails in bulk using a template and a configuration file
+.SH SYNOPSIS
+.B gmt\-mail
+.RB [ \-dry\-run ]
+.B \-config\-path
+.I file
+.B \-template\-path
+.I file
+.br
+.B gmt\-mail
+.B \-sample\-config
+.br
+.B gmt\-mail
+.B \-sample\-template
+.br
+.B gmt\-mail
+.B \-version
+.SH DESCRIPTION
+.B gmt\-mail
+(Go Mailing Tool) sends personalized emails in bulk.
+It reads a list of recipients and mail metadata from an INI configuration file,
+substitutes per-recipient variables into an email template, and sends the
+resulting messages via SMTP with mandatory TLS encryption.
+.PP
+In dry-run mode, emails are printed to standard output instead of being sent,
+allowing review before committing to delivery.
+.SH OPTIONS
+.TP
+.BI \-config\-path " file"
+Path to the INI configuration file. Required unless using
+.BR \-sample\-config ,
+.BR \-sample\-template ,
+or
+.BR \-version .
+.TP
+.BI \-template\-path " file"
+Path to the email template file. Required unless using
+.BR \-sample\-config ,
+.BR \-sample\-template ,
+or
+.BR \-version .
+.TP
+.B \-dry\-run
+Preview all emails on standard output without connecting to an SMTP server.
+SMTP credentials are not required in this mode.
+.TP
+.B \-sample\-config
+Print a sample configuration file to standard output and exit.
+.TP
+.B \-sample\-template
+Print a sample email template to standard output and exit.
+.TP
+.B \-version
+Print the version string and exit.
+.TP
+.B \-h
+Print a brief usage message and exit.
+.SH CONFIGURATION FILE
+The configuration file uses INI format with two required sections.
+Key names are case-insensitive.
+.SS [general]
+.TP
+.B From
+Sender name and email address for the mail header.
+Example:
+.IR "\(dqFrodo Baggins\(dq <frodo@shire.org>" .
+Required.
+.TP
+.B subject
+Email subject line. May contain template variables (see
+.BR "TEMPLATE VARIABLES" ).
+Required.
+.TP
+.B Cc
+Comma-separated CC addresses. Optional.
+.TP
+.B Reply\-To
+Reply-To address. Optional.
+.TP
+.B attachments
+Comma-separated file paths to attach to every email.
+Files are verified at configuration parse time.
+Optional.
+.SS [recipients]
+Each line defines one recipient in the form:
+.PP
+.RS
+.IR email = "First Last" | KEY :- VALUE | KEY :- VALUE |...
+.RE
+.PP
+The first word after
+.B =
+is the first name; subsequent words up to the first
+.B |
+form the last name. Key-value pairs after
+.B |
+use
+.B :\-
+as the separator. Keys are converted to uppercase for template matching.
+.PP
+.B Per-recipient overrides:
+.TP
+.BI Cc:\- addr1,addr2
+Replace the global Cc list for this recipient.
+.TP
+.BI Cc:\-+ addr1,addr2
+Append to the global Cc list for this recipient.
+.TP
+.BI As:\- file1,file2
+Replace the global attachments for this recipient.
+.TP
+.BI As:\-+ file1
+Append to the global attachments for this recipient.
+.SH TEMPLATE VARIABLES
+The following placeholders are substituted in both the subject line and the
+template body:
+.TP
+.B %FN%
+Recipient's first name.
+.TP
+.B %LN%
+Recipient's last name.
+.TP
+.B %EA%
+Recipient's email address.
+.TP
+.BI % KEY %
+Any custom key defined in the recipient's data (uppercase).
+.PP
+Unresolved placeholders are left as-is in the output and a warning is logged
+for each one.
+.SH ENVIRONMENT
+SMTP credentials are loaded from environment variables.
+If a
+.B .env
+file exists in the working directory, it is loaded automatically (environment
+variables take precedence over
+.B .env
+values).
+.TP
+.B SMTP_HOST
+SMTP server hostname (e.g.,
+.IR smtp.gmail.com ).
+.TP
+.B SMTP_PORT
+SMTP server port (e.g.,
+.IR 587 ).
+.TP
+.B SENDER_EMAIL
+Email address used for SMTP authentication.
+.TP
+.B SENDER_PASSWORD
+Password for SMTP authentication.
+.PP
+All four variables are required when sending email.
+They are not required for
+.BR \-dry\-run ,
+.BR \-sample\-config ,
+.BR \-sample\-template ,
+or
+.BR \-version .
+.PP
+All SMTP connections use mandatory TLS; credentials are never transmitted in
+plaintext.
+.SH EXIT STATUS
+.TP
+.B 0
+Success. All emails sent or dry-run completed.
+.TP
+.B 1
+Usage error. Missing required flags.
+.TP
+.B 2
+Configuration or template file error (missing, unreadable, invalid, or
+no recipients found).
+.TP
+.B 3
+SMTP connection error (missing or invalid credentials, connection failure).
+.TP
+.B 4
+Partial failure. One or more emails failed to send.
+.SH EXAMPLES
+Generate sample files to get started:
+.PP
+.RS
+.nf
+gmt\-mail \-sample\-config > config.ini
+gmt\-mail \-sample\-template > template.eml
+.fi
+.RE
+.PP
+Set up SMTP credentials:
+.PP
+.RS
+.nf
+cp .env.example .env
+vi .env
+.fi
+.RE
+.PP
+Preview emails without sending:
+.PP
+.RS
+.nf
+gmt\-mail \-dry\-run \-config\-path config.ini \-template\-path template.eml
+.fi
+.RE
+.PP
+Send emails:
+.PP
+.RS
+.nf
+gmt\-mail \-config\-path config.ini \-template\-path template.eml
+.fi
+.RE
+.SH AUTHOR
+Muharem Hrnjadovic <muharem@linux.com>
+.SH LICENSE
+GNU General Public License v3 or later.
+.SH SEE ALSO
+.BR sendmail (1),
+.BR mail (1)
