@@ -4,6 +4,19 @@
 
 ## Installation
 
+### Ubuntu (PPA)
+
+    $ sudo add-apt-repository ppa:al-maisan/gmt-mail
+    $ sudo apt update
+    $ sudo apt install gmt-mail
+
+### Fedora (COPR)
+
+    $ sudo dnf copr enable al-maisan/gmt-mail
+    $ sudo dnf install gmt-mail
+
+### From source
+
 Requires [Go](https://go.dev/) 1.25 or later.
 
     $ git clone https://github.com/al-maisan/gmt.git
