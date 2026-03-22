@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+
+export GOFLAGS := -mod=vendor
+
+VERSION := $(shell dpkg-parsechangelog -SVersion | sed 's/-[^-]*$$//')
+COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+DATE    := $(shell date -u +%Y-%m-%d)
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	go build -mod=vendor -ldflags "-X main.appVersion=$(VERSION) -X main.gitCommit=$(COMMIT) -X main.buildDate=$(DATE)" -o gmt-mail .
+
+override_dh_auto_test:
+	go test -mod=vendor ./...
+
+override_dh_auto_install:
+	install -Dpm 0755 gmt-mail debian/gmt-mail/usr/bin/gmt-mail
+	install -Dpm 0644 gmt-mail.1 debian/gmt-mail/usr/share/man/man1/gmt-mail.1
+	install -Dpm 0644 .env.example debian/gmt-mail/usr/share/doc/gmt-mail/.env.example
+	install -Dpm 0644 README.md debian/gmt-mail/usr/share/doc/gmt-mail/README.md
