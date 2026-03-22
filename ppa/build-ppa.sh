@@ -48,7 +48,7 @@ for RELEASE in "${RELEASES[@]}"; do
     sed -i "1s/.*$/gmt-mail (${VERSION}-1ppa1~${RELEASE}1) ${RELEASE}; urgency=medium/" debian/changelog
 
     # Build signed source package
-    debuild -S -sa ${SIGN_FLAG}
+    debuild -S -sa -d ${SIGN_FLAG}
 
     echo ""
     echo "=== Uploading to PPA for ${RELEASE} ==="
