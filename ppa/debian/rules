@@ -1,6 +1,9 @@
 #!/usr/bin/make -f
 
 export GOFLAGS := -mod=vendor
+export GOMODCACHE := $(CURDIR)/.gomodcache
+export GOCACHE := $(CURDIR)/.gocache
+export GOPATH := $(CURDIR)/.gopath
 
 VERSION := $(shell dpkg-parsechangelog -SVersion | sed 's/-[^-]*$$//')
 COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)

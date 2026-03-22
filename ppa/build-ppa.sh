@@ -45,7 +45,7 @@ for RELEASE in "${RELEASES[@]}"; do
     cd "gmt-mail-${VERSION}-${RELEASE}"
 
     # Update changelog for this release
-    sed -i "1s/.*$/gmt-mail (${VERSION}-1ppa1~${RELEASE}1) ${RELEASE}; urgency=medium/" debian/changelog
+    sed -i "1s/.*$/gmt-mail (${VERSION}-1ppa2~${RELEASE}1) ${RELEASE}; urgency=medium/" debian/changelog
 
     # Build signed source package
     debuild -S -sa ${SIGN_FLAG}
@@ -53,7 +53,7 @@ for RELEASE in "${RELEASES[@]}"; do
     echo ""
     echo "=== Uploading to PPA for ${RELEASE} ==="
     cd "$BUILD_DIR"
-    dput "$PPA" "gmt-mail_${VERSION}-1ppa1~${RELEASE}1_source.changes"
+    dput "$PPA" "gmt-mail_${VERSION}-1ppa2~${RELEASE}1_source.changes"
 done
 
 echo ""
