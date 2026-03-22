@@ -1,0 +1,25 @@
+Source: gmt-mail
+Section: mail
+Priority: optional
+Maintainer: Muharem Hrnjadovic <muharem@linux.com>
+Build-Depends: debhelper-compat (= 13),
+               golang-any (>= 2:1.22~)
+Standards-Version: 4.7.0
+Homepage: https://github.com/al-maisan/gmt
+Vcs-Browser: https://github.com/al-maisan/gmt
+Vcs-Git: https://github.com/al-maisan/gmt.git
+Rules-Requires-Root: no
+
+Package: gmt-mail
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: send personalized emails in bulk using templates
+ gmt-mail (Go Mailing Tool) sends personalized emails in bulk. It reads a list
+ of recipients and mail metadata from an INI configuration file, substitutes
+ per-recipient variables into an email template, and sends the resulting
+ messages via SMTP with mandatory TLS encryption.
+ .
+ Features include per-recipient CC and attachment overrides, template
+ variables for first name, last name, email address, and arbitrary custom
+ fields, a dry-run mode for previewing emails before sending, and support
+ for file attachments.
