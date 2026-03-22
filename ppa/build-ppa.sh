@@ -11,7 +11,7 @@ VERSION="0.2.4"
 BUILD_DIR="/tmp/gmt-ppa-build"
 
 # Ubuntu releases to target (add/remove as needed)
-RELEASES=("noble")  # 24.04 LTS
+RELEASES=("plucky")  # 25.04
 
 echo "=== Preparing source tree ==="
 rm -rf "$BUILD_DIR"
