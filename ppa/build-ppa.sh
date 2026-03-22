@@ -7,7 +7,7 @@ GPG_KEY="753B6ECF2B458FF3D19D568C1E0A288397AE739E"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC_DIR="$(dirname "$SCRIPT_DIR")"
-VERSION="0.2.3"
+VERSION="0.2.4"
 BUILD_DIR="/tmp/gmt-ppa-build"
 
 # Ubuntu releases to target (add/remove as needed)
