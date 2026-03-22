@@ -7,7 +7,7 @@ GPG_KEY="753B6ECF2B458FF3D19D568C1E0A288397AE739E"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC_DIR="$(dirname "$SCRIPT_DIR")"
-VERSION="0.2.1"
+VERSION="0.2.2"
 BUILD_DIR="/tmp/gmt-ppa-build"
 
 # Ubuntu releases to target (add/remove as needed)
@@ -45,15 +45,15 @@ for RELEASE in "${RELEASES[@]}"; do
     cd "gmt-mail-${VERSION}-${RELEASE}"
 
     # Update changelog for this release
-    sed -i "1s/.*$/gmt-mail (${VERSION}-1ppa2~${RELEASE}1) ${RELEASE}; urgency=medium/" debian/changelog
+    sed -i "1s/.*$/gmt-mail (${VERSION}-1ppa1~${RELEASE}1) ${RELEASE}; urgency=medium/" debian/changelog
 
     # Build signed source package
-    debuild -S -sd ${SIGN_FLAG}
+    debuild -S -sa ${SIGN_FLAG}
 
     echo ""
     echo "=== Uploading to PPA for ${RELEASE} ==="
     cd "$BUILD_DIR"
-    dput "$PPA" "gmt-mail_${VERSION}-1ppa2~${RELEASE}1_source.changes"
+    dput "$PPA" "gmt-mail_${VERSION}-1ppa1~${RELEASE}1_source.changes"
 done
 
 echo ""

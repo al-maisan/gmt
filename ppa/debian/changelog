@@ -1,5 +1,5 @@
-gmt-mail (0.2.1-1ppa2~noble1) noble; urgency=medium
+gmt-mail (0.2.2-1ppa1~noble1) noble; urgency=medium
 
-  * Fix build: set GOMODCACHE/GOCACHE/GOPATH for PPA build environment.
+  * Initial PPA release.
 
  -- Muharem Hrnjadovic <muharem@linux.com>  Sat, 22 Mar 2026 09:30:00 +0000
