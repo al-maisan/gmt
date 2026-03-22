@@ -3,7 +3,7 @@ Section: mail
 Priority: optional
 Maintainer: Muharem Hrnjadovic <muharem@linux.com>
 Build-Depends: debhelper-compat (= 13),
-               golang-any (>= 2:1.22~)
+               golang-any (>= 2:1.21~)
 Standards-Version: 4.7.0
 Homepage: https://github.com/al-maisan/gmt
 Vcs-Browser: https://github.com/al-maisan/gmt
