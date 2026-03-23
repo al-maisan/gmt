@@ -1,5 +1,7 @@
-gmt-mail (0.2.5-1ppa1~questing1) questing; urgency=medium
+gmt-mail (0.4.0-1ppa1~questing1) questing; urgency=medium
 
-  * Initial PPA release.
+  * Switched config format from INI to TOML.
+  * Refactored SendAll to accept Sender interface.
+  * Improved code quality, naming, and test coverage.
 
  -- Muharem Hrnjadovic <muharem@linux.com>  Sat, 22 Mar 2026 09:30:00 +0000
