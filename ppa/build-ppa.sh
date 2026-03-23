@@ -30,13 +30,13 @@ fi
 
 echo "=== Building gmt-mail ${VERSION} (ppa${PPA_REV}) from tag ${TAG} for: ${RELEASES[*]} ==="
 rm -rf "$BUILD_DIR"
+mkdir -p "$BUILD_DIR"
 
 # Generate orig tarball from the git tag — this is reproducible and immutable
 git archive --format=tar.gz --prefix="gmt-mail-${VERSION}/" "$TAG" \
     -o "$BUILD_DIR/gmt-mail_${VERSION}.orig.tar.gz"
 
 # Extract it so we can add vendor and debian
-mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 tar xzf "gmt-mail_${VERSION}.orig.tar.gz"
 
