@@ -145,12 +145,7 @@ func loadConfig(path string) (config.MailConfig, error) {
 		return config.MailConfig{}, fmt.Errorf("failed to read config file %q: %w", path, err)
 	}
 
-	c, err := config.New(bs)
-	if err != nil {
-		return config.MailConfig{}, fmt.Errorf("failed to parse config file %q: %w", path, err)
-	}
-
-	cfg, err := c.Parse()
+	cfg, err := config.Parse(bs)
 	if err != nil {
 		return config.MailConfig{}, fmt.Errorf("invalid config file %q: %w", path, err)
 	}

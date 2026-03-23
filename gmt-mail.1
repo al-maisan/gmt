@@ -58,11 +58,14 @@ Print the version string and exit.
 .B \-h
 Print a brief usage message and exit.
 .SH CONFIGURATION FILE
-The configuration file uses INI format with two required sections.
-Key names are case-insensitive.
+The configuration file uses TOML format with a
+.B [general]
+section and one or more
+.B [[recipients]]
+entries.
 .SS [general]
 .TP
-.B From
+.B from
 Sender name and email address for the mail header.
 Example:
 .IR "\(dqFrodo Baggins\(dq <frodo@shire.org>" .
@@ -73,45 +76,42 @@ Email subject line. May contain template variables (see
 .BR "TEMPLATE VARIABLES" ).
 Required.
 .TP
-.B Cc
-Comma-separated CC addresses. Optional.
+.B cc
+List of CC addresses. Optional.
 .TP
-.B Reply\-To
+.B reply_to
 Reply-To address. Optional.
 .TP
 .B attachments
-Comma-separated file paths to attach to every email.
+List of file paths to attach to every email.
 Files are verified at configuration parse time.
 Optional.
-.SS [recipients]
-Each line defines one recipient in the form:
-.PP
-.RS
-.IR email = "First Last" | KEY :- VALUE | KEY :- VALUE |...
-.RE
-.PP
-The first word after
-.B =
-is the first name; subsequent words up to the first
-.B |
-form the last name. Key-value pairs after
-.B |
-use
-.B :\-
-as the separator. Keys are converted to uppercase for template matching.
-.PP
-.B Per-recipient overrides:
+.SS [[recipients]]
+Each entry defines one recipient with the following fields:
 .TP
-.BI Cc:\- addr1,addr2
+.B email
+Recipient email address. Required.
+.TP
+.B first
+First name. Required.
+.TP
+.B last
+Last name. Optional.
+.TP
+.B data
+Inline table of custom key-value pairs for template variables.
+Keys are converted to uppercase for template matching.
+.TP
+.B cc
 Replace the global Cc list for this recipient.
 .TP
-.BI Cc:\-+ addr1,addr2
+.B cc_extra
 Append to the global Cc list for this recipient.
 .TP
-.BI As:\- file1,file2
+.B attachments
 Replace the global attachments for this recipient.
 .TP
-.BI As:\-+ file1
+.B attachments_extra
 Append to the global attachments for this recipient.
 .SH TEMPLATE VARIABLES
 The following placeholders are substituted in both the subject line and the
@@ -186,7 +186,7 @@ Generate sample files to get started:
 .PP
 .RS
 .nf
-gmt\-mail \-sample\-config > config.ini
+gmt\-mail \-sample\-config > config.toml
 gmt\-mail \-sample\-template > template.eml
 .fi
 .RE
@@ -204,7 +204,7 @@ Preview emails without sending:
 .PP
 .RS
 .nf
-gmt\-mail \-dry\-run \-config\-path config.ini \-template\-path template.eml
+gmt\-mail \-dry\-run \-config\-path config.toml \-template\-path template.eml
 .fi
 .RE
 .PP
@@ -212,7 +212,7 @@ Send emails:
 .PP
 .RS
 .nf
-gmt\-mail \-config\-path config.ini \-template\-path template.eml
+gmt\-mail \-config\-path config.toml \-template\-path template.eml
 .fi
 .RE
 .SH AUTHOR

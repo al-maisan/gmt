@@ -1,0 +1,51 @@
+#
+# SMTP configuration should be set via environment variables or .env file:
+# SMTP_HOST=smtp.example.com
+# SMTP_PORT=587
+# SENDER_EMAIL=your-email@example.com
+# SENDER_PASSWORD=your-password
+
+[general]
+from = '"Frodo Baggins" <rts@example.com>'
+subject = "Hello %FN%!"
+# reply_to = '"John Doe" <jd@mail.com>'
+# cc = ["weirdo@nsb.gov", "cc@example.com"]
+# attachments = ["/home/user/atmt1.ics", "../Documents/doc2.txt"]
+
+# The 'cc' field below *replaces* the global 'cc' value above
+[[recipients]]
+email = "jd@example.com"
+first = "John"
+last = "Doe Jr."
+data = { ORG = "EFF", TITLE = "PhD" }
+cc = ["bl@kf.io", "info@ex.org"]
+
+# The 'cc_extra' field below *appends* to the global 'cc' value above
+[[recipients]]
+email = "daisy@example.com"
+first = "Daisy"
+last = "Lila"
+data = { ORG = "NASA", TITLE = "Dr." }
+cc_extra = ["inc@gg.org"]
+
+# The 'attachments' field below *replaces* the global 'attachments' value above
+[[recipients]]
+email = "ab@example.com"
+first = "Alice"
+last = "Brown"
+data = { ORG = "MIT" }
+attachments = ["file1.txt", "file2.md"]
+
+[[recipients]]
+email = "mm@gmail.com"
+first = "Mickey"
+last = "Mouse"
+data = { ORG = "Disney" }
+
+# The 'attachments_extra' field below *appends* to the global 'attachments' value above
+[[recipients]]
+email = "ef@example.com"
+first = "Eve"
+last = "Foster"
+data = { ORG = "CERN", TITLE = "Prof." }
+attachments_extra = ["file3.pdf"]

@@ -1,12 +1,12 @@
 module github.com/al-maisan/gmt
 
-go 1.24
+go 1.24.0
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.11.1
 	github.com/wneessen/go-mail v0.7.2
-	gopkg.in/ini.v1 v1.67.1
 )
 
 require (

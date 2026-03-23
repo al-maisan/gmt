@@ -33,21 +33,28 @@ func sortRecipients(r []Recipient) {
 
 func parseTestConfig(t *testing.T, input []byte) MailConfig {
 	t.Helper()
-	c, err := New(input)
-	require.NoError(t, err)
-	cfg, err := c.Parse()
+	cfg, err := Parse(input)
 	require.NoError(t, err)
 	return cfg
 }
 
-func TestLoadDefault(t *testing.T) {
+func TestParseDefault(t *testing.T) {
 	cfg := parseTestConfig(t, []byte(`
 [general]
-From=Frodo Baggins <rts@example.com>
-subject=Hello %FN%!
-[recipients]
-jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
-mm@gmail.com=Mickey Mouse|ORG:-Disney
+from = "Frodo Baggins <rts@example.com>"
+subject = "Hello %FN%!"
+
+[[recipients]]
+email = "jd@example.com"
+first = "John"
+last = "Doe Jr."
+data = { ORG = "EFF", TITLE = "PhD" }
+
+[[recipients]]
+email = "mm@gmail.com"
+first = "Mickey"
+last = "Mouse"
+data = { ORG = "Disney" }
 `))
 
 	assert.Equal(t, "Frodo Baggins <rts@example.com>", cfg.From)
@@ -62,72 +69,65 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney
 	assert.Equal(t, expected, cfg.Recipients)
 }
 
-func TestLoadNoGeneralSection(t *testing.T) {
-	c, err := New([]byte(`
-[recipients]
-jd@example.com=John Doe
-`))
-	require.NoError(t, err)
-	_, err = c.ParseGeneral()
-	require.Error(t, err)
-	assert.Equal(t, "missing required [general] section", err.Error())
-}
-
-func TestLoadNoRecipients(t *testing.T) {
-	c, err := New([]byte(`
+func TestParseMissingFrom(t *testing.T) {
+	_, err := Parse([]byte(`
 [general]
-From=Frodo Baggins <rts@example.com>
-subject=Hello %FN%!
+subject = "test"
+[[recipients]]
+email = "a@b.com"
+first = "A"
 `))
-	require.NoError(t, err)
-	cfg, err := c.ParseGeneral()
-	require.NoError(t, err)
-	err = c.ParseRecipients(&cfg)
 	require.Error(t, err)
-	assert.Equal(t, "missing required [recipients] section", err.Error())
+	assert.Contains(t, err.Error(), "missing required key 'from'")
 }
 
-func TestLoadErrors(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		wantErr string
-	}{
-		{"missing subject", "[general]\nFrom=x <x@x.com>", "missing required key 'subject'"},
-		{"missing from", "[general]\nsubject=test", "missing required key 'from'"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, err := New([]byte(tt.input))
-			require.NoError(t, err)
-			_, err = c.ParseGeneral()
-			require.Error(t, err)
-			assert.Equal(t, tt.wantErr, err.Error())
-		})
-	}
+func TestParseMissingSubject(t *testing.T) {
+	_, err := Parse([]byte(`
+[general]
+from = "x <x@x.com>"
+[[recipients]]
+email = "a@b.com"
+first = "A"
+`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "missing required key 'subject'")
 }
 
-func TestLoadSubjectCaseInsensitive(t *testing.T) {
+func TestParseNoRecipients(t *testing.T) {
+	_, err := Parse([]byte(`
+[general]
+from = "Frodo Baggins <rts@example.com>"
+subject = "Hello %FN%!"
+`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no [[recipients]] entries found")
+}
+
+func TestParseInvalidTOML(t *testing.T) {
+	_, err := Parse([]byte(`this is not valid TOML {{{`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "TOML syntax error")
+}
+
+func TestParseFull(t *testing.T) {
 	cfg := parseTestConfig(t, []byte(`
 [general]
-From=Frodo Baggins <rts@example.com>
-Subject=Hello %FN%!
-[recipients]
-jd@example.com=John Doe
-`))
-	assert.Equal(t, "Hello %FN%!", cfg.Subject)
-}
+from = "Frodo Baggins <rts@example.com>"
+cc = ["weirdo@nsb.gov", "cc@example.com"]
+reply_to = "John Doe <jd@mail.com>"
+subject = "Hello %FN%!"
 
-func TestLoadFull(t *testing.T) {
-	cfg := parseTestConfig(t, []byte(`
-[general]
-From=Frodo Baggins <rts@example.com>
-Cc=weirdo@nsb.gov, cc@example.com
-Reply-To=John Doe <jd@mail.com>
-subject=Hello %FN%!
-[recipients]
-jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
-mm@gmail.com=Mickey Mouse|ORG:-Disney
+[[recipients]]
+email = "jd@example.com"
+first = "John"
+last = "Doe Jr."
+data = { ORG = "EFF", TITLE = "PhD" }
+
+[[recipients]]
+email = "mm@gmail.com"
+first = "Mickey"
+last = "Mouse"
+data = { ORG = "Disney" }
 `))
 
 	assert.Equal(t, "Frodo Baggins <rts@example.com>", cfg.From)
@@ -144,13 +144,14 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney
 	assert.Equal(t, expected, cfg.Recipients)
 }
 
-func TestParseRecipientsSingleName(t *testing.T) {
+func TestParseRecipientSingleName(t *testing.T) {
 	cfg := parseTestConfig(t, []byte(`
 [general]
-From=test <t@example.com>
-subject=test
-[recipients]
-madonna@example.com=Madonna
+from = "test <t@example.com>"
+subject = "test"
+[[recipients]]
+email = "madonna@example.com"
+first = "Madonna"
 `))
 	require.Len(t, cfg.Recipients, 1)
 	assert.Equal(t, "Madonna", cfg.Recipients[0].First)
@@ -158,33 +159,109 @@ madonna@example.com=Madonna
 	assert.Equal(t, "madonna@example.com", cfg.Recipients[0].Email)
 }
 
-func TestParseRecipientsMalformedData(t *testing.T) {
+func TestParseRecipientMissingEmail(t *testing.T) {
 	cfg := parseTestConfig(t, []byte(`
 [general]
-From=test <t@example.com>
-subject=test
-[recipients]
-jd@example.com=John Doe|BADDATA|ORG:-EFF
+from = "test <t@example.com>"
+subject = "test"
+[[recipients]]
+first = "John"
+last = "Doe"
+[[recipients]]
+email = "valid@example.com"
+first = "Valid"
 `))
 	require.Len(t, cfg.Recipients, 1)
-	assert.Equal(t, map[string]string{"ORG": "EFF"}, cfg.Recipients[0].Data)
+	assert.Equal(t, "valid@example.com", cfg.Recipients[0].Email)
 	require.Len(t, cfg.Warnings, 1)
-	assert.Contains(t, cfg.Warnings[0], "jd@example.com")
-	assert.Contains(t, cfg.Warnings[0], "BADDATA")
+	assert.Contains(t, cfg.Warnings[0], "missing 'email'")
 }
 
-func TestSampleConfigParses(t *testing.T) {
-	c, err := New([]byte(SampleConfig("0.0.0")))
-	require.NoError(t, err)
-	cfg, err := c.Parse()
-	require.NoError(t, err)
-	assert.NotEmpty(t, cfg.From)
-	assert.NotEmpty(t, cfg.Subject)
-	assert.NotEmpty(t, cfg.Recipients)
-	for _, r := range cfg.Recipients {
-		assert.NotEmpty(t, r.Email)
-		assert.NotEmpty(t, r.First)
-	}
+func TestParseRecipientMissingFirst(t *testing.T) {
+	cfg := parseTestConfig(t, []byte(`
+[general]
+from = "test <t@example.com>"
+subject = "test"
+[[recipients]]
+email = "jd@example.com"
+last = "Doe"
+[[recipients]]
+email = "valid@example.com"
+first = "Valid"
+`))
+	require.Len(t, cfg.Recipients, 1)
+	require.Len(t, cfg.Warnings, 1)
+	assert.Contains(t, cfg.Warnings[0], "missing 'first'")
+}
+
+func TestParseRecipientCcReplace(t *testing.T) {
+	cfg := parseTestConfig(t, []byte(`
+[general]
+from = "test <t@example.com>"
+subject = "test"
+[[recipients]]
+email = "a@b.com"
+first = "A"
+cc = ["override@cc.com"]
+`))
+	require.Len(t, cfg.Recipients, 1)
+	assert.Equal(t, "override@cc.com", cfg.Recipients[0].Data["CC"])
+}
+
+func TestParseRecipientCcAppend(t *testing.T) {
+	cfg := parseTestConfig(t, []byte(`
+[general]
+from = "test <t@example.com>"
+subject = "test"
+[[recipients]]
+email = "a@b.com"
+first = "A"
+cc_extra = ["extra@cc.com"]
+`))
+	require.Len(t, cfg.Recipients, 1)
+	assert.Equal(t, "+extra@cc.com", cfg.Recipients[0].Data["CC"])
+}
+
+func TestParseRecipientAttachReplace(t *testing.T) {
+	cfg := parseTestConfig(t, []byte(`
+[general]
+from = "test <t@example.com>"
+subject = "test"
+[[recipients]]
+email = "a@b.com"
+first = "A"
+attachments = ["local.txt"]
+`))
+	require.Len(t, cfg.Recipients, 1)
+	assert.Equal(t, "local.txt", cfg.Recipients[0].Data["AS"])
+}
+
+func TestParseRecipientAttachAppend(t *testing.T) {
+	cfg := parseTestConfig(t, []byte(`
+[general]
+from = "test <t@example.com>"
+subject = "test"
+[[recipients]]
+email = "a@b.com"
+first = "A"
+attachments_extra = ["extra.pdf"]
+`))
+	require.Len(t, cfg.Recipients, 1)
+	assert.Equal(t, "+extra.pdf", cfg.Recipients[0].Data["AS"])
+}
+
+func TestParseDataKeysUppercased(t *testing.T) {
+	cfg := parseTestConfig(t, []byte(`
+[general]
+from = "test <t@example.com>"
+subject = "test"
+[[recipients]]
+email = "a@b.com"
+first = "A"
+data = { org = "EFF" }
+`))
+	require.Len(t, cfg.Recipients, 1)
+	assert.Equal(t, "EFF", cfg.Recipients[0].Data["ORG"])
 }
 
 func TestCheckAttachmentsValid(t *testing.T) {
@@ -215,20 +292,46 @@ func TestCheckAttachmentsNotAccessible(t *testing.T) {
 	_ = checkAttachments([]string{path})
 }
 
-func TestParseGeneralWithAttachments(t *testing.T) {
+func TestParseWithAttachments(t *testing.T) {
 	tmpFile := t.TempDir() + "/attach.txt"
 	require.NoError(t, os.WriteFile(tmpFile, []byte("x"), 0o644))
 
-	cfg := parseTestConfig(t, []byte("[general]\nFrom=a <a@a.com>\nsubject=test\nattachments="+tmpFile+"\n[recipients]\na@b.com=Alice\n"))
+	cfg := parseTestConfig(t, []byte(`
+[general]
+from = "a <a@a.com>"
+subject = "test"
+attachments = ["`+tmpFile+`"]
+[[recipients]]
+email = "a@b.com"
+first = "Alice"
+`))
 	assert.Equal(t, []string{tmpFile}, cfg.Attachments)
 }
 
-func TestParseGeneralWithMissingAttachment(t *testing.T) {
-	c, err := New([]byte("[general]\nFrom=a <a@a.com>\nsubject=test\nattachments=/nonexistent/file.txt\n[recipients]\na@b.com=Alice\n"))
-	require.NoError(t, err)
-	_, err = c.ParseGeneral()
+func TestParseWithMissingAttachment(t *testing.T) {
+	_, err := Parse([]byte(`
+[general]
+from = "a <a@a.com>"
+subject = "test"
+attachments = ["/nonexistent/file.txt"]
+[[recipients]]
+email = "a@b.com"
+first = "Alice"
+`))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "attachment not found")
+}
+
+func TestSampleConfigParses(t *testing.T) {
+	cfg, err := Parse([]byte(SampleConfig("0.0.0")))
+	require.NoError(t, err)
+	assert.NotEmpty(t, cfg.From)
+	assert.NotEmpty(t, cfg.Subject)
+	assert.NotEmpty(t, cfg.Recipients)
+	for _, r := range cfg.Recipients {
+		assert.NotEmpty(t, r.Email)
+		assert.NotEmpty(t, r.First)
+	}
 }
 
 func TestSampleTemplateNotEmpty(t *testing.T) {

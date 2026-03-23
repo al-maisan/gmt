@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Package config handles parsing of gmt INI configuration files.
+// Package config handles parsing of gmt TOML configuration files.
 package config
 
 import (
@@ -22,18 +22,37 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 
-	"gopkg.in/ini.v1"
+	"github.com/BurntSushi/toml"
 )
 
-var (
-	rePipe  = regexp.MustCompile(`\s*\|\s*`)
-	reSpace = regexp.MustCompile(`\s+`)
-	reKeyValue = regexp.MustCompile(`\s*:-\s*`)
-	reComma = regexp.MustCompile(`\s*,\s*`)
-)
+// tomlConfig mirrors the TOML file structure for decoding.
+type tomlConfig struct {
+	General    tomlGeneral    `toml:"general"`
+	Recipients []tomlRecipient `toml:"recipients"`
+}
+
+// tomlGeneral holds the [general] section fields.
+type tomlGeneral struct {
+	From        string   `toml:"from"`
+	Subject     string   `toml:"subject"`
+	ReplyTo     string   `toml:"reply_to"`
+	Cc          []string `toml:"cc"`
+	Attachments []string `toml:"attachments"`
+}
+
+// tomlRecipient holds a single [[recipients]] entry.
+type tomlRecipient struct {
+	Email            string            `toml:"email"`
+	First            string            `toml:"first"`
+	Last             string            `toml:"last"`
+	Data             map[string]string `toml:"data"`
+	Cc               []string          `toml:"cc"`
+	CcExtra          []string          `toml:"cc_extra"`
+	Attachments      []string          `toml:"attachments"`
+	AttachmentsExtra []string          `toml:"attachments_extra"`
+}
 
 // Recipient holds a parsed recipient entry from the config file.
 type Recipient struct {
@@ -41,12 +60,6 @@ type Recipient struct {
 	First string
 	Last  string
 	Data  map[string]string
-}
-
-// Config wraps a parsed INI file and provides methods to extract
-// the [general] and [recipients] sections.
-type Config struct {
-	file *ini.File
 }
 
 // MailConfig holds the fully parsed configuration for a mailing run.
@@ -60,77 +73,87 @@ type MailConfig struct {
 	Warnings    []string
 }
 
-// New loads an INI-format configuration from the given bytes.
-func New(bs []byte) (*Config, error) {
-	f, err := ini.InsensitiveLoad(bs)
-	if err != nil {
-		return nil, err
+// Parse decodes TOML-formatted configuration bytes into a MailConfig.
+func Parse(bs []byte) (MailConfig, error) {
+	var tc tomlConfig
+	if _, err := toml.Decode(string(bs), &tc); err != nil {
+		return MailConfig{}, fmt.Errorf("TOML syntax error: %w", err)
 	}
-	return &Config{file: f}, nil
-}
 
-// Parse is a convenience method that parses both [general] and [recipients]
-// sections in one call.
-func (c *Config) Parse() (MailConfig, error) {
-	cfg, err := c.ParseGeneral()
-	if err != nil {
+	if tc.General.From == "" {
+		return MailConfig{}, errors.New("missing required key 'from' in [general]")
+	}
+	if tc.General.Subject == "" {
+		return MailConfig{}, errors.New("missing required key 'subject' in [general]")
+	}
+
+	if err := checkAttachments(tc.General.Attachments); err != nil {
 		return MailConfig{}, err
 	}
-	if err := c.ParseRecipients(&cfg); err != nil {
-		return MailConfig{}, err
+
+	if len(tc.Recipients) == 0 {
+		return MailConfig{}, errors.New("no [[recipients]] entries found")
 	}
+
+	cfg := MailConfig{
+		From:        tc.General.From,
+		Subject:     tc.General.Subject,
+		ReplyTo:     tc.General.ReplyTo,
+		Cc:          tc.General.Cc,
+		Attachments: tc.General.Attachments,
+	}
+
+	recipients, warnings := convertRecipients(tc.Recipients)
+	cfg.Recipients = recipients
+	cfg.Warnings = warnings
+
 	return cfg, nil
 }
 
-// ParseGeneral extracts the [general] section fields.
-func (c *Config) ParseGeneral() (MailConfig, error) {
-	sec, err := c.file.GetSection("general")
-	if err != nil {
-		return MailConfig{}, errors.New("missing required [general] section")
-	}
-	keys := sec.KeysHash()
+// convertRecipients transforms TOML recipient entries into Recipient structs.
+// Per-recipient cc/attachments overrides are encoded into Data["CC"] and
+// Data["AS"] so that email.PrepMails can process them uniformly.
+func convertRecipients(entries []tomlRecipient) ([]Recipient, []string) {
+	var recipients []Recipient
+	var warnings []string
 
-	var result MailConfig
-
-	// mandatory keys (all keys are lowercase due to InsensitiveLoad)
-	val, ok := keys["subject"]
-	if !ok {
-		return MailConfig{}, errors.New("missing required key 'subject'")
-	}
-	result.Subject = val
-
-	val, ok = keys["from"]
-	if !ok {
-		return MailConfig{}, errors.New("missing required key 'from'")
-	}
-	result.From = val
-
-	// optional keys
-	if val, ok := keys["reply-to"]; ok {
-		result.ReplyTo = val
-	}
-	if val, ok := keys["cc"]; ok {
-		result.Cc = reComma.Split(val, -1)
-	}
-	if val, ok := keys["attachments"]; ok {
-		result.Attachments = reComma.Split(val, -1)
-		if err := checkAttachments(result.Attachments); err != nil {
-			return MailConfig{}, err
+	for _, e := range entries {
+		if e.Email == "" {
+			warnings = append(warnings, "recipient entry missing 'email' field, skipped")
+			continue
 		}
-	}
+		if e.First == "" {
+			warnings = append(warnings, fmt.Sprintf("recipient '%s': missing 'first' field", e.Email))
+			continue
+		}
 
-	return result, nil
-}
+		data := make(map[string]string, len(e.Data))
+		for k, v := range e.Data {
+			data[strings.ToUpper(k)] = v
+		}
 
-// ParseRecipients extracts the [recipients] section into cfg.Recipients,
-// appending any warnings about malformed entries to cfg.Warnings.
-func (c *Config) ParseRecipients(cfg *MailConfig) error {
-	sec, err := c.file.GetSection("recipients")
-	if err != nil {
-		return errors.New("missing required [recipients] section")
+		// Encode per-recipient Cc overrides into Data["CC"].
+		if len(e.Cc) > 0 {
+			data["CC"] = strings.Join(e.Cc, ",")
+		} else if len(e.CcExtra) > 0 {
+			data["CC"] = "+" + strings.Join(e.CcExtra, ",")
+		}
+
+		// Encode per-recipient attachment overrides into Data["AS"].
+		if len(e.Attachments) > 0 {
+			data["AS"] = strings.Join(e.Attachments, ",")
+		} else if len(e.AttachmentsExtra) > 0 {
+			data["AS"] = "+" + strings.Join(e.AttachmentsExtra, ",")
+		}
+
+		recipients = append(recipients, Recipient{
+			Email: e.Email,
+			First: e.First,
+			Last:  e.Last,
+			Data:  data,
+		})
 	}
-	cfg.Recipients, cfg.Warnings = parseRecipients(sec)
-	return nil
+	return recipients, warnings
 }
 
 // checkAttachments verifies that every path in attachments exists and is accessible.
@@ -146,44 +169,7 @@ func checkAttachments(attachments []string) error {
 	return nil
 }
 
-// parseRecipients extracts recipients from the INI section. Each entry has the
-// form: email=First Last|KEY:-VALUE|... Malformed entries are collected as
-// warnings rather than causing a hard error.
-func parseRecipients(sec *ini.Section) ([]Recipient, []string) {
-	var recipients []Recipient
-	var warnings []string
-	for email, v := range sec.KeysHash() {
-		rdata := rePipe.Split(v, -1)
-		if len(rdata) < 1 || strings.TrimSpace(rdata[0]) == "" {
-			warnings = append(warnings, fmt.Sprintf("recipient '%s': empty name field", email))
-			continue
-		}
-		names := reSpace.Split(rdata[0], 2)
-		first := names[0]
-		last := ""
-		if len(names) > 1 {
-			last = names[1]
-		}
-		data := make(map[string]string)
-		for _, rdatum := range rdata[1:] {
-			parts := reKeyValue.Split(rdatum, 2)
-			if len(parts) != 2 {
-				warnings = append(warnings, fmt.Sprintf("recipient '%s': malformed data field '%s' (expected KEY:-VALUE)", email, rdatum))
-				continue
-			}
-			data[strings.ToUpper(parts[0])] = parts[1]
-		}
-		recipients = append(recipients, Recipient{
-			Email: email,
-			First: first,
-			Last:  last,
-			Data:  data,
-		})
-	}
-	return recipients, warnings
-}
-
-//go:embed samples/config.ini
+//go:embed samples/config.toml
 var sampleConfigContent string
 
 //go:embed samples/template.eml

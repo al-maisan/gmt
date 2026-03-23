@@ -212,10 +212,7 @@ func TestResolveOverride(t *testing.T) {
 }
 
 func TestSampleConfigAndTemplateIntegration(t *testing.T) {
-	c, err := config.New([]byte(config.SampleConfig("0.0.0")))
-	require.NoError(t, err)
-
-	cfg, err := c.Parse()
+	cfg, err := config.Parse([]byte(config.SampleConfig("0.0.0")))
 	require.NoError(t, err)
 
 	mails := PrepMails(&cfg, config.SampleTemplate())

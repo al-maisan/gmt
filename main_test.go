@@ -32,7 +32,7 @@ func TestVersion(t *testing.T) {
 
 func TestLoadConfigValid(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "config.ini")
+	path := filepath.Join(dir, "config.toml")
 	require.NoError(t, os.WriteFile(path, []byte(config.SampleConfig("0.0.0")), 0o644))
 
 	cfg, err := loadConfig(path)
@@ -50,8 +50,8 @@ func TestLoadConfigMissingFile(t *testing.T) {
 
 func TestLoadConfigInvalid(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "bad.ini")
-	require.NoError(t, os.WriteFile(path, []byte("[general]\n"), 0o644))
+	path := filepath.Join(dir, "bad.toml")
+	require.NoError(t, os.WriteFile(path, []byte("[general]\nfrom = \"x\"\n"), 0o644))
 
 	_, err := loadConfig(path)
 	assert.Error(t, err)
@@ -63,9 +63,7 @@ func TestPrepMailsValid(t *testing.T) {
 	tmplPath := filepath.Join(dir, "template.eml")
 	require.NoError(t, os.WriteFile(tmplPath, []byte(config.SampleTemplate()), 0o644))
 
-	c, err := config.New([]byte(config.SampleConfig("0.0.0")))
-	require.NoError(t, err)
-	cfg, err := c.Parse()
+	cfg, err := config.Parse([]byte(config.SampleConfig("0.0.0")))
 	require.NoError(t, err)
 
 	msgs, err := prepMails(&cfg, tmplPath)

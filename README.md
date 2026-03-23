@@ -30,11 +30,11 @@ The Makefile embeds the version, git commit hash, and build date into the binary
 
 Generate sample files, configure SMTP credentials, preview, then send:
 
-    $ ./gmt-mail -sample-config > config.ini
+    $ ./gmt-mail -sample-config > config.toml
     $ ./gmt-mail -sample-template > template.eml
     $ cp .env.example .env    # edit .env with your SMTP credentials
-    $ ./gmt-mail -dry-run -config-path config.ini -template-path template.eml
-    $ ./gmt-mail -config-path config.ini -template-path template.eml
+    $ ./gmt-mail -dry-run -config-path config.toml -template-path template.eml
+    $ ./gmt-mail -config-path config.toml -template-path template.eml
 
 ## SMTP setup
 
@@ -55,48 +55,54 @@ TLS is enforced -- credentials are never sent in plaintext.
 
 ## Configuration file
 
-The config file uses INI format with two sections. Key names are case-insensitive.
+The config file uses [TOML](https://toml.io/) format with a `[general]` section and one or more `[[recipients]]` entries.
 
 ### `[general]` section
 
 | Key           | Required | Description                                  |
 |---------------|----------|----------------------------------------------|
-| `From`        | yes      | Sender name and address for the email header  |
+| `from`        | yes      | Sender name and address for the email header  |
 | `subject`     | yes      | Email subject line (supports template vars)   |
-| `Cc`          | no       | Comma-separated CC addresses                  |
-| `Reply-To`    | no       | Reply-To address                              |
-| `attachments` | no       | Comma-separated file paths to attach          |
+| `cc`          | no       | List of CC addresses                          |
+| `reply_to`    | no       | Reply-To address                              |
+| `attachments` | no       | List of file paths to attach                  |
 
-### `[recipients]` section
+### `[[recipients]]` entries
 
-Each line defines one recipient:
+Each recipient is a TOML table with these fields:
 
-    email=First Last|KEY:-VALUE|KEY:-VALUE|...
+| Key                  | Required | Description                                  |
+|----------------------|----------|----------------------------------------------|
+| `email`              | yes      | Recipient email address                       |
+| `first`              | yes      | First name                                    |
+| `last`               | no       | Last name                                     |
+| `data`               | no       | Custom key-value pairs for template variables  |
+| `cc`                 | no       | Replace global Cc for this recipient           |
+| `cc_extra`           | no       | Append to global Cc for this recipient         |
+| `attachments`        | no       | Replace global attachments for this recipient  |
+| `attachments_extra`  | no       | Append to global attachments for this recipient|
 
-Examples:
+Example:
 
-    jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD
-    mm@gmail.com=Mickey Mouse|ORG:-Disney
+```toml
+[general]
+from = '"Frodo Baggins" <rts@example.com>'
+subject = "Hello %FN%!"
+cc = ["weirdo@nsb.gov", "cc@example.com"]
 
-The first word after `=` is the first name, the rest up to the first `|` is the last name. Custom key-value pairs follow, separated by `|`, with `:-` between key and value. Recipients with only a first name (no last name) are also supported.
+[[recipients]]
+email = "jd@example.com"
+first = "John"
+last = "Doe Jr."
+data = { ORG = "EFF", TITLE = "PhD" }
+cc = ["override@cc.com"]
 
-### Per-recipient overrides
-
-Individual recipients can override the global `Cc` and `attachments`:
-
-    # Replace global Cc entirely
-    jd@example.com=John Doe|Cc:-alt@cc.com,other@cc.com
-
-    # Append to global Cc
-    daisy@example.com=Daisy Lila|Cc:-+extra@cc.com
-
-    # Replace global attachments
-    ab@example.com=Alice Brown|As:-file1.txt,file2.md
-
-    # Append to global attachments
-    ef@example.com=Eve Foster|As:-+file3.pdf
-
-A leading `+` means append to the global list; without `+` the global list is replaced.
+[[recipients]]
+email = "mm@gmail.com"
+first = "Mickey"
+last = "Mouse"
+data = { ORG = "Disney" }
+```
 
 ## Template variables
 
@@ -121,7 +127,7 @@ Example template:
 
 Use `-dry-run` to preview all emails without sending. The output includes Cc and attachment information when present:
 
-    $ ./gmt-mail -dry-run -config-path config.ini -template-path template.eml
+    $ ./gmt-mail -dry-run -config-path config.toml -template-path template.eml
     --
     "John Doe Jr." <jd@example.com>
     Cc: bl@kf.io, info@ex.org
