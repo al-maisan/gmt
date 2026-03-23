@@ -137,6 +137,12 @@ func SendAll(w io.Writer, sender Sender, cfg config.MailConfig, msgs []Message) 
 		}
 
 		_, _ = fmt.Fprintf(w, "- %s\n", recipient)
+		if len(m.Cc) > 0 {
+			_, _ = fmt.Fprintf(w, "  Cc: %s\n", strings.Join(m.Cc, ", "))
+		}
+		if len(m.Attachments) > 0 {
+			_, _ = fmt.Fprintf(w, "  Attachments: %s\n", strings.Join(m.Attachments, ", "))
+		}
 		result.Sent++
 	}
 	return result
