@@ -120,7 +120,7 @@ func resolveOverride(global []string, data map[string]string, key string) []stri
 // discarding empty entries.
 func splitTrim(s string) []string {
 	var result []string
-	for _, item := range strings.Split(s, ",") {
+	for item := range strings.SplitSeq(s, ",") {
 		item = strings.TrimSpace(item)
 		if item != "" {
 			result = append(result, item)
