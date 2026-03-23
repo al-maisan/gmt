@@ -17,6 +17,7 @@
 package config
 
 import (
+	"os"
 	"sort"
 	"testing"
 
@@ -184,6 +185,50 @@ func TestSampleConfigParses(t *testing.T) {
 		assert.NotEmpty(t, r.Email)
 		assert.NotEmpty(t, r.First)
 	}
+}
+
+func TestCheckAttachmentsValid(t *testing.T) {
+	tmpFile := t.TempDir() + "/test.txt"
+	require.NoError(t, os.WriteFile(tmpFile, []byte("content"), 0o644))
+	assert.NoError(t, checkAttachments([]string{tmpFile}))
+}
+
+func TestCheckAttachmentsEmpty(t *testing.T) {
+	assert.NoError(t, checkAttachments(nil))
+}
+
+func TestCheckAttachmentsMissing(t *testing.T) {
+	err := checkAttachments([]string{"/nonexistent/file.txt"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "attachment not found")
+}
+
+func TestCheckAttachmentsNotAccessible(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/noperm.txt"
+	require.NoError(t, os.WriteFile(path, []byte("x"), 0o644))
+	require.NoError(t, os.Chmod(path, 0o000))
+	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
+
+	// On most systems os.Stat succeeds even without read permission,
+	// so this test just verifies the function doesn't panic.
+	_ = checkAttachments([]string{path})
+}
+
+func TestParseGeneralWithAttachments(t *testing.T) {
+	tmpFile := t.TempDir() + "/attach.txt"
+	require.NoError(t, os.WriteFile(tmpFile, []byte("x"), 0o644))
+
+	cfg := parseTestConfig(t, []byte("[general]\nFrom=a <a@a.com>\nsubject=test\nattachments="+tmpFile+"\n[recipients]\na@b.com=Alice\n"))
+	assert.Equal(t, []string{tmpFile}, cfg.Attachments)
+}
+
+func TestParseGeneralWithMissingAttachment(t *testing.T) {
+	c, err := New([]byte("[general]\nFrom=a <a@a.com>\nsubject=test\nattachments=/nonexistent/file.txt\n[recipients]\na@b.com=Alice\n"))
+	require.NoError(t, err)
+	_, err = c.ParseGeneral()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "attachment not found")
 }
 
 func TestSampleTemplateNotEmpty(t *testing.T) {

@@ -28,6 +28,12 @@ import (
 	mail "github.com/wneessen/go-mail"
 )
 
+// Sender abstracts the ability to send an email message.
+type Sender interface {
+	Send(msg *mail.Msg) error
+	Close() error
+}
+
 // SMTPCredentials holds the SMTP server connection parameters.
 type SMTPCredentials struct {
 	Host     string
@@ -69,15 +75,9 @@ func LoadSMTPCredentials() (SMTPCredentials, error) {
 	return SMTPCredentials{Host: host, Port: port, User: user, Password: password}, nil
 }
 
-// SendResult holds the outcome of a bulk send operation.
-type SendResult struct {
-	Sent   int
-	Failed int
-}
-
-// SendAll sends all prepared messages over a single SMTP connection.
-// Progress is written to w; per-message errors do not stop the batch.
-func SendAll(w io.Writer, creds SMTPCredentials, cfg config.MailConfig, msgs []Message) (SendResult, error) {
+// NewSMTPSender creates a connected SMTP sender using the given credentials.
+// The caller must call Close when done.
+func NewSMTPSender(creds SMTPCredentials) (Sender, error) {
 	client, err := mail.NewClient(creds.Host,
 		mail.WithPort(creds.Port),
 		mail.WithUsername(creds.User),
@@ -86,18 +86,33 @@ func SendAll(w io.Writer, creds SMTPCredentials, cfg config.MailConfig, msgs []M
 		mail.WithTLSPolicy(mail.TLSMandatory),
 	)
 	if err != nil {
-		return SendResult{}, fmt.Errorf("failed to create SMTP client for %s:%d: %w", creds.Host, creds.Port, err)
+		return nil, fmt.Errorf("failed to create SMTP client for %s:%d: %w", creds.Host, creds.Port, err)
 	}
 
 	if err := client.DialWithContext(context.Background()); err != nil {
-		return SendResult{}, fmt.Errorf("failed to connect to %s:%d: %w", creds.Host, creds.Port, err)
+		return nil, fmt.Errorf("failed to connect to %s:%d: %w", creds.Host, creds.Port, err)
 	}
-	defer func() {
-		if err := client.Close(); err != nil {
-			_, _ = fmt.Fprintf(w, "Warning: failed to close SMTP connection to %s:%d: %v\n", creds.Host, creds.Port, err)
-		}
-	}()
 
+	return &smtpSender{client: client}, nil
+}
+
+// smtpSender wraps a go-mail Client to implement Sender.
+type smtpSender struct {
+	client *mail.Client
+}
+
+func (s *smtpSender) Send(msg *mail.Msg) error { return s.client.Send(msg) }
+func (s *smtpSender) Close() error             { return s.client.Close() }
+
+// SendResult holds the outcome of a bulk send operation.
+type SendResult struct {
+	Sent   int
+	Failed int
+}
+
+// SendAll sends all prepared messages using the given sender.
+// Progress is written to w; per-message errors do not stop the batch.
+func SendAll(w io.Writer, sender Sender, cfg config.MailConfig, msgs []Message) SendResult {
 	var result SendResult
 	for _, m := range msgs {
 		recipient := fmt.Sprintf("%s <%s>", m.Name, m.Address)
@@ -115,7 +130,7 @@ func SendAll(w io.Writer, creds SMTPCredentials, cfg config.MailConfig, msgs []M
 			continue
 		}
 
-		if err := client.Send(msg); err != nil {
+		if err := sender.Send(msg); err != nil {
 			_, _ = fmt.Fprintf(w, "! %s (failed to send: %v)\n", recipient, err)
 			result.Failed++
 			continue
@@ -124,7 +139,7 @@ func SendAll(w io.Writer, creds SMTPCredentials, cfg config.MailConfig, msgs []M
 		_, _ = fmt.Fprintf(w, "- %s\n", recipient)
 		result.Sent++
 	}
-	return result, nil
+	return result
 }
 
 // createMessage builds a single email message with the given headers and body.

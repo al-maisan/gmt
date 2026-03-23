@@ -17,10 +17,15 @@
 package email
 
 import (
+	"bytes"
+	"fmt"
+	"os"
 	"testing"
 
+	"github.com/al-maisan/gmt/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	mail "github.com/wneessen/go-mail"
 )
 
 func TestCreateMessage(t *testing.T) {
@@ -121,6 +126,213 @@ func TestLoadSMTPCredentials(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
+}
+
+func TestCreateMessageWithReplyTo(t *testing.T) {
+	msg, err := createMessage(
+		"sender@example.com",
+		"John Doe", "jd@example.com",
+		nil,
+		`"Support" <support@example.com>`,
+		"Test", "Body",
+	)
+	require.NoError(t, err)
+	assert.NotNil(t, msg)
+}
+
+func TestCreateMessageInvalidCc(t *testing.T) {
+	_, err := createMessage(
+		"sender@example.com",
+		"A", "a@b.com",
+		[]string{"not-an-email"}, "",
+		"s", "b",
+	)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid Cc")
+}
+
+func TestCreateMessageInvalidReplyTo(t *testing.T) {
+	_, err := createMessage(
+		"sender@example.com",
+		"A", "a@b.com",
+		nil, "not-an-email",
+		"s", "b",
+	)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid Reply-To")
+}
+
+func TestAttachFilesValid(t *testing.T) {
+	msg, err := createMessage("s@s.com", "A", "a@b.com", nil, "", "s", "b")
+	require.NoError(t, err)
+
+	tmpFile := t.TempDir() + "/test.txt"
+	require.NoError(t, os.WriteFile(tmpFile, []byte("content"), 0o644))
+	assert.NoError(t, attachFiles(msg, []string{tmpFile}))
+}
+
+// mockSender records Send calls and returns a configurable error.
+type mockSender struct {
+	sent    int
+	sendErr error
+	closed  bool
+}
+
+func (m *mockSender) Send(_ *mail.Msg) error {
+	if m.sendErr != nil {
+		return m.sendErr
+	}
+	m.sent++
+	return nil
+}
+
+func (m *mockSender) Close() error {
+	m.closed = true
+	return nil
+}
+
+func TestNewSMTPSenderConnectionError(t *testing.T) {
+	creds := SMTPCredentials{
+		Host:     "localhost",
+		Port:     19999,
+		User:     "user",
+		Password: "pass",
+	}
+	_, err := NewSMTPSender(creds)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to connect")
+}
+
+func TestSendAllSuccess(t *testing.T) {
+	sender := &mockSender{}
+	cfg := config.MailConfig{From: "sender@example.com"}
+	msgs := []Message{
+		{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello"},
+		{Name: "Jane", Address: "jane@example.com", Subject: "Hi", Body: "Hello"},
+	}
+
+	var buf bytes.Buffer
+	result := SendAll(&buf, sender, cfg, msgs)
+	assert.Equal(t, 2, result.Sent)
+	assert.Equal(t, 0, result.Failed)
+	assert.Equal(t, 2, sender.sent)
+	assert.Contains(t, buf.String(), "- John <jd@example.com>")
+	assert.Contains(t, buf.String(), "- Jane <jane@example.com>")
+}
+
+func TestSendAllSendError(t *testing.T) {
+	sender := &mockSender{sendErr: fmt.Errorf("connection reset")}
+	cfg := config.MailConfig{From: "sender@example.com"}
+	msgs := []Message{
+		{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello"},
+	}
+
+	var buf bytes.Buffer
+	result := SendAll(&buf, sender, cfg, msgs)
+	assert.Equal(t, 0, result.Sent)
+	assert.Equal(t, 1, result.Failed)
+	assert.Contains(t, buf.String(), "! John <jd@example.com>")
+	assert.Contains(t, buf.String(), "connection reset")
+}
+
+func TestSendAllInvalidFrom(t *testing.T) {
+	sender := &mockSender{}
+	cfg := config.MailConfig{From: "not-an-email"}
+	msgs := []Message{
+		{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello"},
+	}
+
+	var buf bytes.Buffer
+	result := SendAll(&buf, sender, cfg, msgs)
+	assert.Equal(t, 0, result.Sent)
+	assert.Equal(t, 1, result.Failed)
+	assert.Contains(t, buf.String(), "failed to create")
+	assert.Equal(t, 0, sender.sent)
+}
+
+func TestSendAllMissingAttachment(t *testing.T) {
+	sender := &mockSender{}
+	cfg := config.MailConfig{From: "sender@example.com"}
+	msgs := []Message{
+		{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello", Attachments: []string{"/nonexistent/file.txt"}},
+	}
+
+	var buf bytes.Buffer
+	result := SendAll(&buf, sender, cfg, msgs)
+	assert.Equal(t, 0, result.Sent)
+	assert.Equal(t, 1, result.Failed)
+	assert.Contains(t, buf.String(), "failed to attach")
+}
+
+func TestSendAllMixedResults(t *testing.T) {
+	sender := &failNthSender{failOn: 2}
+	cfg := config.MailConfig{From: "sender@example.com"}
+	msgs := []Message{
+		{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello"},
+		{Name: "Jane", Address: "jane@example.com", Subject: "Hi", Body: "Hello"},
+		{Name: "Bob", Address: "bob@example.com", Subject: "Hi", Body: "Hello"},
+	}
+
+	var buf bytes.Buffer
+	result := SendAll(&buf, sender, cfg, msgs)
+	assert.Equal(t, 2, result.Sent)
+	assert.Equal(t, 1, result.Failed)
+}
+
+// failNthSender fails on the Nth Send call, succeeds on all others.
+type failNthSender struct {
+	calls  int
+	failOn int
+}
+
+func (f *failNthSender) Send(_ *mail.Msg) error {
+	f.calls++
+	if f.calls == f.failOn {
+		return fmt.Errorf("simulated failure on send #%d", f.failOn)
+	}
+	return nil
+}
+
+func (f *failNthSender) Close() error { return nil }
+
+func TestSendAllWithReplyTo(t *testing.T) {
+	sender := &mockSender{}
+	cfg := config.MailConfig{
+		From:    "sender@example.com",
+		ReplyTo: "reply@example.com",
+	}
+	msgs := []Message{
+		{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello"},
+	}
+
+	var buf bytes.Buffer
+	result := SendAll(&buf, sender, cfg, msgs)
+	assert.Equal(t, 1, result.Sent)
+	assert.Equal(t, 0, result.Failed)
+}
+
+func TestSendAllWithCc(t *testing.T) {
+	sender := &mockSender{}
+	cfg := config.MailConfig{From: "sender@example.com"}
+	msgs := []Message{
+		{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello", Cc: []string{"cc@example.com"}},
+	}
+
+	var buf bytes.Buffer
+	result := SendAll(&buf, sender, cfg, msgs)
+	assert.Equal(t, 1, result.Sent)
+	assert.Equal(t, 0, result.Failed)
+}
+
+func TestSendAllEmpty(t *testing.T) {
+	sender := &mockSender{}
+	cfg := config.MailConfig{From: "sender@example.com"}
+
+	var buf bytes.Buffer
+	result := SendAll(&buf, sender, cfg, nil)
+	assert.Equal(t, 0, result.Sent)
+	assert.Equal(t, 0, result.Failed)
+	assert.Empty(t, buf.String())
 }
 
 func TestLoadSMTPCredentialsValid(t *testing.T) {

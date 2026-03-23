@@ -119,12 +119,19 @@ func main() {
 		os.Exit(exitSMTPError)
 	}
 
-	fmt.Println("\nSending emails now..")
-	result, err := email.SendAll(os.Stdout, creds, cfg, msgs)
+	sender, err := email.NewSMTPSender(creds)
 	if err != nil {
 		log.Printf("SMTP error: %v", err)
 		os.Exit(exitSMTPError)
 	}
+	defer func() {
+		if err := sender.Close(); err != nil {
+			log.Printf("Warning: failed to close SMTP connection: %v", err)
+		}
+	}()
+
+	fmt.Println("\nSending emails now..")
+	result := email.SendAll(os.Stdout, sender, cfg, msgs)
 	fmt.Printf("\nDone: %d sent, %d failed, %d total\n", result.Sent, result.Failed, result.Sent+result.Failed)
 
 	if result.Failed > 0 {
