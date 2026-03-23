@@ -2,7 +2,7 @@
 %global commit  %(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 
 Name:           gmt-mail
-Version:        0.4.1
+Version:        0.5.1
 Release:        1%{?dist}
 Summary:        Send personalized emails in bulk using templates
 

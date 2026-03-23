@@ -97,7 +97,13 @@ for RELEASE in "${RELEASES[@]}"; do
     } > debian/changelog
 
     # Build signed source package
-    debuild -S -sa -d ${SIGN_FLAG}
+    # Use -sd (debian-only) for rebuilds to avoid orig tarball mismatch
+    if [ "$PPA_REV" -gt 1 ]; then
+        SA_FLAG="-sd"
+    else
+        SA_FLAG="-sa"
+    fi
+    debuild -S $SA_FLAG -d ${SIGN_FLAG}
 
     echo ""
     echo "=== Uploading to PPA for ${RELEASE} ==="
