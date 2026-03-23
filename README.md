@@ -17,7 +17,7 @@
 
 ### From source
 
-Requires [Go](https://go.dev/) 1.25 or later.
+Requires [Go](https://go.dev/) 1.24 or later.
 
     $ git clone https://github.com/al-maisan/gmt.git
     $ cd gmt
