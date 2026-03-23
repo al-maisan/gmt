@@ -23,10 +23,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/al-maisan/gmt/config"
 	mail "github.com/wneessen/go-mail"
 )
+
+const maxRetries = 1
 
 // Sender abstracts the ability to send an email message.
 type Sender interface {
@@ -112,31 +115,46 @@ type SendResult struct {
 
 // SendAll sends all prepared messages using the given sender.
 // Progress is written to w; per-message errors do not stop the batch.
-func SendAll(w io.Writer, sender Sender, cfg config.MailConfig, msgs []Message) SendResult {
+// A delay between messages can be specified to avoid SMTP rate limits.
+// Transient send failures are retried once after a 2-second backoff.
+func SendAll(w io.Writer, sender Sender, cfg config.MailConfig, msgs []Message, delay time.Duration) SendResult {
+	total := len(msgs)
 	var result SendResult
-	for _, m := range msgs {
+	for i, m := range msgs {
 		recipient := fmt.Sprintf("%s <%s>", m.Name, m.Address)
+		prefix := fmt.Sprintf("[%d/%d]", i+1, total)
 
 		msg, err := createMessage(cfg.From, m.Name, m.Address, m.Cc, cfg.ReplyTo, m.Subject, m.Body)
 		if err != nil {
-			_, _ = fmt.Fprintf(w, "! %s (failed to create: %v)\n", recipient, err)
+			_, _ = fmt.Fprintf(w, "%s ! %s (failed to create: %v)\n", prefix, recipient, err)
 			result.Failed++
 			continue
 		}
 
 		if err := attachFiles(msg, m.Attachments); err != nil {
-			_, _ = fmt.Fprintf(w, "! %s (failed to attach: %v)\n", recipient, err)
+			_, _ = fmt.Fprintf(w, "%s ! %s (failed to attach: %v)\n", prefix, recipient, err)
 			result.Failed++
 			continue
 		}
 
-		if err := sender.Send(msg); err != nil {
-			_, _ = fmt.Fprintf(w, "! %s (failed to send: %v)\n", recipient, err)
+		var sendErr error
+		for attempt := range maxRetries + 1 {
+			if attempt > 0 {
+				_, _ = fmt.Fprintf(w, "%s   retrying %s...\n", prefix, recipient)
+				time.Sleep(2 * time.Second)
+			}
+			sendErr = sender.Send(msg)
+			if sendErr == nil {
+				break
+			}
+		}
+		if sendErr != nil {
+			_, _ = fmt.Fprintf(w, "%s ! %s (failed to send: %v)\n", prefix, recipient, sendErr)
 			result.Failed++
 			continue
 		}
 
-		_, _ = fmt.Fprintf(w, "- %s\n", recipient)
+		_, _ = fmt.Fprintf(w, "%s - %s\n", prefix, recipient)
 		if len(m.Cc) > 0 {
 			_, _ = fmt.Fprintf(w, "  Cc: %s\n", strings.Join(m.Cc, ", "))
 		}
@@ -144,6 +162,10 @@ func SendAll(w io.Writer, sender Sender, cfg config.MailConfig, msgs []Message) 
 			_, _ = fmt.Fprintf(w, "  Attachments: %s\n", strings.Join(m.Attachments, ", "))
 		}
 		result.Sent++
+
+		if delay > 0 && i < total-1 {
+			time.Sleep(delay)
+		}
 	}
 	return result
 }

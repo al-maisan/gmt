@@ -69,10 +69,12 @@ func main() {
 	flag.Usage = help
 	configPath := flag.String("config-path", "", "path to the config file")
 	doDryRun := flag.Bool("dry-run", false, "show what would be done but execute no action")
+	doValidate := flag.Bool("validate", false, "validate config and template without sending")
 	templatePath := flag.String("template-path", "", "path to the template file")
 	doSampleConfig := flag.Bool("sample-config", false, "output sample configuration to stdout")
 	doSampleTemplate := flag.Bool("sample-template", false, "output sample template to stdout")
 	doVersion := flag.Bool("version", false, "print version and exit")
+	delay := flag.Duration("delay", 0, "delay between emails (e.g., 1s, 500ms)")
 
 	flag.Parse()
 
@@ -108,6 +110,11 @@ func main() {
 		log.Printf("Warning: %s", w)
 	}
 
+	if *doValidate {
+		fmt.Printf("Config and template are valid: %d recipient(s), %d warning(s)\n", len(msgs), len(cfg.Warnings))
+		os.Exit(exitOK)
+	}
+
 	if *doDryRun {
 		printDryRun(msgs)
 		os.Exit(exitOK)
@@ -131,7 +138,7 @@ func main() {
 	}()
 
 	fmt.Println("\nSending emails now..")
-	result := email.SendAll(os.Stdout, sender, cfg, msgs)
+	result := email.SendAll(os.Stdout, sender, cfg, msgs, *delay)
 	fmt.Printf("\nDone: %d sent, %d failed, %d total\n", result.Sent, result.Failed, result.Sent+result.Failed)
 
 	if result.Failed > 0 {

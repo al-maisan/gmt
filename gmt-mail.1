@@ -4,6 +4,15 @@ gmt\-mail \- send personalized emails in bulk using a template and a configurati
 .SH SYNOPSIS
 .B gmt\-mail
 .RB [ \-dry\-run ]
+.RB [ \-delay
+.IR duration ]
+.B \-config\-path
+.I file
+.B \-template\-path
+.I file
+.br
+.B gmt\-mail
+.B \-validate
 .B \-config\-path
 .I file
 .B \-template\-path
@@ -45,6 +54,20 @@ or
 .B \-dry\-run
 Preview all emails on standard output without connecting to an SMTP server.
 SMTP credentials are not required in this mode.
+.TP
+.B \-validate
+Parse the configuration and template files, check for errors and unresolved
+placeholders, then exit without sending. Useful for verifying files before
+committing to delivery. SMTP credentials are not required.
+.TP
+.BI \-delay " duration"
+Wait
+.I duration
+between sending each email (e.g.,
+.IR 1s ,
+.IR 500ms ).
+Helps avoid SMTP rate limits when sending to many recipients.
+Default is no delay.
 .TP
 .B \-sample\-config
 Print a sample configuration file to standard output and exit.
@@ -113,6 +136,31 @@ Replace the global attachments for this recipient.
 .TP
 .B attachments_extra
 Append to the global attachments for this recipient.
+.SS Example
+.PP
+.RS
+.nf
+[general]
+from = '"Frodo Baggins" <frodo@shire.org>'
+subject = "Hello %FN%!"
+cc = ["gandalf@shire.org"]
+reply_to = '"Frodo" <frodo@shire.org>'
+attachments = ["/path/to/map.pdf"]
+
+[[recipients]]
+email = "sam@shire.org"
+first = "Samwise"
+last = "Gamgee"
+data = { ROLE = "Gardener" }
+
+[[recipients]]
+email = "pippin@shire.org"
+first = "Peregrin"
+last = "Took"
+data = { ROLE = "Knight" }
+cc = ["merry@shire.org"]
+.fi
+.RE
 .SH TEMPLATE VARIABLES
 The following placeholders are substituted in both the subject line and the
 template body:
@@ -157,6 +205,7 @@ Password for SMTP authentication.
 All four variables are required when sending email.
 They are not required for
 .BR \-dry\-run ,
+.BR \-validate ,
 .BR \-sample\-config ,
 .BR \-sample\-template ,
 or

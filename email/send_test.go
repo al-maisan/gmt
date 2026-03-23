@@ -212,7 +212,7 @@ func TestSendAllSuccess(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs)
+	result := SendAll(&buf, sender, cfg, msgs, 0)
 	assert.Equal(t, 2, result.Sent)
 	assert.Equal(t, 0, result.Failed)
 	assert.Equal(t, 2, sender.sent)
@@ -228,7 +228,7 @@ func TestSendAllSendError(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs)
+	result := SendAll(&buf, sender, cfg, msgs, 0)
 	assert.Equal(t, 0, result.Sent)
 	assert.Equal(t, 1, result.Failed)
 	assert.Contains(t, buf.String(), "! John <jd@example.com>")
@@ -243,7 +243,7 @@ func TestSendAllInvalidFrom(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs)
+	result := SendAll(&buf, sender, cfg, msgs, 0)
 	assert.Equal(t, 0, result.Sent)
 	assert.Equal(t, 1, result.Failed)
 	assert.Contains(t, buf.String(), "failed to create")
@@ -258,14 +258,14 @@ func TestSendAllMissingAttachment(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs)
+	result := SendAll(&buf, sender, cfg, msgs, 0)
 	assert.Equal(t, 0, result.Sent)
 	assert.Equal(t, 1, result.Failed)
 	assert.Contains(t, buf.String(), "failed to attach")
 }
 
 func TestSendAllMixedResults(t *testing.T) {
-	sender := &failNthSender{failOn: 2}
+	sender := &failNthSender{failMsg: 2}
 	cfg := config.MailConfig{From: "sender@example.com"}
 	msgs := []Message{
 		{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello"},
@@ -274,21 +274,30 @@ func TestSendAllMixedResults(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs)
+	result := SendAll(&buf, sender, cfg, msgs, 0)
 	assert.Equal(t, 2, result.Sent)
 	assert.Equal(t, 1, result.Failed)
 }
 
-// failNthSender fails on the Nth Send call, succeeds on all others.
+// failNthSender permanently fails for message N (counting from 1).
+// Since SendAll retries once, the sender must fail on both the original
+// and retry calls to produce an actual failure.
 type failNthSender struct {
-	calls  int
-	failOn int
+	msgIndex  int // incremented only on first attempt (not retries)
+	failMsg   int // which message number to fail (1-based)
+	lastFailed bool
 }
 
 func (f *failNthSender) Send(_ *mail.Msg) error {
-	f.calls++
-	if f.calls == f.failOn {
-		return fmt.Errorf("simulated failure on send #%d", f.failOn)
+	if f.lastFailed {
+		// This is a retry of the previously failed message.
+		f.lastFailed = false
+		return fmt.Errorf("simulated permanent failure on message #%d", f.failMsg)
+	}
+	f.msgIndex++
+	if f.msgIndex == f.failMsg {
+		f.lastFailed = true
+		return fmt.Errorf("simulated failure on message #%d", f.failMsg)
 	}
 	return nil
 }
@@ -306,7 +315,7 @@ func TestSendAllWithReplyTo(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs)
+	result := SendAll(&buf, sender, cfg, msgs, 0)
 	assert.Equal(t, 1, result.Sent)
 	assert.Equal(t, 0, result.Failed)
 }
@@ -319,7 +328,7 @@ func TestSendAllWithCc(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs)
+	result := SendAll(&buf, sender, cfg, msgs, 0)
 	assert.Equal(t, 1, result.Sent)
 	assert.Equal(t, 0, result.Failed)
 }
@@ -329,7 +338,7 @@ func TestSendAllEmpty(t *testing.T) {
 	cfg := config.MailConfig{From: "sender@example.com"}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, nil)
+	result := SendAll(&buf, sender, cfg, nil, 0)
 	assert.Equal(t, 0, result.Sent)
 	assert.Equal(t, 0, result.Failed)
 	assert.Empty(t, buf.String())

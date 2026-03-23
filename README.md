@@ -86,22 +86,24 @@ Example:
 
 ```toml
 [general]
-from = '"Frodo Baggins" <rts@example.com>'
+from = '"Frodo Baggins" <frodo@shire.org>'
 subject = "Hello %FN%!"
-cc = ["weirdo@nsb.gov", "cc@example.com"]
+cc = ["gandalf@shire.org"]
+reply_to = '"Frodo" <frodo@shire.org>'
+attachments = ["/path/to/map.pdf"]
 
 [[recipients]]
-email = "jd@example.com"
-first = "John"
-last = "Doe Jr."
-data = { ORG = "EFF", TITLE = "PhD" }
-cc = ["override@cc.com"]
+email = "sam@shire.org"
+first = "Samwise"
+last = "Gamgee"
+data = { ROLE = "Gardener" }
 
 [[recipients]]
-email = "mm@gmail.com"
-first = "Mickey"
-last = "Mouse"
-data = { ORG = "Disney" }
+email = "pippin@shire.org"
+first = "Peregrin"
+last = "Took"
+data = { ROLE = "Knight" }
+cc = ["merry@shire.org"]
 ```
 
 ## Template variables
