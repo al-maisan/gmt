@@ -22,17 +22,14 @@ echo "=== Building gmt-mail ${VERSION} (ppa${PPA_REV}) for: ${RELEASES[*]} ==="
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR/gmt-mail-${VERSION}"
 
-# Copy source + vendor into build dir
+# Copy source + vendor into build dir (excluding debian/)
 cd "$SRC_DIR"
 tar cf - --exclude='.git' --exclude='ppa' --exclude='ai' --exclude='.claude' \
-         --exclude='gmt' --exclude='gmt-mail' --exclude='gmt-mail.spec' . \
+         --exclude='gmt' --exclude='gmt-mail' --exclude='gmt-mail.spec' \
+         --exclude='debian' . \
   | tar xf - -C "$BUILD_DIR/gmt-mail-${VERSION}"
 
-# Copy PPA-specific debian dir (overwrite the upstream debian/)
-rm -rf "$BUILD_DIR/gmt-mail-${VERSION}/debian"
-cp -a "$SCRIPT_DIR/debian" "$BUILD_DIR/gmt-mail-${VERSION}/debian"
-
-# Create orig tarball
+# Create orig tarball BEFORE adding debian dir — so it never changes for a given version
 cd "$BUILD_DIR"
 tar czf "gmt-mail_${VERSION}.orig.tar.gz" "gmt-mail-${VERSION}"
 
@@ -50,7 +47,8 @@ for RELEASE in "${RELEASES[@]}"; do
     cp -a "gmt-mail-${VERSION}" "gmt-mail-${VERSION}-${RELEASE}"
     cd "gmt-mail-${VERSION}-${RELEASE}"
 
-    # Update changelog for this release
+    # Add PPA-specific debian dir
+    cp -a "$SCRIPT_DIR/debian" debian
     sed -i "1s/.*$/gmt-mail (${FULL_VER}) ${RELEASE}; urgency=medium/" debian/changelog
 
     # Build signed source package
