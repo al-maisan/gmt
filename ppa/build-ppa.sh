@@ -11,6 +11,7 @@ BUILD_DIR="/tmp/gmt-ppa-build"
 
 # Read version from Makefile
 VERSION=$(grep '^VERSION' "$SRC_DIR/Makefile" | head -1 | awk -F':= ' '{print $2}' | tr -d ' ')
+TAG="v${VERSION}"
 
 # Ubuntu releases to target (add/remove as needed)
 RELEASES=("questing")  # 25.10
@@ -18,18 +19,32 @@ RELEASES=("questing")  # 25.10
 # PPA revision — increment this when rebuilding the same upstream version
 PPA_REV="${1:-1}"
 
-echo "=== Building gmt-mail ${VERSION} (ppa${PPA_REV}) for: ${RELEASES[*]} ==="
-rm -rf "$BUILD_DIR"
-mkdir -p "$BUILD_DIR/gmt-mail-${VERSION}"
-
-# Copy source + vendor into build dir (excluding debian/)
+# Verify the git tag exists
 cd "$SRC_DIR"
-tar cf - --exclude='.git' --exclude='ppa' --exclude='ai' --exclude='.claude' \
-         --exclude='gmt' --exclude='gmt-mail' --exclude='gmt-mail.spec' \
-         --exclude='debian' . \
-  | tar xf - -C "$BUILD_DIR/gmt-mail-${VERSION}"
+if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+    echo "Error: git tag '$TAG' not found. Create it first:"
+    echo "  git tag -s $TAG -m '$TAG'"
+    echo "  git push origin $TAG"
+    exit 1
+fi
 
-# Create orig tarball BEFORE adding debian dir — so it never changes for a given version
+echo "=== Building gmt-mail ${VERSION} (ppa${PPA_REV}) from tag ${TAG} for: ${RELEASES[*]} ==="
+rm -rf "$BUILD_DIR"
+
+# Generate orig tarball from the git tag — this is reproducible and immutable
+git archive --format=tar.gz --prefix="gmt-mail-${VERSION}/" "$TAG" \
+    -o "$BUILD_DIR/gmt-mail_${VERSION}.orig.tar.gz"
+
+# Extract it so we can add vendor and debian
+mkdir -p "$BUILD_DIR"
+cd "$BUILD_DIR"
+tar xzf "gmt-mail_${VERSION}.orig.tar.gz"
+
+# Add vendored dependencies (not in git, must be generated)
+cd "gmt-mail-${VERSION}"
+go mod vendor 2>/dev/null || GOTOOLCHAIN=local go mod vendor
+
+# Recreate orig tarball with vendor included
 cd "$BUILD_DIR"
 tar czf "gmt-mail_${VERSION}.orig.tar.gz" "gmt-mail-${VERSION}"
 

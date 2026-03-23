@@ -176,6 +176,29 @@ Use `-dry-run` to preview all emails without sending. The output includes Cc and
       -version
             print version and exit
 
+## Releasing a new version
+
+Update `VERSION` in the Makefile, commit, then publish everywhere:
+
+    $ make publish
+
+This tags the release, creates a GitHub release, submits to Fedora COPR, and uploads to Ubuntu PPA.
+
+Individual targets are also available:
+
+| Target    | Description                                    |
+|-----------|------------------------------------------------|
+| `tag`     | Create and push a signed git tag               |
+| `release` | Tag + create GitHub release                    |
+| `srpm`    | Build a source RPM                             |
+| `copr`    | Build SRPM + submit to Fedora COPR             |
+| `ppa`     | Tag + build and upload to Ubuntu PPA           |
+| `publish` | All of the above                               |
+
+If only PPA packaging files changed, increment the PPA revision:
+
+    $ ppa/build-ppa.sh 2
+
 ## License
 
 [GNU General Public License v3](LICENSE)
