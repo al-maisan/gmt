@@ -45,7 +45,7 @@ tag:
 release: tag
 	gh release create $(TAG) --title "$(TAG)" --generate-notes
 
-srpm: vendor
+srpm: vendor rpm-changelog
 	mkdir -p $(RPMBUILD_DIR)/{SOURCES,SPECS,SRPMS}
 	tar czf $(TARBALL) --transform 's,^\.,gmt-$(VERSION),' \
 		--exclude='./.git' --exclude='./gmt-mail.spec' \
@@ -53,6 +53,13 @@ srpm: vendor
 		--exclude='./$(BINARY)' --exclude='./ppa' .
 	rpmbuild -bs gmt-mail.spec --define "_topdir $(RPMBUILD_DIR)"
 	@echo "SRPM: $$(ls $(RPMBUILD_DIR)/SRPMS/gmt-mail-$(VERSION)-*.src.rpm)"
+
+rpm-changelog:
+	@./scripts/gen-rpm-changelog.sh > /tmp/rpm-changelog.tmp
+	@sed -i '/^%changelog/,$$d' gmt-mail.spec
+	@echo '%changelog' >> gmt-mail.spec
+	@cat /tmp/rpm-changelog.tmp >> gmt-mail.spec
+	@rm -f /tmp/rpm-changelog.tmp
 
 copr: srpm
 	copr-cli build gmt-mail $$(ls $(RPMBUILD_DIR)/SRPMS/gmt-mail-$(VERSION)-*.src.rpm)
