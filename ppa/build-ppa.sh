@@ -16,8 +16,24 @@ TAG="v${VERSION}"
 # Ubuntu releases to target (add/remove as needed)
 RELEASES=("questing")  # 25.10
 
-# PPA revision — increment this when rebuilding the same upstream version
-PPA_REV="${1:-1}"
+# Determine PPA revision — query Launchpad for existing uploads of this version
+# and auto-increment, or use explicit argument if provided.
+if [ -n "${1:-}" ]; then
+    PPA_REV="$1"
+else
+    LP_USER="al-maisan"
+    LP_PPA="gmt-mail"
+    # Find the highest ppa revision already uploaded for this version
+    EXISTING=$(curl -s "https://api.launchpad.net/1.0/~${LP_USER}/+archive/ubuntu/${LP_PPA}?ws.op=getPublishedSources&source_name=gmt-mail&exact_match=true" \
+        | grep -oP "\"source_package_version\": \"${VERSION}-1ppa\K[0-9]+" \
+        | sort -n | tail -1)
+    if [ -n "$EXISTING" ]; then
+        PPA_REV=$((EXISTING + 1))
+        echo "Found existing ppa${EXISTING} for ${VERSION}, using ppa${PPA_REV}"
+    else
+        PPA_REV=1
+    fi
+fi
 
 # Verify the git tag exists
 cd "$SRC_DIR"
