@@ -29,6 +29,12 @@ import (
 	mail "github.com/wneessen/go-mail"
 )
 
+// logf writes a formatted message to w, ignoring write errors
+// (output is best-effort and must not interrupt the send loop).
+func logf(w io.Writer, format string, args ...any) {
+	fmt.Fprintf(w, format, args...) //nolint:errcheck
+}
+
 // SendOptions controls rate limiting and retry behavior.
 type SendOptions struct {
 	Delay      time.Duration // delay between messages
@@ -127,55 +133,69 @@ func SendAll(w io.Writer, sender Sender, cfg config.MailConfig, msgs []Message, 
 	width := len(fmt.Sprintf("%d", total))
 	var result SendResult
 	for i, m := range msgs {
-		recipient := fmt.Sprintf("%s <%s>", m.Name, m.Address)
 		prefix := fmt.Sprintf("[%*d/%*d]", width, i+1, width, total)
 
-		msg, err := createMessage(cfg.From, m.Name, m.Address, m.Cc, cfg.ReplyTo, m.Subject, m.Body)
-		if err != nil {
-			_, _ = fmt.Fprintf(w, "%s ! %s (failed to create: %v)\n", prefix, recipient, err)
+		if err := sendOne(w, sender, cfg, m, prefix, opts); err != nil {
 			result.Failed++
-			continue
+		} else {
+			result.Sent++
 		}
-
-		if err := attachFiles(msg, m.Attachments); err != nil {
-			_, _ = fmt.Fprintf(w, "%s ! %s (failed to attach: %v)\n", prefix, recipient, err)
-			result.Failed++
-			continue
-		}
-
-		var sendErr error
-		for attempt := range opts.Retries + 1 {
-			if attempt > 0 {
-				_, _ = fmt.Fprintf(w, "%s   retrying %s...\n", prefix, recipient)
-				if opts.RetryDelay > 0 {
-					time.Sleep(opts.RetryDelay)
-				}
-			}
-			sendErr = sender.Send(msg)
-			if sendErr == nil {
-				break
-			}
-		}
-		if sendErr != nil {
-			_, _ = fmt.Fprintf(w, "%s ! %s (failed to send: %v)\n", prefix, recipient, sendErr)
-			result.Failed++
-			continue
-		}
-
-		_, _ = fmt.Fprintf(w, "%s - %s\n", prefix, recipient)
-		if len(m.Cc) > 0 {
-			_, _ = fmt.Fprintf(w, "  Cc: %s\n", strings.Join(m.Cc, ", "))
-		}
-		if len(m.Attachments) > 0 {
-			_, _ = fmt.Fprintf(w, "  Attachments: %s\n", strings.Join(m.Attachments, ", "))
-		}
-		result.Sent++
 
 		if opts.Delay > 0 && i < total-1 {
 			time.Sleep(opts.Delay)
 		}
 	}
 	return result
+}
+
+// sendOne prepares and sends a single message, with retries.
+// Returns nil on success, or the final error on failure.
+func sendOne(w io.Writer, sender Sender, cfg config.MailConfig, m Message, prefix string, opts SendOptions) error {
+	recipient := fmt.Sprintf("%s <%s>", m.Name, m.Address)
+
+	msg, err := createMessage(cfg.From, m.Name, m.Address, m.Cc, cfg.ReplyTo, m.Subject, m.Body)
+	if err != nil {
+		logf(w,"%s ! %s (failed to create: %v)\n", prefix, recipient, err)
+		return err
+	}
+
+	if err := attachFiles(msg, m.Attachments); err != nil {
+		logf(w,"%s ! %s (failed to attach: %v)\n", prefix, recipient, err)
+		return err
+	}
+
+	if err := sendWithRetry(w, sender, msg, prefix, recipient, opts); err != nil {
+		return err
+	}
+
+	logf(w,"%s - %s\n", prefix, recipient)
+	if len(m.Cc) > 0 {
+		logf(w,"  Cc: %s\n", strings.Join(m.Cc, ", "))
+	}
+	if len(m.Attachments) > 0 {
+		logf(w,"  Attachments: %s\n", strings.Join(m.Attachments, ", "))
+	}
+	return nil
+}
+
+// sendWithRetry attempts to send msg, retrying up to opts.Retries times
+// with opts.RetryDelay between attempts.
+func sendWithRetry(w io.Writer, sender Sender, msg *mail.Msg, prefix, recipient string, opts SendOptions) error {
+	var err error
+	for attempt := range opts.Retries + 1 {
+		if attempt > 0 {
+			logf(w,"%s   retrying %s...\n", prefix, recipient)
+			if opts.RetryDelay > 0 {
+				time.Sleep(opts.RetryDelay)
+			}
+		}
+		err = sender.Send(msg)
+		if err == nil {
+			return nil
+		}
+	}
+	logf(w,"%s ! %s (failed to send: %v)\n", prefix, recipient, err)
+	return err
 }
 
 // createMessage builds a single email message with the given headers and body.

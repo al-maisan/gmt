@@ -318,6 +318,38 @@ func (f *failNthSender) Send(_ *mail.Msg) error {
 
 func (f *failNthSender) Close() error { return nil }
 
+func TestSendAllRetrySuccess(t *testing.T) {
+	// Fails on first call, succeeds on second (the retry)
+	sender := &failNthSender{failOn: 1}
+	cfg := config.MailConfig{From: "sender@example.com"}
+	msgs := []Message{
+		{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello"},
+	}
+
+	var buf bytes.Buffer
+	result := SendAll(&buf, sender, cfg, msgs, SendOptions{Retries: 1})
+	assert.Equal(t, 1, result.Sent)
+	assert.Equal(t, 0, result.Failed)
+	assert.Contains(t, buf.String(), "retrying")
+	assert.Contains(t, buf.String(), "- John <jd@example.com>")
+}
+
+func TestSendAllRetryExhausted(t *testing.T) {
+	// Always fails — retries should be exhausted
+	sender := &mockSender{sendErr: fmt.Errorf("permanent error")}
+	cfg := config.MailConfig{From: "sender@example.com"}
+	msgs := []Message{
+		{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello"},
+	}
+
+	var buf bytes.Buffer
+	result := SendAll(&buf, sender, cfg, msgs, SendOptions{Retries: 2})
+	assert.Equal(t, 0, result.Sent)
+	assert.Equal(t, 1, result.Failed)
+	assert.Equal(t, 2, strings.Count(buf.String(), "retrying"))
+	assert.Contains(t, buf.String(), "permanent error")
+}
+
 func TestSendAllWithReplyTo(t *testing.T) {
 	sender := &mockSender{}
 	cfg := config.MailConfig{
