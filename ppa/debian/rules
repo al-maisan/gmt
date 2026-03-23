@@ -19,6 +19,8 @@ override_dh_auto_build:
 override_dh_auto_test:
 	go test -mod=vendor ./...
 
+override_dh_dwz:
+
 override_dh_auto_install:
 	install -Dpm 0755 gmt-mail debian/gmt-mail/usr/bin/gmt-mail
 	install -Dpm 0644 gmt-mail.1 debian/gmt-mail/usr/share/man/man1/gmt-mail.1
