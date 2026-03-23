@@ -2,7 +2,7 @@
 %global commit  %(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 
 Name:           gmt-mail
-Version:        0.4.0
+Version:        0.4.1
 Release:        1%{?dist}
 Summary:        Send personalized emails in bulk using templates
 
@@ -46,7 +46,7 @@ install -Dpm 0644 README.md %{buildroot}%{_docdir}/%{name}/README.md
 %{_docdir}/%{name}/
 
 %changelog
-* Sun Mar 23 2026 Muharem Hrnjadovic <muharem@linux.com> - 0.4.0-1
+* Sun Mar 23 2026 Muharem Hrnjadovic <muharem@linux.com> - 0.4.1-1
 - Switched config format from INI to TOML
 - Refactored SendAll to accept Sender interface
 - Improved code quality, naming, and test coverage

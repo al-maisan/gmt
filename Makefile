@@ -1,5 +1,5 @@
 BINARY  := gmt-mail
-VERSION := 0.4.0
+VERSION := 0.4.1
 COMMIT  := $(shell git rev-parse --short HEAD)
 DATE    := $(shell date -u +%Y-%m-%d)
 LDFLAGS := -X main.appVersion=$(VERSION) -X main.gitCommit=$(COMMIT) -X main.buildDate=$(DATE)
