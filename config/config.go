@@ -31,7 +31,7 @@ import (
 var (
 	rePipe  = regexp.MustCompile(`\s*\|\s*`)
 	reSpace = regexp.MustCompile(`\s+`)
-	reRdata = regexp.MustCompile(`\s*:-\s*`)
+	reKeyValue = regexp.MustCompile(`\s*:-\s*`)
 	reComma = regexp.MustCompile(`\s*,\s*`)
 )
 
@@ -133,6 +133,7 @@ func (c *Config) ParseRecipients(cfg *MailConfig) error {
 	return nil
 }
 
+// checkAttachments verifies that every path in attachments exists and is accessible.
 func checkAttachments(attachments []string) error {
 	for _, path := range attachments {
 		if _, err := os.Stat(path); err != nil {
@@ -145,6 +146,9 @@ func checkAttachments(attachments []string) error {
 	return nil
 }
 
+// parseRecipients extracts recipients from the INI section. Each entry has the
+// form: email=First Last|KEY:-VALUE|... Malformed entries are collected as
+// warnings rather than causing a hard error.
 func parseRecipients(sec *ini.Section) ([]Recipient, []string) {
 	var recipients []Recipient
 	var warnings []string
@@ -162,7 +166,7 @@ func parseRecipients(sec *ini.Section) ([]Recipient, []string) {
 		}
 		data := make(map[string]string)
 		for _, rdatum := range rdata[1:] {
-			parts := reRdata.Split(rdatum, 2)
+			parts := reKeyValue.Split(rdatum, 2)
 			if len(parts) != 2 {
 				warnings = append(warnings, fmt.Sprintf("recipient '%s': malformed data field '%s' (expected KEY:-VALUE)", email, rdatum))
 				continue

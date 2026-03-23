@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSubstVars(t *testing.T) {
+func TestSubstituteVariables(t *testing.T) {
 	tests := []struct {
 		name   string
 		r      config.Recipient
@@ -52,7 +52,7 @@ func TestSubstVars(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, substVars(tt.r, tt.text))
+			assert.Equal(t, tt.want, substituteVariables(tt.r, tt.text))
 		})
 	}
 }
@@ -137,12 +137,8 @@ func TestPrepMailsPerRecipientOverrides(t *testing.T) {
 			}
 			mails := PrepMails(&cfg, "body")
 			require.Len(t, mails, 1)
-			if tt.wantCc != nil {
-				assert.Equal(t, tt.wantCc, mails[0].Cc)
-			}
-			if tt.wantAttachments != nil {
-				assert.Equal(t, tt.wantAttachments, mails[0].Attachments)
-			}
+			assert.Equal(t, tt.wantCc, mails[0].Cc)
+			assert.Equal(t, tt.wantAttachments, mails[0].Attachments)
 		})
 	}
 }
@@ -225,7 +221,7 @@ func TestSampleConfigAndTemplateIntegration(t *testing.T) {
 	mails := PrepMails(&cfg, config.SampleTemplate())
 
 	assert.Empty(t, cfg.Warnings, "sample config+template should produce no warnings")
-	require.True(t, len(mails) > 0, "should produce at least one mail")
+	require.NotEmpty(t, mails, "should produce at least one mail")
 	for _, m := range mails {
 		assert.NotEmpty(t, m.Name)
 		assert.NotEmpty(t, m.Address)

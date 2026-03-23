@@ -179,7 +179,7 @@ func TestSampleConfigParses(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, cfg.From)
 	assert.NotEmpty(t, cfg.Subject)
-	assert.True(t, len(cfg.Recipients) > 0)
+	assert.NotEmpty(t, cfg.Recipients)
 	for _, r := range cfg.Recipients {
 		assert.NotEmpty(t, r.Email)
 		assert.NotEmpty(t, r.First)

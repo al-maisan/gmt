@@ -39,7 +39,7 @@ func TestLoadConfigValid(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, cfg.From)
 	assert.NotEmpty(t, cfg.Subject)
-	assert.True(t, len(cfg.Recipients) > 0)
+	assert.NotEmpty(t, cfg.Recipients)
 }
 
 func TestLoadConfigMissingFile(t *testing.T) {
@@ -70,7 +70,7 @@ func TestPrepMailsValid(t *testing.T) {
 
 	msgs, err := prepMails(&cfg, tmplPath)
 	require.NoError(t, err)
-	assert.True(t, len(msgs) > 0)
+	assert.NotEmpty(t, msgs)
 }
 
 func TestPrepMailsMissingTemplate(t *testing.T) {

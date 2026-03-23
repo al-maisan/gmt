@@ -127,6 +127,7 @@ func SendAll(w io.Writer, creds SMTPCredentials, cfg config.MailConfig, msgs []M
 	return result, nil
 }
 
+// createMessage builds a single email message with the given headers and body.
 func createMessage(from, toName, toAddr string, cc []string, replyTo, subject, body string) (*mail.Msg, error) {
 	m := mail.NewMsg()
 	if err := m.From(from); err != nil {
@@ -150,6 +151,8 @@ func createMessage(from, toName, toAddr string, cc []string, replyTo, subject, b
 	return m, nil
 }
 
+// attachFiles adds the given file paths as attachments to msg, verifying
+// each file exists before attaching.
 func attachFiles(msg *mail.Msg, attachments []string) error {
 	for _, path := range attachments {
 		if _, err := os.Stat(path); err != nil {

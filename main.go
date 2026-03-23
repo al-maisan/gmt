@@ -51,6 +51,14 @@ func help() {
 	flag.PrintDefaults()
 }
 
+func requireFlag(value, name string) {
+	if value == "" {
+		log.Printf("Error: %s flag is required", name)
+		flag.Usage()
+		os.Exit(exitUsageError)
+	}
+}
+
 func main() {
 	log.SetFlags(0)
 
@@ -81,16 +89,8 @@ func main() {
 		os.Exit(exitOK)
 	}
 
-	if *configPath == "" {
-		log.Print("Error: -config-path flag is required")
-		flag.Usage()
-		os.Exit(exitUsageError)
-	}
-	if *templatePath == "" {
-		log.Print("Error: -template-path flag is required")
-		flag.Usage()
-		os.Exit(exitUsageError)
-	}
+	requireFlag(*configPath, "-config-path")
+	requireFlag(*templatePath, "-template-path")
 
 	cfg, err := loadConfig(*configPath)
 	if err != nil {

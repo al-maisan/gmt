@@ -28,7 +28,18 @@ import (
 	"github.com/al-maisan/gmt/config"
 )
 
+// rePlaceholder matches template variables in the form %KEY% where KEY is
+// one or more uppercase letters, digits, or underscores.
 var rePlaceholder = regexp.MustCompile(`%[A-Z][A-Z0-9_]*%`)
+
+const (
+	placeholderEmail     = "%EA%"
+	placeholderFirstName = "%FN%"
+	placeholderLastName  = "%LN%"
+
+	overrideKeyCc     = "CC"
+	overrideKeyAttach = "AS"
+)
 
 // Message holds a fully prepared email ready for sending.
 type Message struct {
@@ -40,11 +51,13 @@ type Message struct {
 	Attachments []string
 }
 
-func substVars(recipient config.Recipient, text string) string {
+// substituteVariables replaces placeholder tokens (%FN%, %LN%, %EA%, and
+// any custom keys from recipient.Data) in text with their values.
+func substituteVariables(recipient config.Recipient, text string) string {
 	pairs := []string{
-		"%EA%", recipient.Email,
-		"%FN%", recipient.First,
-		"%LN%", recipient.Last,
+		placeholderEmail, recipient.Email,
+		placeholderFirstName, recipient.First,
+		placeholderLastName, recipient.Last,
 	}
 	for k, v := range recipient.Data {
 		pairs = append(pairs, fmt.Sprintf("%%%s%%", k), v)
@@ -58,15 +71,16 @@ func substVars(recipient config.Recipient, text string) string {
 func PrepMails(cfg *config.MailConfig, template string) []Message {
 	mails := make([]Message, 0, len(cfg.Recipients))
 	for _, recipient := range cfg.Recipients {
+		// Clone to avoid mutating the original config during override processing.
 		recipient.Data = maps.Clone(recipient.Data)
 
-		cc := resolveOverride(cfg.Cc, recipient.Data, "CC")
-		attachments := resolveOverride(cfg.Attachments, recipient.Data, "AS")
-		delete(recipient.Data, "CC")
-		delete(recipient.Data, "AS")
+		cc := resolveOverride(cfg.Cc, recipient.Data, overrideKeyCc)
+		attachments := resolveOverride(cfg.Attachments, recipient.Data, overrideKeyAttach)
+		delete(recipient.Data, overrideKeyCc)
+		delete(recipient.Data, overrideKeyAttach)
 
-		subject := substVars(recipient, cfg.Subject)
-		body := substVars(recipient, template)
+		subject := substituteVariables(recipient, cfg.Subject)
+		body := substituteVariables(recipient, template)
 
 		if unresolved := rePlaceholder.FindAllString(subject, -1); len(unresolved) > 0 {
 			cfg.Warnings = append(cfg.Warnings, fmt.Sprintf("recipient '%s': unresolved placeholder(s) in subject: %s", recipient.Email, strings.Join(unresolved, ", ")))
@@ -88,6 +102,9 @@ func PrepMails(cfg *config.MailConfig, template string) []Message {
 	return mails
 }
 
+// resolveOverride returns the effective list for a field (Cc or attachments).
+// If data contains key, its value replaces the global list; a leading "+"
+// means append to the global list instead.
 func resolveOverride(global []string, data map[string]string, key string) []string {
 	val, ok := data[key]
 	if !ok {
@@ -99,6 +116,8 @@ func resolveOverride(global []string, data map[string]string, key string) []stri
 	return splitTrim(val)
 }
 
+// splitTrim splits s on commas and trims whitespace from each element,
+// discarding empty entries.
 func splitTrim(s string) []string {
 	var result []string
 	for _, item := range strings.Split(s, ",") {
