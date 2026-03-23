@@ -2,7 +2,7 @@
 %global commit  %(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 
 Name:           gmt-mail
-Version:        0.2.2
+Version:        0.3.1
 Release:        1%{?dist}
 Summary:        Send personalized emails in bulk using templates
 
@@ -46,6 +46,10 @@ install -Dpm 0644 README.md %{buildroot}%{_docdir}/%{name}/README.md
 %{_docdir}/%{name}/
 
 %changelog
+* Sun Mar 23 2026 Muharem Hrnjadovic <muharem@linux.com> - 0.3.1-1
+- Lowered Go requirement to 1.24
+- Fixed PPA and COPR packaging
+
 * Sat Mar 22 2026 Muharem Hrnjadovic <muharem@linux.com> - 0.2.2-1
 - Renamed binary to gmt-mail
 - Added man page
