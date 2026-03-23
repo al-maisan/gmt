@@ -145,8 +145,9 @@ func main() {
 		Retries:    *retries,
 		RetryDelay: *retryDelay,
 	}
+	batch := email.NewBatchSender(os.Stdout, sender, cfg, opts)
 	fmt.Println("\nSending emails now..")
-	result := email.SendAll(os.Stdout, sender, cfg, msgs, opts)
+	result := batch.SendAll(msgs)
 	fmt.Printf("\nDone: %d sent, %d failed, %d total\n", result.Sent, result.Failed, result.Sent+result.Failed)
 
 	if result.Failed > 0 {

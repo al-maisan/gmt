@@ -29,19 +29,6 @@ import (
 	mail "github.com/wneessen/go-mail"
 )
 
-// logf writes a formatted message to w, ignoring write errors
-// (output is best-effort and must not interrupt the send loop).
-func logf(w io.Writer, format string, args ...any) {
-	fmt.Fprintf(w, format, args...) //nolint:errcheck
-}
-
-// SendOptions controls rate limiting and retry behavior.
-type SendOptions struct {
-	Delay      time.Duration // delay between messages
-	Retries    int           // max retry attempts per message
-	RetryDelay time.Duration // backoff between retries
-}
-
 // Sender abstracts the ability to send an email message.
 type Sender interface {
 	Send(msg *mail.Msg) error
@@ -54,6 +41,19 @@ type SMTPCredentials struct {
 	Port     int
 	User     string
 	Password string
+}
+
+// SendOptions controls rate limiting and retry behavior.
+type SendOptions struct {
+	Delay      time.Duration // delay between messages
+	Retries    int           // max retry attempts per message
+	RetryDelay time.Duration // backoff between retries
+}
+
+// SendResult holds the outcome of a bulk send operation.
+type SendResult struct {
+	Sent   int
+	Failed int
 }
 
 // LoadSMTPCredentials reads SMTP credentials from environment variables.
@@ -110,6 +110,50 @@ func NewSMTPSender(creds SMTPCredentials) (Sender, error) {
 	return &smtpSender{client: client}, nil
 }
 
+// BatchSender holds the per-batch state for delivering a set of messages.
+type BatchSender struct {
+	w       io.Writer
+	sender  Sender
+	from    string
+	replyTo string
+	opts    SendOptions
+}
+
+// NewBatchSender creates a BatchSender for delivering a batch of messages.
+func NewBatchSender(w io.Writer, sender Sender, cfg config.MailConfig, opts SendOptions) *BatchSender {
+	return &BatchSender{w: w, sender: sender, from: cfg.From, replyTo: cfg.ReplyTo, opts: opts}
+}
+
+// SendAll delivers all messages, logging progress to w.
+// Per-message errors do not stop the batch.
+func (sc *BatchSender) SendAll(msgs []Message) SendResult {
+	total := len(msgs)
+	width := len(fmt.Sprintf("%d", total))
+	var result SendResult
+	for i, m := range msgs {
+		prefix := fmt.Sprintf("[%*d/%*d]", width, i+1, width, total)
+
+		if err := sc.sendOne(m, prefix); err != nil {
+			result.Failed++
+		} else {
+			result.Sent++
+		}
+
+		if sc.opts.Delay > 0 && i < total-1 {
+			time.Sleep(sc.opts.Delay)
+		}
+	}
+	return result
+}
+
+// --- internal ---
+
+// logf writes a formatted message to w, ignoring write errors
+// (output is best-effort and must not interrupt the send loop).
+func logf(w io.Writer, format string, args ...any) {
+	fmt.Fprintf(w, format, args...) //nolint:errcheck
+}
+
 // smtpSender wraps a go-mail Client to implement Sender.
 type smtpSender struct {
 	client *mail.Client
@@ -118,83 +162,52 @@ type smtpSender struct {
 func (s *smtpSender) Send(msg *mail.Msg) error { return s.client.Send(msg) }
 func (s *smtpSender) Close() error             { return s.client.Close() }
 
-// SendResult holds the outcome of a bulk send operation.
-type SendResult struct {
-	Sent   int
-	Failed int
-}
-
-// SendAll sends all prepared messages using the given sender.
-// Progress is written to w; per-message errors do not stop the batch.
-// Behavior is controlled by opts: delay between messages, retry count, and
-// retry backoff duration.
-func SendAll(w io.Writer, sender Sender, cfg config.MailConfig, msgs []Message, opts SendOptions) SendResult {
-	total := len(msgs)
-	width := len(fmt.Sprintf("%d", total))
-	var result SendResult
-	for i, m := range msgs {
-		prefix := fmt.Sprintf("[%*d/%*d]", width, i+1, width, total)
-
-		if err := sendOne(w, sender, cfg, m, prefix, opts); err != nil {
-			result.Failed++
-		} else {
-			result.Sent++
-		}
-
-		if opts.Delay > 0 && i < total-1 {
-			time.Sleep(opts.Delay)
-		}
-	}
-	return result
-}
-
 // sendOne prepares and sends a single message, with retries.
-// Returns nil on success, or the final error on failure.
-func sendOne(w io.Writer, sender Sender, cfg config.MailConfig, m Message, prefix string, opts SendOptions) error {
+func (sc *BatchSender) sendOne(m Message, prefix string) error {
 	recipient := fmt.Sprintf("%s <%s>", m.Name, m.Address)
 
-	msg, err := createMessage(cfg.From, m.Name, m.Address, m.Cc, cfg.ReplyTo, m.Subject, m.Body)
+	msg, err := createMessage(sc.from, m.Name, m.Address, m.Cc, sc.replyTo, m.Subject, m.Body)
 	if err != nil {
-		logf(w,"%s ! %s (failed to create: %v)\n", prefix, recipient, err)
+		logf(sc.w, "%s ! %s (failed to create: %v)\n", prefix, recipient, err)
 		return err
 	}
 
 	if err := attachFiles(msg, m.Attachments); err != nil {
-		logf(w,"%s ! %s (failed to attach: %v)\n", prefix, recipient, err)
+		logf(sc.w, "%s ! %s (failed to attach: %v)\n", prefix, recipient, err)
 		return err
 	}
 
-	if err := sendWithRetry(w, sender, msg, prefix, recipient, opts); err != nil {
+	if err := sc.sendWithRetry(msg, prefix, recipient); err != nil {
 		return err
 	}
 
-	logf(w,"%s - %s\n", prefix, recipient)
+	logf(sc.w, "%s - %s\n", prefix, recipient)
 	if len(m.Cc) > 0 {
-		logf(w,"  Cc: %s\n", strings.Join(m.Cc, ", "))
+		logf(sc.w, "  Cc: %s\n", strings.Join(m.Cc, ", "))
 	}
 	if len(m.Attachments) > 0 {
-		logf(w,"  Attachments: %s\n", strings.Join(m.Attachments, ", "))
+		logf(sc.w, "  Attachments: %s\n", strings.Join(m.Attachments, ", "))
 	}
 	return nil
 }
 
 // sendWithRetry attempts to send msg, retrying up to opts.Retries times
 // with opts.RetryDelay between attempts.
-func sendWithRetry(w io.Writer, sender Sender, msg *mail.Msg, prefix, recipient string, opts SendOptions) error {
+func (sc *BatchSender) sendWithRetry(msg *mail.Msg, prefix, recipient string) error {
 	var err error
-	for attempt := range opts.Retries + 1 {
+	for attempt := range sc.opts.Retries + 1 {
 		if attempt > 0 {
-			logf(w,"%s   retrying %s...\n", prefix, recipient)
-			if opts.RetryDelay > 0 {
-				time.Sleep(opts.RetryDelay)
+			logf(sc.w, "%s   retrying %s...\n", prefix, recipient)
+			if sc.opts.RetryDelay > 0 {
+				time.Sleep(sc.opts.RetryDelay)
 			}
 		}
-		err = sender.Send(msg)
+		err = sc.sender.Send(msg)
 		if err == nil {
 			return nil
 		}
 	}
-	logf(w,"%s ! %s (failed to send: %v)\n", prefix, recipient, err)
+	logf(sc.w, "%s ! %s (failed to send: %v)\n", prefix, recipient, err)
 	return err
 }
 

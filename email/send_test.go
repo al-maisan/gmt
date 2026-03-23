@@ -213,7 +213,7 @@ func TestSendAllProgressAlignment(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	SendAll(&buf, sender, cfg, msgs, SendOptions{})
+	NewBatchSender(&buf, sender, cfg, SendOptions{}).SendAll(msgs)
 	lines := strings.Split(buf.String(), "\n")
 
 	// First and last progress prefixes should be the same width
@@ -235,7 +235,7 @@ func TestSendAllSuccess(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs, SendOptions{})
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{}).SendAll(msgs)
 	assert.Equal(t, 2, result.Sent)
 	assert.Equal(t, 0, result.Failed)
 	assert.Equal(t, 2, sender.sent)
@@ -251,7 +251,7 @@ func TestSendAllSendError(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs, SendOptions{})
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{}).SendAll(msgs)
 	assert.Equal(t, 0, result.Sent)
 	assert.Equal(t, 1, result.Failed)
 	assert.Contains(t, buf.String(), "! John <jd@example.com>")
@@ -266,7 +266,7 @@ func TestSendAllInvalidFrom(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs, SendOptions{})
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{}).SendAll(msgs)
 	assert.Equal(t, 0, result.Sent)
 	assert.Equal(t, 1, result.Failed)
 	assert.Contains(t, buf.String(), "failed to create")
@@ -281,7 +281,7 @@ func TestSendAllMissingAttachment(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs, SendOptions{})
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{}).SendAll(msgs)
 	assert.Equal(t, 0, result.Sent)
 	assert.Equal(t, 1, result.Failed)
 	assert.Contains(t, buf.String(), "failed to attach")
@@ -297,7 +297,7 @@ func TestSendAllMixedResults(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs, SendOptions{})
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{}).SendAll(msgs)
 	assert.Equal(t, 2, result.Sent)
 	assert.Equal(t, 1, result.Failed)
 }
@@ -327,7 +327,7 @@ func TestSendAllRetrySuccess(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs, SendOptions{Retries: 1})
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{Retries: 1}).SendAll(msgs)
 	assert.Equal(t, 1, result.Sent)
 	assert.Equal(t, 0, result.Failed)
 	assert.Contains(t, buf.String(), "retrying")
@@ -343,7 +343,7 @@ func TestSendAllRetryExhausted(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs, SendOptions{Retries: 2})
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{Retries: 2}).SendAll(msgs)
 	assert.Equal(t, 0, result.Sent)
 	assert.Equal(t, 1, result.Failed)
 	assert.Equal(t, 2, strings.Count(buf.String(), "retrying"))
@@ -361,7 +361,7 @@ func TestSendAllWithReplyTo(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs, SendOptions{})
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{}).SendAll(msgs)
 	assert.Equal(t, 1, result.Sent)
 	assert.Equal(t, 0, result.Failed)
 }
@@ -374,7 +374,7 @@ func TestSendAllWithCc(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, msgs, SendOptions{})
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{}).SendAll(msgs)
 	assert.Equal(t, 1, result.Sent)
 	assert.Equal(t, 0, result.Failed)
 }
@@ -384,7 +384,7 @@ func TestSendAllEmpty(t *testing.T) {
 	cfg := config.MailConfig{From: "sender@example.com"}
 
 	var buf bytes.Buffer
-	result := SendAll(&buf, sender, cfg, nil, SendOptions{})
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{}).SendAll(nil)
 	assert.Equal(t, 0, result.Sent)
 	assert.Equal(t, 0, result.Failed)
 	assert.Empty(t, buf.String())
