@@ -64,7 +64,21 @@ for RELEASE in "${RELEASES[@]}"; do
 
     # Add PPA-specific debian dir
     cp -a "$SCRIPT_DIR/debian" debian
-    sed -i "1s/.*$/gmt-mail (${FULL_VER}) ${RELEASE}; urgency=medium/" debian/changelog
+
+    # Generate changelog from git log between previous tag and current tag
+    PREV_TAG=$(git -C "$SRC_DIR" describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || echo "")
+    TIMESTAMP=$(date -R)
+    {
+        echo "gmt-mail (${FULL_VER}) ${RELEASE}; urgency=medium"
+        echo ""
+        if [ -n "$PREV_TAG" ]; then
+            git -C "$SRC_DIR" log --format="  * %s" "${PREV_TAG}..${TAG}" --no-merges
+        else
+            git -C "$SRC_DIR" log --format="  * %s" "${TAG}" --no-merges --max-count=20
+        fi
+        echo ""
+        echo " -- Muharem Hrnjadovic <muharem@linux.com>  ${TIMESTAMP}"
+    } > debian/changelog
 
     # Build signed source package
     debuild -S -sa -d ${SIGN_FLAG}
