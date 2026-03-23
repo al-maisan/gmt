@@ -24,7 +24,7 @@ Requires [Go](https://go.dev/) 1.24 or later.
     $ make build
     $ ./gmt-mail -h
 
-The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `clean`, `srpm`.
+The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `clean`, `srpm`, `copr`, `ppa`, `release`, `publish`.
 
 ## Quick start
 
@@ -33,6 +33,7 @@ Generate sample files, configure SMTP credentials, preview, then send:
     $ ./gmt-mail -sample-config > config.toml
     $ ./gmt-mail -sample-template > template.eml
     $ cp .env.example .env    # edit .env with your SMTP credentials
+    $ ./gmt-mail -validate -config-path config.toml -template-path template.eml
     $ ./gmt-mail -dry-run -config-path config.toml -template-path template.eml
     $ ./gmt-mail -config-path config.toml -template-path template.eml
 
@@ -162,21 +163,28 @@ Use `-dry-run` to preview all emails without sending. The output includes Cc and
 
     $ ./gmt-mail -h
 
-    gmt-mail, version 0.2.1-a1b2c3d (2026-03-18)
-    This tool sends emails in bulk based on a template and a config file
-
       -config-path string
             path to the config file
+      -delay duration
+            delay between emails, e.g., 1s, 500ms (default 0s)
       -dry-run
             show what would be done but execute no action
+      -retries int
+            max retry attempts per failed send (default 1)
+      -retry-delay duration
+            backoff between retries (default 2s)
       -sample-config
             output sample configuration to stdout
       -sample-template
             output sample template to stdout
       -template-path string
             path to the template file
+      -validate
+            validate config and template without sending
       -version
             print version and exit
+
+Transient send failures are retried automatically (controlled by `-retries` and `-retry-delay`). Progress is shown as `[1/N]` for each message.
 
 ## Releasing a new version
 

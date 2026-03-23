@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/al-maisan/gmt/config"
 	"github.com/al-maisan/gmt/email"
@@ -75,6 +76,8 @@ func main() {
 	doSampleTemplate := flag.Bool("sample-template", false, "output sample template to stdout")
 	doVersion := flag.Bool("version", false, "print version and exit")
 	delay := flag.Duration("delay", 0, "delay between emails (e.g., 1s, 500ms)")
+	retries := flag.Int("retries", 1, "max retry attempts per failed send")
+	retryDelay := flag.Duration("retry-delay", 2*time.Second, "backoff between retries")
 
 	flag.Parse()
 
@@ -137,8 +140,13 @@ func main() {
 		}
 	}()
 
+	opts := email.SendOptions{
+		Delay:      *delay,
+		Retries:    *retries,
+		RetryDelay: *retryDelay,
+	}
 	fmt.Println("\nSending emails now..")
-	result := email.SendAll(os.Stdout, sender, cfg, msgs, *delay)
+	result := email.SendAll(os.Stdout, sender, cfg, msgs, opts)
 	fmt.Printf("\nDone: %d sent, %d failed, %d total\n", result.Sent, result.Failed, result.Sent+result.Failed)
 
 	if result.Failed > 0 {

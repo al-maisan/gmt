@@ -29,7 +29,12 @@ import (
 	mail "github.com/wneessen/go-mail"
 )
 
-const maxRetries = 1
+// SendOptions controls rate limiting and retry behavior.
+type SendOptions struct {
+	Delay      time.Duration // delay between messages
+	Retries    int           // max retry attempts per message
+	RetryDelay time.Duration // backoff between retries
+}
 
 // Sender abstracts the ability to send an email message.
 type Sender interface {
@@ -115,14 +120,15 @@ type SendResult struct {
 
 // SendAll sends all prepared messages using the given sender.
 // Progress is written to w; per-message errors do not stop the batch.
-// A delay between messages can be specified to avoid SMTP rate limits.
-// Transient send failures are retried once after a 2-second backoff.
-func SendAll(w io.Writer, sender Sender, cfg config.MailConfig, msgs []Message, delay time.Duration) SendResult {
+// Behavior is controlled by opts: delay between messages, retry count, and
+// retry backoff duration.
+func SendAll(w io.Writer, sender Sender, cfg config.MailConfig, msgs []Message, opts SendOptions) SendResult {
 	total := len(msgs)
+	width := len(fmt.Sprintf("%d", total))
 	var result SendResult
 	for i, m := range msgs {
 		recipient := fmt.Sprintf("%s <%s>", m.Name, m.Address)
-		prefix := fmt.Sprintf("[%d/%d]", i+1, total)
+		prefix := fmt.Sprintf("[%*d/%*d]", width, i+1, width, total)
 
 		msg, err := createMessage(cfg.From, m.Name, m.Address, m.Cc, cfg.ReplyTo, m.Subject, m.Body)
 		if err != nil {
@@ -138,10 +144,12 @@ func SendAll(w io.Writer, sender Sender, cfg config.MailConfig, msgs []Message, 
 		}
 
 		var sendErr error
-		for attempt := range maxRetries + 1 {
+		for attempt := range opts.Retries + 1 {
 			if attempt > 0 {
 				_, _ = fmt.Fprintf(w, "%s   retrying %s...\n", prefix, recipient)
-				time.Sleep(2 * time.Second)
+				if opts.RetryDelay > 0 {
+					time.Sleep(opts.RetryDelay)
+				}
 			}
 			sendErr = sender.Send(msg)
 			if sendErr == nil {
@@ -163,8 +171,8 @@ func SendAll(w io.Writer, sender Sender, cfg config.MailConfig, msgs []Message, 
 		}
 		result.Sent++
 
-		if delay > 0 && i < total-1 {
-			time.Sleep(delay)
+		if opts.Delay > 0 && i < total-1 {
+			time.Sleep(opts.Delay)
 		}
 	}
 	return result

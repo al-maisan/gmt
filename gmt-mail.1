@@ -69,6 +69,16 @@ between sending each email (e.g.,
 Helps avoid SMTP rate limits when sending to many recipients.
 Default is no delay.
 .TP
+.BI \-retries " n"
+Maximum number of retry attempts per failed send. Default is 1.
+Set to 0 to disable retries.
+.TP
+.BI \-retry\-delay " duration"
+Backoff duration between retries (e.g.,
+.IR 2s ,
+.IR 5s ).
+Default is 2s.
+.TP
 .B \-sample\-config
 Print a sample configuration file to standard output and exit.
 .TP
