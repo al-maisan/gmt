@@ -35,15 +35,24 @@ vendor:
 
 tag:
 	@if git rev-parse $(TAG) >/dev/null 2>&1; then \
-		echo "Tag $(TAG) already exists"; \
+		echo "Tag $(TAG) already exists locally"; \
 	else \
 		git tag -s $(TAG) -m "$(TAG)"; \
+		echo "Created tag $(TAG)"; \
+	fi
+	@if git ls-remote --tags origin $(TAG) | grep -q $(TAG); then \
+		echo "Tag $(TAG) already exists on remote"; \
+	else \
 		git push origin $(TAG); \
-		echo "Created and pushed tag $(TAG)"; \
+		echo "Pushed tag $(TAG) to origin"; \
 	fi
 
 release: tag
-	gh release create $(TAG) --title "$(TAG)" --generate-notes
+	@if gh release view $(TAG) >/dev/null 2>&1; then \
+		echo "GitHub release $(TAG) already exists"; \
+	else \
+		gh release create $(TAG) --title "$(TAG)" --generate-notes; \
+	fi
 
 srpm: vendor rpm-changelog
 	mkdir -p $(RPMBUILD_DIR)/{SOURCES,SPECS,SRPMS}
