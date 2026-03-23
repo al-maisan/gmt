@@ -10,7 +10,7 @@ License:        GPL-3.0-or-later
 URL:            https://%{goipath}
 Source0:        https://%{goipath}/archive/v%{version}/gmt-%{version}.tar.gz
 
-BuildRequires:  golang >= 1.25
+BuildRequires:  golang >= 1.24
 BuildRequires:  git-core
 
 %description
