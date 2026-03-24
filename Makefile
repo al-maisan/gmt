@@ -1,5 +1,5 @@
 BINARY  := gmt-mail
-VERSION := 0.6.0
+VERSION := 0.6.1
 COMMIT  := $(shell git rev-parse --short HEAD)
 DATE    := $(shell date -u +%Y-%m-%d)
 LDFLAGS := -X main.appVersion=$(VERSION) -X main.gitCommit=$(COMMIT) -X main.buildDate=$(DATE)
@@ -64,6 +64,7 @@ srpm: vendor rpm-changelog
 	@echo "SRPM: $$(ls $(RPMBUILD_DIR)/SRPMS/gmt-mail-$(VERSION)-*.src.rpm)"
 
 rpm-changelog:
+	@sed -i 's/^Version:.*$$/Version:        $(VERSION)/' gmt-mail.spec
 	@./scripts/gen-rpm-changelog.sh > /tmp/rpm-changelog.tmp
 	@sed -i '/^%changelog/,$$d' gmt-mail.spec
 	@echo '%changelog' >> gmt-mail.spec
@@ -73,7 +74,7 @@ rpm-changelog:
 copr: srpm
 	copr-cli build gmt-mail $$(ls $(RPMBUILD_DIR)/SRPMS/gmt-mail-$(VERSION)-*.src.rpm)
 
-ppa: tag
+ppa: tag vendor
 	ppa/build-ppa.sh
 
 publish: release copr ppa

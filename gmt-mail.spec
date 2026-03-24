@@ -2,7 +2,7 @@
 %global commit  %(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 
 Name:           gmt-mail
-Version:        0.5.1
+Version:        0.6.0
 Release:        1%{?dist}
 Summary:        Send personalized emails in bulk using templates
 
@@ -46,6 +46,14 @@ install -Dpm 0644 README.md %{buildroot}%{_docdir}/%{name}/README.md
 %{_docdir}/%{name}/
 
 %changelog
+* Mon Mar 23 2026 Muharem Hrnjadovic <muharem@linux.com> - 0.5.1-1
+- impove srpm build process
+- impove ppa build script
+- bump version
+- impove ppa build script
+- generate PPA changelog from git log at build time
+- minor fix
+
 * Mon Mar 23 2026 Muharem Hrnjadovic <muharem@linux.com> - 0.5.0-1
 - make delay/retry params configurable, add progress alignment
 - add rate limiting, retry, validate flag, and progress counter
