@@ -24,7 +24,7 @@ Requires [Go](https://go.dev/) 1.24 or later.
     $ make build
     $ ./gmt-mail -h
 
-The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `clean`, `srpm`, `copr`, `ppa`, `release`, `publish`.
+The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `vendor`, `clean`, `srpm`, `copr`, `ppa`, `tag`, `release`, `publish`.
 
 ## Quick start
 
@@ -132,20 +132,23 @@ Use `-dry-run` to preview all emails without sending. The output includes Cc and
 
     $ ./gmt-mail -dry-run -config-path config.toml -template-path template.eml
     --
-    "John Doe Jr." <jd@example.com>
-    Cc: bl@kf.io, info@ex.org
-    Subject: Hello John!
-    Dear John Doe Jr.,
+    "Samwise Gamgee" <sam@shire.org>
+    Cc: gandalf@shire.org
+    Subject: Hello Samwise!
+    Attachments: /path/to/map.pdf
+    Dear Samwise Gamgee,
 
-    How are things going at EFF?
+    How are things going, Gardener?
 
     Best regards
     --
-    "Mickey Mouse" <mm@gmail.com>
-    Subject: Hello Mickey!
-    Dear Mickey Mouse,
+    "Peregrin Took" <pippin@shire.org>
+    Cc: merry@shire.org
+    Subject: Hello Peregrin!
+    Attachments: /path/to/map.pdf
+    Dear Peregrin Took,
 
-    How are things going at Disney?
+    How are things going, Knight?
 
     Best regards
 
