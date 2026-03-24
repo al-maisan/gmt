@@ -64,9 +64,9 @@ func TestPrepMailsBasic(t *testing.T) {
 			{Email: "jd@example.com", First: "John", Last: "Doe", Data: map[string]string{}},
 		},
 	}
-	mails := PrepMails(&cfg, "Hello %FN% %LN%")
+	mails, err := PrepMails(&cfg, "Hello %FN% %LN%")
+	require.NoError(t, err)
 	assert.Len(t, mails, 1)
-	assert.Empty(t, cfg.Warnings)
 	assert.Equal(t, "John Doe", mails[0].Name)
 	assert.Equal(t, "jd@example.com", mails[0].Address)
 	assert.Equal(t, "Hi John!", mails[0].Subject)
@@ -80,7 +80,8 @@ func TestPrepMailsSingleName(t *testing.T) {
 			{Email: "m@example.com", First: "Madonna", Last: "", Data: map[string]string{}},
 		},
 	}
-	mails := PrepMails(&cfg, "Hello %FN%")
+	mails, err := PrepMails(&cfg, "Hello %FN%")
+	require.NoError(t, err)
 	assert.Len(t, mails, 1)
 	assert.Equal(t, "Madonna", mails[0].Name)
 }
@@ -133,7 +134,8 @@ func TestPrepMailsPerRecipientOverrides(t *testing.T) {
 				Attachments: tt.globalAttach,
 				Recipients:  []config.Recipient{tt.recipient},
 			}
-			mails := PrepMails(&cfg, "body")
+			mails, err := PrepMails(&cfg, "body")
+			require.NoError(t, err)
 			require.Len(t, mails, 1)
 			assert.Equal(t, tt.wantCc, mails[0].Cc)
 			assert.Equal(t, tt.wantAttachments, mails[0].Attachments)
@@ -149,7 +151,8 @@ func TestPrepMailsDoesNotMutateConfig(t *testing.T) {
 			{Email: "a@b.com", First: "A", Last: "B", Cc: []string{"override@cc.com"}, Data: map[string]string{"ORG": "EFF"}},
 		},
 	}
-	PrepMails(&cfg, "body")
+	_, err := PrepMails(&cfg, "body")
+	require.NoError(t, err)
 	assert.Equal(t, []string{"override@cc.com"}, cfg.Recipients[0].Cc)
 	assert.Equal(t, "EFF", cfg.Recipients[0].Data["ORG"])
 }
@@ -161,22 +164,21 @@ func TestPrepMailsUnresolvedPlaceholders(t *testing.T) {
 			{Email: "a@b.com", First: "Alice", Last: "Bob", Data: map[string]string{}},
 		},
 	}
-	mails := PrepMails(&cfg, "Hello %FN%, your role is %ROLE%")
-	assert.Len(t, mails, 1)
-	require.Len(t, cfg.Warnings, 2)
-	assert.Contains(t, cfg.Warnings[0], "%DEPT%")
-	assert.Contains(t, cfg.Warnings[1], "%ROLE%")
+	_, err := PrepMails(&cfg, "Hello %FN%, your role is %ROLE%")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "%DEPT%")
+	assert.Contains(t, err.Error(), "%ROLE%")
 }
 
-func TestPrepMailsNoWarningWhenAllResolved(t *testing.T) {
+func TestPrepMailsNoErrorWhenAllResolved(t *testing.T) {
 	cfg := config.MailConfig{
 		Subject: "Hi %FN%!",
 		Recipients: []config.Recipient{
 			{Email: "a@b.com", First: "Alice", Last: "Bob", Data: map[string]string{"ORG": "EFF"}},
 		},
 	}
-	PrepMails(&cfg, "Hello %FN% from %ORG%")
-	assert.Empty(t, cfg.Warnings)
+	_, err := PrepMails(&cfg, "Hello %FN% from %ORG%")
+	require.NoError(t, err)
 }
 
 func TestResolveOverride(t *testing.T) {
@@ -204,9 +206,8 @@ func TestSampleConfigAndTemplateIntegration(t *testing.T) {
 	cfg, err := config.Parse([]byte(config.SampleConfig("0.0.0")))
 	require.NoError(t, err)
 
-	mails := PrepMails(&cfg, config.SampleTemplate())
-
-	assert.Empty(t, cfg.Warnings, "sample config+template should produce no warnings")
+	mails, err := PrepMails(&cfg, config.SampleTemplate())
+	require.NoError(t, err, "sample config+template should produce no errors")
 	require.NotEmpty(t, mails, "should produce at least one mail")
 	for _, m := range mails {
 		assert.NotEmpty(t, m.Name)

@@ -109,12 +109,8 @@ func main() {
 		os.Exit(exitConfigError)
 	}
 
-	for _, w := range cfg.Warnings {
-		log.Printf("Warning: %s", w)
-	}
-
 	if *doValidate {
-		fmt.Printf("Config and template are valid: %d recipient(s), %d warning(s)\n", len(msgs), len(cfg.Warnings))
+		fmt.Printf("Config and template are valid: %d recipient(s)\n", len(msgs))
 		os.Exit(exitOK)
 	}
 
@@ -175,7 +171,10 @@ func prepMails(cfg *config.MailConfig, templatePath string) ([]email.Message, er
 		return nil, fmt.Errorf("failed to read template file %q: %w", templatePath, err)
 	}
 
-	msgs := email.PrepMails(cfg, string(bs))
+	msgs, err := email.PrepMails(cfg, string(bs))
+	if err != nil {
+		return nil, err
+	}
 	if len(msgs) == 0 {
 		return nil, fmt.Errorf("no recipients found in config file")
 	}

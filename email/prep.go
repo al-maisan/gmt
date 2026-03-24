@@ -63,8 +63,9 @@ func substituteVariables(recipient config.Recipient, text string) string {
 
 // PrepMails generates a Message for each recipient by substituting template
 // variables and resolving per-recipient Cc and attachment overrides.
-// Warnings about unresolved placeholders are appended to cfg.Warnings.
-func PrepMails(cfg *config.MailConfig, template string) []Message {
+// Returns an error if any placeholders remain unresolved.
+func PrepMails(cfg *config.MailConfig, template string) ([]Message, error) {
+	var errs []string
 	mails := make([]Message, 0, len(cfg.Recipients))
 	for _, recipient := range cfg.Recipients {
 		cc := resolveOverride(cfg.Cc, recipient.Cc, recipient.CcExtra)
@@ -74,10 +75,10 @@ func PrepMails(cfg *config.MailConfig, template string) []Message {
 		body := substituteVariables(recipient, template)
 
 		if unresolved := rePlaceholder.FindAllString(subject, -1); len(unresolved) > 0 {
-			cfg.Warnings = append(cfg.Warnings, fmt.Sprintf("recipient '%s': unresolved placeholder(s) in subject: %s", recipient.Email, strings.Join(unresolved, ", ")))
+			errs = append(errs, fmt.Sprintf("recipient '%s': unresolved placeholder(s) in subject: %s", recipient.Email, strings.Join(unresolved, ", ")))
 		}
 		if unresolved := rePlaceholder.FindAllString(body, -1); len(unresolved) > 0 {
-			cfg.Warnings = append(cfg.Warnings, fmt.Sprintf("recipient '%s': unresolved placeholder(s) in body: %s", recipient.Email, strings.Join(unresolved, ", ")))
+			errs = append(errs, fmt.Sprintf("recipient '%s': unresolved placeholder(s) in body: %s", recipient.Email, strings.Join(unresolved, ", ")))
 		}
 
 		name := strings.TrimSpace(recipient.First + " " + recipient.Last)
@@ -90,7 +91,10 @@ func PrepMails(cfg *config.MailConfig, template string) []Message {
 			Attachments: attachments,
 		})
 	}
-	return mails
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("unresolved placeholders:\n  %s", strings.Join(errs, "\n  "))
+	}
+	return mails, nil
 }
 
 // resolveOverride returns the effective list for a field (Cc or attachments).

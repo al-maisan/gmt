@@ -76,7 +76,6 @@ type MailConfig struct {
 	Subject     string
 	Recipients  []Recipient
 	Attachments []string
-	Warnings    []string
 }
 
 // Parse decodes TOML-formatted configuration bytes into a MailConfig.
@@ -102,9 +101,7 @@ func Parse(bs []byte) (MailConfig, error) {
 		Attachments: tc.General.Attachments,
 	}
 
-	recipients, warnings := convertRecipients(tc.Recipients)
-	cfg.Recipients = recipients
-	cfg.Warnings = warnings
+	cfg.Recipients = convertRecipients(tc.Recipients)
 
 	return cfg, nil
 }
@@ -139,9 +136,8 @@ func formatValidationError(err error) error {
 }
 
 // convertRecipients transforms TOML recipient entries into Recipient structs.
-func convertRecipients(entries []tomlRecipient) ([]Recipient, []string) {
+func convertRecipients(entries []tomlRecipient) []Recipient {
 	var recipients []Recipient
-	var warnings []string
 
 	for _, e := range entries {
 		data := make(map[string]string, len(e.Data))
@@ -160,7 +156,7 @@ func convertRecipients(entries []tomlRecipient) ([]Recipient, []string) {
 			AttachmentsExtra: e.AttachmentsExtra,
 		})
 	}
-	return recipients, warnings
+	return recipients
 }
 
 // checkAttachments verifies that every path in attachments exists and is accessible.
