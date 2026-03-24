@@ -2,7 +2,7 @@
 %global commit  %(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 
 Name:           gmt-mail
-Version:        0.6.0
+Version:        0.6.1
 Release:        1%{?dist}
 Summary:        Send personalized emails in bulk using templates
 
@@ -46,6 +46,17 @@ install -Dpm 0644 README.md %{buildroot}%{_docdir}/%{name}/README.md
 %{_docdir}/%{name}/
 
 %changelog
+* Tue Mar 24 2026 Muharem Hrnjadovic <muharem@linux.com> - 0.6.1-1
+- sync spec version from Makefile, add vendor dep to ppa target
+- new release
+- make unresolved placeholders a hard error
+- use go-playground/validator for config validation, clean up overrides
+- code refactor
+- ranging over SplitSeq is more efficient
+- introduce BatchSender to reduce function arg counts
+- refactor SendAll into smaller functions, clean up output calls
+- make release is idempotent
+
 * Mon Mar 23 2026 Muharem Hrnjadovic <muharem@linux.com> - 0.5.1-1
 - impove srpm build process
 - impove ppa build script
