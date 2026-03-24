@@ -90,38 +90,38 @@ func TestPrepMailsPerRecipientOverrides(t *testing.T) {
 		name            string
 		globalCc        []string
 		globalAttach    []string
-		data            map[string]string
+		recipient       config.Recipient
 		wantCc          []string
 		wantAttachments []string
 	}{
 		{
-			name:     "cc replace",
-			globalCc: []string{"global@cc.com"},
-			data:     map[string]string{"CC": "override@cc.com"},
-			wantCc:   []string{"override@cc.com"},
+			name:      "cc replace",
+			globalCc:  []string{"global@cc.com"},
+			recipient: config.Recipient{Email: "a@b.com", First: "A", Last: "B", Cc: []string{"override@cc.com"}},
+			wantCc:    []string{"override@cc.com"},
 		},
 		{
-			name:     "cc append",
-			globalCc: []string{"global@cc.com"},
-			data:     map[string]string{"CC": "+extra@cc.com"},
-			wantCc:   []string{"global@cc.com", "extra@cc.com"},
+			name:      "cc append",
+			globalCc:  []string{"global@cc.com"},
+			recipient: config.Recipient{Email: "a@b.com", First: "A", Last: "B", CcExtra: []string{"extra@cc.com"}},
+			wantCc:    []string{"global@cc.com", "extra@cc.com"},
 		},
 		{
-			name:     "cc global copied",
-			globalCc: []string{"cc1@example.com", "cc2@example.com"},
-			data:     map[string]string{},
-			wantCc:   []string{"cc1@example.com", "cc2@example.com"},
+			name:      "cc global copied",
+			globalCc:  []string{"cc1@example.com", "cc2@example.com"},
+			recipient: config.Recipient{Email: "a@b.com", First: "A", Last: "B"},
+			wantCc:    []string{"cc1@example.com", "cc2@example.com"},
 		},
 		{
 			name:            "attachment replace",
 			globalAttach:    []string{"global.txt"},
-			data:            map[string]string{"AS": "local.txt"},
+			recipient:       config.Recipient{Email: "a@b.com", First: "A", Last: "B", Attachments: []string{"local.txt"}},
 			wantAttachments: []string{"local.txt"},
 		},
 		{
 			name:            "attachment append",
 			globalAttach:    []string{"global.txt"},
-			data:            map[string]string{"AS": "+extra.txt"},
+			recipient:       config.Recipient{Email: "a@b.com", First: "A", Last: "B", AttachmentsExtra: []string{"extra.txt"}},
 			wantAttachments: []string{"global.txt", "extra.txt"},
 		},
 	}
@@ -131,9 +131,7 @@ func TestPrepMailsPerRecipientOverrides(t *testing.T) {
 				Subject:     "Test",
 				Cc:          tt.globalCc,
 				Attachments: tt.globalAttach,
-				Recipients: []config.Recipient{
-					{Email: "a@b.com", First: "A", Last: "B", Data: tt.data},
-				},
+				Recipients:  []config.Recipient{tt.recipient},
 			}
 			mails := PrepMails(&cfg, "body")
 			require.Len(t, mails, 1)
@@ -143,27 +141,16 @@ func TestPrepMailsPerRecipientOverrides(t *testing.T) {
 	}
 }
 
-func TestPrepMailsCcNotUsedAsTemplateVar(t *testing.T) {
-	cfg := config.MailConfig{
-		Subject: "Test",
-		Recipients: []config.Recipient{
-			{Email: "a@b.com", First: "A", Last: "B", Data: map[string]string{"CC": "someone@cc.com"}},
-		},
-	}
-	mails := PrepMails(&cfg, "cc is %CC%")
-	assert.Equal(t, "cc is %CC%", mails[0].Body)
-}
-
 func TestPrepMailsDoesNotMutateConfig(t *testing.T) {
 	cfg := config.MailConfig{
 		Subject: "Test",
 		Cc:      []string{"global@cc.com"},
 		Recipients: []config.Recipient{
-			{Email: "a@b.com", First: "A", Last: "B", Data: map[string]string{"CC": "override@cc.com", "ORG": "EFF"}},
+			{Email: "a@b.com", First: "A", Last: "B", Cc: []string{"override@cc.com"}, Data: map[string]string{"ORG": "EFF"}},
 		},
 	}
 	PrepMails(&cfg, "body")
-	assert.Equal(t, "override@cc.com", cfg.Recipients[0].Data["CC"])
+	assert.Equal(t, []string{"override@cc.com"}, cfg.Recipients[0].Cc)
 	assert.Equal(t, "EFF", cfg.Recipients[0].Data["ORG"])
 }
 
@@ -194,19 +181,21 @@ func TestPrepMailsNoWarningWhenAllResolved(t *testing.T) {
 
 func TestResolveOverride(t *testing.T) {
 	tests := []struct {
-		name   string
-		global []string
-		data   map[string]string
-		want   []string
+		name    string
+		global  []string
+		replace []string
+		extra   []string
+		want    []string
 	}{
-		{"no override", []string{"a", "b"}, map[string]string{}, []string{"a", "b"}},
-		{"replace", []string{"a", "b"}, map[string]string{"CC": "x,y"}, []string{"x", "y"}},
-		{"append", []string{"a"}, map[string]string{"CC": "+b,c"}, []string{"a", "b", "c"}},
-		{"empty global", nil, map[string]string{"CC": "x"}, []string{"x"}},
+		{"no override", []string{"a", "b"}, nil, nil, []string{"a", "b"}},
+		{"replace", []string{"a", "b"}, []string{"x", "y"}, nil, []string{"x", "y"}},
+		{"append", []string{"a"}, nil, []string{"b", "c"}, []string{"a", "b", "c"}},
+		{"empty global replace", nil, []string{"x"}, nil, []string{"x"}},
+		{"empty global append", nil, nil, []string{"x"}, []string{"x"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, resolveOverride(tt.global, tt.data, "CC"))
+			assert.Equal(t, tt.want, resolveOverride(tt.global, tt.replace, tt.extra))
 		})
 	}
 }

@@ -20,7 +20,6 @@ package email
 
 import (
 	"fmt"
-	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -36,9 +35,6 @@ const (
 	placeholderEmail     = "%EA%"
 	placeholderFirstName = "%FN%"
 	placeholderLastName  = "%LN%"
-
-	overrideKeyCc     = "CC"
-	overrideKeyAttach = "AS"
 )
 
 // Message holds a fully prepared email ready for sending.
@@ -71,13 +67,8 @@ func substituteVariables(recipient config.Recipient, text string) string {
 func PrepMails(cfg *config.MailConfig, template string) []Message {
 	mails := make([]Message, 0, len(cfg.Recipients))
 	for _, recipient := range cfg.Recipients {
-		// Clone to avoid mutating the original config during override processing.
-		recipient.Data = maps.Clone(recipient.Data)
-
-		cc := resolveOverride(cfg.Cc, recipient.Data, overrideKeyCc)
-		attachments := resolveOverride(cfg.Attachments, recipient.Data, overrideKeyAttach)
-		delete(recipient.Data, overrideKeyCc)
-		delete(recipient.Data, overrideKeyAttach)
+		cc := resolveOverride(cfg.Cc, recipient.Cc, recipient.CcExtra)
+		attachments := resolveOverride(cfg.Attachments, recipient.Attachments, recipient.AttachmentsExtra)
 
 		subject := substituteVariables(recipient, cfg.Subject)
 		body := substituteVariables(recipient, template)
@@ -103,28 +94,15 @@ func PrepMails(cfg *config.MailConfig, template string) []Message {
 }
 
 // resolveOverride returns the effective list for a field (Cc or attachments).
-// If data contains key, its value replaces the global list; a leading "+"
-// means append to the global list instead.
-func resolveOverride(global []string, data map[string]string, key string) []string {
-	val, ok := data[key]
-	if !ok {
-		return slices.Clone(global)
+// If replace is set, it replaces global. If extra is set, it appends to global.
+// Otherwise, global is returned as-is.
+func resolveOverride(global, replace, extra []string) []string {
+	if len(replace) > 0 {
+		return replace
 	}
-	if strings.HasPrefix(val, "+") {
-		return append(slices.Clone(global), splitTrim(val[1:])...)
+	if len(extra) > 0 {
+		return append(slices.Clone(global), extra...)
 	}
-	return splitTrim(val)
+	return slices.Clone(global)
 }
 
-// splitTrim splits s on commas and trims whitespace from each element,
-// discarding empty entries.
-func splitTrim(s string) []string {
-	var result []string
-	for item := range strings.SplitSeq(s, ",") {
-		item = strings.TrimSpace(item)
-		if item != "" {
-			result = append(result, item)
-		}
-	}
-	return result
-}

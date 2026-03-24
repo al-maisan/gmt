@@ -56,10 +56,14 @@ type tomlRecipient struct {
 
 // Recipient holds a parsed recipient entry from the config file.
 type Recipient struct {
-	Email string
-	First string
-	Last  string
-	Data  map[string]string
+	Email            string
+	First            string
+	Last             string
+	Data             map[string]string
+	Cc               []string // replaces global Cc
+	CcExtra          []string // appends to global Cc
+	Attachments      []string // replaces global attachments
+	AttachmentsExtra []string // appends to global attachments
 }
 
 // MailConfig holds the fully parsed configuration for a mailing run.
@@ -111,8 +115,6 @@ func Parse(bs []byte) (MailConfig, error) {
 }
 
 // convertRecipients transforms TOML recipient entries into Recipient structs.
-// Per-recipient cc/attachments overrides are encoded into Data["CC"] and
-// Data["AS"] so that email.PrepMails can process them uniformly.
 func convertRecipients(entries []tomlRecipient) ([]Recipient, []string) {
 	var recipients []Recipient
 	var warnings []string
@@ -132,25 +134,15 @@ func convertRecipients(entries []tomlRecipient) ([]Recipient, []string) {
 			data[strings.ToUpper(k)] = v
 		}
 
-		// Encode per-recipient Cc overrides into Data["CC"].
-		if len(e.Cc) > 0 {
-			data["CC"] = strings.Join(e.Cc, ",")
-		} else if len(e.CcExtra) > 0 {
-			data["CC"] = "+" + strings.Join(e.CcExtra, ",")
-		}
-
-		// Encode per-recipient attachment overrides into Data["AS"].
-		if len(e.Attachments) > 0 {
-			data["AS"] = strings.Join(e.Attachments, ",")
-		} else if len(e.AttachmentsExtra) > 0 {
-			data["AS"] = "+" + strings.Join(e.AttachmentsExtra, ",")
-		}
-
 		recipients = append(recipients, Recipient{
-			Email: e.Email,
-			First: e.First,
-			Last:  e.Last,
-			Data:  data,
+			Email:            e.Email,
+			First:            e.First,
+			Last:             e.Last,
+			Data:             data,
+			Cc:               e.Cc,
+			CcExtra:          e.CcExtra,
+			Attachments:      e.Attachments,
+			AttachmentsExtra: e.AttachmentsExtra,
 		})
 	}
 	return recipients, warnings

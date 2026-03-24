@@ -205,7 +205,7 @@ first = "A"
 cc = ["override@cc.com"]
 `))
 	require.Len(t, cfg.Recipients, 1)
-	assert.Equal(t, "override@cc.com", cfg.Recipients[0].Data["CC"])
+	assert.Equal(t, []string{"override@cc.com"}, cfg.Recipients[0].Cc)
 }
 
 func TestParseRecipientCcAppend(t *testing.T) {
@@ -219,7 +219,7 @@ first = "A"
 cc_extra = ["extra@cc.com"]
 `))
 	require.Len(t, cfg.Recipients, 1)
-	assert.Equal(t, "+extra@cc.com", cfg.Recipients[0].Data["CC"])
+	assert.Equal(t, []string{"extra@cc.com"}, cfg.Recipients[0].CcExtra)
 }
 
 func TestParseRecipientAttachReplace(t *testing.T) {
@@ -233,7 +233,7 @@ first = "A"
 attachments = ["local.txt"]
 `))
 	require.Len(t, cfg.Recipients, 1)
-	assert.Equal(t, "local.txt", cfg.Recipients[0].Data["AS"])
+	assert.Equal(t, []string{"local.txt"}, cfg.Recipients[0].Attachments)
 }
 
 func TestParseRecipientAttachAppend(t *testing.T) {
@@ -247,7 +247,7 @@ first = "A"
 attachments_extra = ["extra.pdf"]
 `))
 	require.Len(t, cfg.Recipients, 1)
-	assert.Equal(t, "+extra.pdf", cfg.Recipients[0].Data["AS"])
+	assert.Equal(t, []string{"extra.pdf"}, cfg.Recipients[0].AttachmentsExtra)
 }
 
 func TestParseDataKeysUppercased(t *testing.T) {
