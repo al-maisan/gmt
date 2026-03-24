@@ -160,38 +160,42 @@ first = "Madonna"
 }
 
 func TestParseRecipientMissingEmail(t *testing.T) {
-	cfg := parseTestConfig(t, []byte(`
+	_, err := Parse([]byte(`
 [general]
 from = "test <t@example.com>"
 subject = "test"
 [[recipients]]
 first = "John"
 last = "Doe"
-[[recipients]]
-email = "valid@example.com"
-first = "Valid"
 `))
-	require.Len(t, cfg.Recipients, 1)
-	assert.Equal(t, "valid@example.com", cfg.Recipients[0].Email)
-	require.Len(t, cfg.Warnings, 1)
-	assert.Contains(t, cfg.Warnings[0], "missing 'email'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Email")
 }
 
 func TestParseRecipientMissingFirst(t *testing.T) {
-	cfg := parseTestConfig(t, []byte(`
+	_, err := Parse([]byte(`
 [general]
 from = "test <t@example.com>"
 subject = "test"
 [[recipients]]
 email = "jd@example.com"
 last = "Doe"
-[[recipients]]
-email = "valid@example.com"
-first = "Valid"
 `))
-	require.Len(t, cfg.Recipients, 1)
-	require.Len(t, cfg.Warnings, 1)
-	assert.Contains(t, cfg.Warnings[0], "missing 'first'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "First")
+}
+
+func TestParseRecipientInvalidEmail(t *testing.T) {
+	_, err := Parse([]byte(`
+[general]
+from = "test <t@example.com>"
+subject = "test"
+[[recipients]]
+email = "not-an-email"
+first = "John"
+`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid email")
 }
 
 func TestParseRecipientCcReplace(t *testing.T) {

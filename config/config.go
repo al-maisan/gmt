@@ -19,24 +19,26 @@ package config
 
 import (
 	_ "embed"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/go-playground/validator/v10"
 )
+
+var validate = validator.New()
 
 // tomlConfig mirrors the TOML file structure for decoding.
 type tomlConfig struct {
-	General    tomlGeneral    `toml:"general"`
-	Recipients []tomlRecipient `toml:"recipients"`
+	General    tomlGeneral     `toml:"general"    validate:"required"`
+	Recipients []tomlRecipient `toml:"recipients" validate:"required,min=1,dive"`
 }
 
 // tomlGeneral holds the [general] section fields.
 type tomlGeneral struct {
-	From        string   `toml:"from"`
-	Subject     string   `toml:"subject"`
+	From        string   `toml:"from"        validate:"required"`
+	Subject     string   `toml:"subject"     validate:"required"`
 	ReplyTo     string   `toml:"reply_to"`
 	Cc          []string `toml:"cc"`
 	Attachments []string `toml:"attachments"`
@@ -44,8 +46,8 @@ type tomlGeneral struct {
 
 // tomlRecipient holds a single [[recipients]] entry.
 type tomlRecipient struct {
-	Email            string            `toml:"email"`
-	First            string            `toml:"first"`
+	Email            string            `toml:"email"             validate:"required,email"`
+	First            string            `toml:"first"             validate:"required"`
 	Last             string            `toml:"last"`
 	Data             map[string]string `toml:"data"`
 	Cc               []string          `toml:"cc"`
@@ -84,19 +86,12 @@ func Parse(bs []byte) (MailConfig, error) {
 		return MailConfig{}, fmt.Errorf("TOML syntax error: %w", err)
 	}
 
-	if tc.General.From == "" {
-		return MailConfig{}, errors.New("missing required key 'from' in [general]")
-	}
-	if tc.General.Subject == "" {
-		return MailConfig{}, errors.New("missing required key 'subject' in [general]")
+	if err := validate.Struct(tc); err != nil {
+		return MailConfig{}, formatValidationError(err)
 	}
 
 	if err := checkAttachments(tc.General.Attachments); err != nil {
 		return MailConfig{}, err
-	}
-
-	if len(tc.Recipients) == 0 {
-		return MailConfig{}, errors.New("no [[recipients]] entries found")
 	}
 
 	cfg := MailConfig{
@@ -114,21 +109,41 @@ func Parse(bs []byte) (MailConfig, error) {
 	return cfg, nil
 }
 
+// formatValidationError converts validator errors into user-friendly messages.
+func formatValidationError(err error) error {
+	ve, ok := err.(validator.ValidationErrors)
+	if !ok {
+		return err
+	}
+	var msgs []string
+	for _, fe := range ve {
+		switch fe.StructNamespace() {
+		case "tomlConfig.General.From":
+			msgs = append(msgs, "missing required key 'from' in [general]")
+		case "tomlConfig.General.Subject":
+			msgs = append(msgs, "missing required key 'subject' in [general]")
+		case "tomlConfig.Recipients":
+			msgs = append(msgs, "no [[recipients]] entries found")
+		default:
+			field := fe.StructNamespace()
+			if fe.Tag() == "required" {
+				msgs = append(msgs, fmt.Sprintf("missing required field '%s'", field))
+			} else if fe.Tag() == "email" {
+				msgs = append(msgs, fmt.Sprintf("invalid email address in '%s': %q", field, fe.Value()))
+			} else {
+				msgs = append(msgs, fmt.Sprintf("validation failed for '%s': %s", field, fe.Tag()))
+			}
+		}
+	}
+	return fmt.Errorf("%s", strings.Join(msgs, "; "))
+}
+
 // convertRecipients transforms TOML recipient entries into Recipient structs.
 func convertRecipients(entries []tomlRecipient) ([]Recipient, []string) {
 	var recipients []Recipient
 	var warnings []string
 
 	for _, e := range entries {
-		if e.Email == "" {
-			warnings = append(warnings, "recipient entry missing 'email' field, skipped")
-			continue
-		}
-		if e.First == "" {
-			warnings = append(warnings, fmt.Sprintf("recipient '%s': missing 'first' field", e.Email))
-			continue
-		}
-
 		data := make(map[string]string, len(e.Data))
 		for k, v := range e.Data {
 			data[strings.ToUpper(k)] = v
