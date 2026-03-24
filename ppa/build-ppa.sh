@@ -82,7 +82,9 @@ for RELEASE in "${RELEASES[@]}"; do
     cp -a "$SCRIPT_DIR/debian" debian
 
     # Generate changelog from git log between previous tag and current tag
-    PREV_TAG=$(git -C "$SRC_DIR" describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || echo "")
+    # Find previous released tag (not just any tag)
+    PREV_TAG=$(gh release list --limit 100 --json tagName --jq '.[].tagName' 2>/dev/null \
+        | grep -v "^${TAG}$" | head -1 || echo "")
     TIMESTAMP=$(date -R)
     {
         echo "gmt-mail (${FULL_VER}) ${RELEASE}; urgency=medium"

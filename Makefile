@@ -47,12 +47,17 @@ tag:
 		echo "tag: pushed $(TAG)"; \
 	fi
 
+PREV_RELEASE := $(shell gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null)
+
 release: tag
 	@if gh release view $(TAG) >/dev/null 2>&1; then \
 		echo "release: $(TAG) exists on GitHub"; \
+	elif [ -n "$(PREV_RELEASE)" ]; then \
+		gh release create $(TAG) --title "$(TAG)" --generate-notes --notes-start-tag $(PREV_RELEASE); \
+		echo "release: created $(TAG) (diff from $(PREV_RELEASE))"; \
 	else \
 		gh release create $(TAG) --title "$(TAG)" --generate-notes; \
-		echo "release: created $(TAG)"; \
+		echo "release: created $(TAG) (first release)"; \
 	fi
 
 srpm: vendor rpm-changelog
