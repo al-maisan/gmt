@@ -10,9 +10,9 @@ TARBALL      := $(RPMBUILD_DIR)/SOURCES/gmt-$(VERSION).tar.gz
 
 .PHONY: all build test vet lint fmt install clean srpm vendor tag release copr ppa
 
-all: test build
+all: test lint build
 
-build: lint
+build:
 	go build -ldflags "$(LDFLAGS)" -o $(BINARY) .
 
 test:
