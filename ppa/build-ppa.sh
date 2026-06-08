@@ -4,6 +4,8 @@ set -e
 # Configuration
 PPA="ppa:al-maisan/gmt-mail"
 GPG_KEY="753B6ECF2B458FF3D19D568C1E0A288397AE739E"
+LP_USER="al-maisan"
+LP_PPA="gmt-mail"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC_DIR="$(dirname "$SCRIPT_DIR")"
@@ -21,8 +23,6 @@ RELEASES=("resolute")  # 26.04 LTS
 if [ -n "${1:-}" ]; then
     PPA_REV="$1"
 else
-    LP_USER="al-maisan"
-    LP_PPA="gmt-mail"
     # Find the highest ppa revision already uploaded for this version
     EXISTING=$(curl -s "https://api.launchpad.net/1.0/~${LP_USER}/+archive/ubuntu/${LP_PPA}?ws.op=getPublishedSources&source_name=gmt-mail&exact_match=true" \
         | grep -oP "\"source_package_version\": \"${VERSION}-1ppa\K[0-9]+" \
@@ -48,21 +48,28 @@ echo "=== Building gmt-mail ${VERSION} (ppa${PPA_REV}) from tag ${TAG} for: ${RE
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
-# Generate orig tarball from the git tag — this is reproducible and immutable
-git archive --format=tar.gz --prefix="gmt-mail-${VERSION}/" "$TAG" \
-    -o "$BUILD_DIR/gmt-mail_${VERSION}.orig.tar.gz"
-
-# Extract it so we can add vendor and debian
+ORIG="gmt-mail_${VERSION}.orig.tar.gz"
 cd "$BUILD_DIR"
-tar xzf "gmt-mail_${VERSION}.orig.tar.gz"
 
-# Add vendored dependencies (not in git, must be generated)
-cd "gmt-mail-${VERSION}"
-go mod vendor 2>/dev/null || GOTOOLCHAIN=local go mod vendor
-
-# Recreate orig tarball with vendor included
-cd "$BUILD_DIR"
-tar czf "gmt-mail_${VERSION}.orig.tar.gz" "gmt-mail-${VERSION}"
+# Launchpad requires one immutable orig tarball per upstream version. The tarball
+# is not byte-reproducible (vendor mtimes + gzip timestamp vary per run), so on a
+# rebuild we must reuse the already-published orig rather than regenerate it —
+# otherwise the .dsc checksums won't match Launchpad's stored copy and the upload
+# is rejected.
+if [ "$PPA_REV" -gt 1 ]; then
+    echo "Reusing published orig tarball for ${VERSION} (ppa${PPA_REV} rebuild)"
+    curl -fSL -o "$ORIG" \
+        "https://launchpad.net/~${LP_USER}/+archive/ubuntu/${LP_PPA}/+files/${ORIG}"
+    tar xzf "$ORIG"
+else
+    # First upload of this version: build the orig from the tag and add vendored
+    # dependencies (not in git), then repack so the orig is self-contained.
+    git -C "$SRC_DIR" archive --format=tar.gz --prefix="gmt-mail-${VERSION}/" "$TAG" \
+        -o "$BUILD_DIR/$ORIG"
+    tar xzf "$ORIG"
+    ( cd "gmt-mail-${VERSION}" && (go mod vendor 2>/dev/null || GOTOOLCHAIN=local go mod vendor) )
+    tar czf "$ORIG" "gmt-mail-${VERSION}"
+fi
 
 SIGN_FLAG=""
 if [ -n "$GPG_KEY" ]; then
