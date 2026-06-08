@@ -14,7 +14,7 @@ VERSION=$(grep '^VERSION' "$SRC_DIR/Makefile" | head -1 | awk -F':= ' '{print $2
 TAG="v${VERSION}"
 
 # Ubuntu releases to target (add/remove as needed)
-RELEASES=("questing")  # 25.10
+RELEASES=("resolute")  # 26.04 LTS
 
 # Determine PPA revision — query Launchpad for existing uploads of this version
 # and auto-increment, or use explicit argument if provided.
