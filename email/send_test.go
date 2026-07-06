@@ -350,6 +350,21 @@ func TestSendAllRetryExhausted(t *testing.T) {
 	assert.Contains(t, buf.String(), "permanent error")
 }
 
+func TestSendAllNegativeRetriesStillSends(t *testing.T) {
+	// A negative Retries must not skip the send and falsely report success.
+	sender := &mockSender{}
+	cfg := config.MailConfig{From: "sender@example.com"}
+	msgs := []Message{
+		{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello"},
+	}
+
+	var buf bytes.Buffer
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{Retries: -1}).SendAll(msgs)
+	assert.Equal(t, 1, sender.sent)
+	assert.Equal(t, 1, result.Sent)
+	assert.Equal(t, 0, result.Failed)
+}
+
 func TestSendAllWithReplyTo(t *testing.T) {
 	sender := &mockSender{}
 	cfg := config.MailConfig{

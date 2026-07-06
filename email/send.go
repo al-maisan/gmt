@@ -195,7 +195,10 @@ func (sc *BatchSender) sendOne(m Message, prefix string) error {
 // with opts.RetryDelay between attempts.
 func (sc *BatchSender) sendWithRetry(msg *mail.Msg, prefix, recipient string) error {
 	var err error
-	for attempt := range sc.opts.Retries + 1 {
+	// Always attempt at least once; a negative Retries must never silently
+	// skip the send and report success.
+	attempts := max(sc.opts.Retries+1, 1)
+	for attempt := range attempts {
 		if attempt > 0 {
 			logf(sc.w, "%s   retrying %s...\n", prefix, recipient)
 			if sc.opts.RetryDelay > 0 {
