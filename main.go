@@ -115,6 +115,11 @@ func main() {
 		os.Exit(exitConfigError)
 	}
 
+	if err := email.CheckAttachments(msgs); err != nil {
+		log.Printf("Error: %v", err)
+		os.Exit(exitConfigError)
+	}
+
 	if *doValidate {
 		fmt.Printf("Config and template are valid: %d recipient(s)\n", len(msgs))
 		os.Exit(exitOK)

@@ -350,6 +350,25 @@ func TestSendAllRetryExhausted(t *testing.T) {
 	assert.Contains(t, buf.String(), "permanent error")
 }
 
+func TestCheckAttachments(t *testing.T) {
+	existing := t.TempDir() + "/present.txt"
+	require.NoError(t, os.WriteFile(existing, []byte("x"), 0o644))
+
+	// Existing per-recipient attachment: no error.
+	assert.NoError(t, CheckAttachments([]Message{
+		{Address: "a@b.com", Attachments: []string{existing}},
+	}))
+
+	// Missing per-recipient attachment: reported up front with recipient context.
+	err := CheckAttachments([]Message{
+		{Address: "a@b.com", Attachments: []string{existing}},
+		{Address: "c@d.com", Attachments: []string{"/nonexistent/missing.pdf"}},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "/nonexistent/missing.pdf")
+	assert.Contains(t, err.Error(), "c@d.com")
+}
+
 func TestSendAllNegativeRetriesStillSends(t *testing.T) {
 	// A negative Retries must not skip the send and falsely report success.
 	sender := &mockSender{}

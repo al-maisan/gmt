@@ -93,15 +93,19 @@ func Parse(bs []byte) (MailConfig, error) {
 		return MailConfig{}, err
 	}
 
+	recipients, err := convertRecipients(tc.Recipients)
+	if err != nil {
+		return MailConfig{}, err
+	}
+
 	cfg := MailConfig{
 		From:        tc.General.From,
 		Subject:     tc.General.Subject,
 		ReplyTo:     tc.General.ReplyTo,
 		Cc:          tc.General.Cc,
 		Attachments: tc.General.Attachments,
+		Recipients:  recipients,
 	}
-
-	cfg.Recipients = convertRecipients(tc.Recipients)
 
 	return cfg, nil
 }
@@ -135,14 +139,29 @@ func formatValidationError(err error) error {
 	return fmt.Errorf("%s", strings.Join(msgs, "; "))
 }
 
+// reservedDataKeys are the placeholder keys owned by the template engine
+// (%EA%, %FN%, %LN%). A recipient data key that folds to one of these would be
+// silently shadowed during substitution, so it is rejected at parse time.
+var reservedDataKeys = map[string]struct{}{"EA": {}, "FN": {}, "LN": {}}
+
 // convertRecipients transforms TOML recipient entries into Recipient structs.
-func convertRecipients(entries []tomlRecipient) []Recipient {
-	var recipients []Recipient
+// Data keys are upper-cased to match %KEY% placeholders; it returns an error if
+// two keys collide after folding, or a key collides with a reserved placeholder,
+// since either case would silently drop or nondeterministically pick a value.
+func convertRecipients(entries []tomlRecipient) ([]Recipient, error) {
+	recipients := make([]Recipient, 0, len(entries))
 
 	for _, e := range entries {
 		data := make(map[string]string, len(e.Data))
 		for k, v := range e.Data {
-			data[strings.ToUpper(k)] = v
+			key := strings.ToUpper(k)
+			if _, ok := reservedDataKeys[key]; ok {
+				return nil, fmt.Errorf("recipient %q: data key %q collides with reserved placeholder %%%s%%", e.Email, k, key)
+			}
+			if _, ok := data[key]; ok {
+				return nil, fmt.Errorf("recipient %q: data keys collide after upper-casing to %q", e.Email, key)
+			}
+			data[key] = v
 		}
 
 		recipients = append(recipients, Recipient{
@@ -156,7 +175,7 @@ func convertRecipients(entries []tomlRecipient) []Recipient {
 			AttachmentsExtra: e.AttachmentsExtra,
 		})
 	}
-	return recipients
+	return recipients, nil
 }
 
 // checkAttachments verifies that every path in attachments exists and is accessible.
