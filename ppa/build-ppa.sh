@@ -11,9 +11,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC_DIR="$(dirname "$SCRIPT_DIR")"
 BUILD_DIR="/tmp/gmt-ppa-build"
 
-# Read version from Makefile
-VERSION=$(grep '^VERSION' "$SRC_DIR/Makefile" | head -1 | awk -F':= ' '{print $2}' | tr -d ' ')
-TAG="v${VERSION}"
+# Derive version from the latest git tag (the single source of truth)
+TAG=$(git -C "$SRC_DIR" describe --tags --abbrev=0)
+VERSION="${TAG#v}"
 
 # Ubuntu releases to target (add/remove as needed)
 RELEASES=("resolute")  # 26.04 LTS
