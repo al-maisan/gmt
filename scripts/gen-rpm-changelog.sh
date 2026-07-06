@@ -5,8 +5,10 @@ set -e
 
 MAINTAINER="Muharem Hrnjadovic <muharem@linux.com>"
 
-# List released tags newest first (only tags with actual GitHub releases)
-TAGS=($(gh release list --json tagName --jq '.[].tagName' 2>/dev/null))
+# List released tags newest first (only tags with actual GitHub releases).
+# Drop any ambient GITHUB_TOKEN so gh uses the keyring login; a narrow-scoped
+# token can make this return nothing and silently truncate the changelog.
+TAGS=($(env -u GITHUB_TOKEN gh release list --json tagName --jq '.[].tagName' 2>/dev/null))
 
 if [ ${#TAGS[@]} -eq 0 ]; then
     # Fallback to git tags if gh is unavailable
