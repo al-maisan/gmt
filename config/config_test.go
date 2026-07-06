@@ -268,6 +268,34 @@ data = { org = "EFF" }
 	assert.Equal(t, "EFF", cfg.Recipients[0].Data["ORG"])
 }
 
+func TestParseDataKeyCaseCollision(t *testing.T) {
+	_, err := Parse([]byte(`
+[general]
+from = "test <t@example.com>"
+subject = "test"
+[[recipients]]
+email = "a@b.com"
+first = "A"
+data = { url = "a", URL = "b" }
+`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "collide after upper-casing")
+}
+
+func TestParseDataKeyReservedCollision(t *testing.T) {
+	_, err := Parse([]byte(`
+[general]
+from = "test <t@example.com>"
+subject = "test"
+[[recipients]]
+email = "a@b.com"
+first = "A"
+data = { fn = "Company" }
+`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "reserved placeholder %FN%")
+}
+
 func TestCheckAttachmentsValid(t *testing.T) {
 	tmpFile := t.TempDir() + "/test.txt"
 	require.NoError(t, os.WriteFile(tmpFile, []byte("content"), 0o644))

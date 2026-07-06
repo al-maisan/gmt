@@ -110,6 +110,20 @@ func NewSMTPSender(creds SMTPCredentials) (Sender, error) {
 	return &smtpSender{client: client}, nil
 }
 
+// CheckAttachments verifies that every resolved attachment across all messages
+// exists and is accessible, so missing files (including per-recipient overrides)
+// are reported up front — e.g. during -validate — instead of only mid-send.
+func CheckAttachments(msgs []Message) error {
+	for _, m := range msgs {
+		for _, path := range m.Attachments {
+			if _, err := os.Stat(path); err != nil {
+				return fmt.Errorf("attachment %q for recipient %s: %w", path, m.Address, err)
+			}
+		}
+	}
+	return nil
+}
+
 // BatchSender holds the per-batch state for delivering a set of messages.
 type BatchSender struct {
 	w       io.Writer

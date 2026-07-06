@@ -181,6 +181,21 @@ func TestPrepMailsNoErrorWhenAllResolved(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestPrepMailsPlaceholderLikeValueNotFlagged(t *testing.T) {
+	// A substituted value that merely looks like a placeholder must not be
+	// misreported as unresolved (regression: batch abort on "50%OFF%deal").
+	cfg := config.MailConfig{
+		Subject: "Deal for %FN%",
+		Recipients: []config.Recipient{
+			{Email: "a@b.com", First: "Alice", Last: "Bob", Data: map[string]string{"PROMO": "50%OFF%deal"}},
+		},
+	}
+	mails, err := PrepMails(&cfg, "Hello %FN%, code: %PROMO%")
+	require.NoError(t, err)
+	require.Len(t, mails, 1)
+	assert.Equal(t, "Hello Alice, code: 50%OFF%deal", mails[0].Body)
+}
+
 func TestResolveOverride(t *testing.T) {
 	tests := []struct {
 		name    string

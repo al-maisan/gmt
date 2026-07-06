@@ -61,6 +61,42 @@ func substituteVariables(recipient config.Recipient, text string) string {
 	return strings.NewReplacer(pairs...).Replace(text)
 }
 
+// placeholderKey returns the KEY inside a "%KEY%" placeholder constant.
+func placeholderKey(p string) string { return p[1 : len(p)-1] }
+
+// availableKeys returns the set of placeholder keys resolvable for a recipient:
+// the reserved keys (EA/FN/LN) plus the recipient's upper-cased data keys.
+func availableKeys(r config.Recipient) map[string]struct{} {
+	keys := make(map[string]struct{}, len(r.Data)+3)
+	keys[placeholderKey(placeholderEmail)] = struct{}{}
+	keys[placeholderKey(placeholderFirstName)] = struct{}{}
+	keys[placeholderKey(placeholderLastName)] = struct{}{}
+	for k := range r.Data {
+		keys[k] = struct{}{}
+	}
+	return keys
+}
+
+// unresolvedPlaceholders returns the distinct %KEY% tokens in the ORIGINAL
+// (pre-substitution) text whose KEY is not resolvable. Scanning the original
+// text rather than the substituted result avoids misreporting substituted
+// values that merely look like placeholders (e.g. a data value "50%OFF%deal").
+func unresolvedPlaceholders(text string, keys map[string]struct{}) []string {
+	var missing []string
+	seen := make(map[string]struct{})
+	for _, m := range rePlaceholder.FindAllString(text, -1) {
+		if _, ok := keys[placeholderKey(m)]; ok {
+			continue
+		}
+		if _, dup := seen[m]; dup {
+			continue
+		}
+		seen[m] = struct{}{}
+		missing = append(missing, m)
+	}
+	return missing
+}
+
 // PrepMails generates a Message for each recipient by substituting template
 // variables and resolving per-recipient Cc and attachment overrides.
 // Returns an error if any placeholders remain unresolved.
@@ -71,15 +107,16 @@ func PrepMails(cfg *config.MailConfig, template string) ([]Message, error) {
 		cc := resolveOverride(cfg.Cc, recipient.Cc, recipient.CcExtra)
 		attachments := resolveOverride(cfg.Attachments, recipient.Attachments, recipient.AttachmentsExtra)
 
-		subject := substituteVariables(recipient, cfg.Subject)
-		body := substituteVariables(recipient, template)
-
-		if unresolved := rePlaceholder.FindAllString(subject, -1); len(unresolved) > 0 {
+		keys := availableKeys(recipient)
+		if unresolved := unresolvedPlaceholders(cfg.Subject, keys); len(unresolved) > 0 {
 			errs = append(errs, fmt.Sprintf("recipient '%s': unresolved placeholder(s) in subject: %s", recipient.Email, strings.Join(unresolved, ", ")))
 		}
-		if unresolved := rePlaceholder.FindAllString(body, -1); len(unresolved) > 0 {
+		if unresolved := unresolvedPlaceholders(template, keys); len(unresolved) > 0 {
 			errs = append(errs, fmt.Sprintf("recipient '%s': unresolved placeholder(s) in body: %s", recipient.Email, strings.Join(unresolved, ", ")))
 		}
+
+		subject := substituteVariables(recipient, cfg.Subject)
+		body := substituteVariables(recipient, template)
 
 		name := strings.TrimSpace(recipient.First + " " + recipient.Last)
 		mails = append(mails, Message{
