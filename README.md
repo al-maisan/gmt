@@ -191,11 +191,14 @@ Transient send failures are retried automatically (controlled by `-retries` and 
 
 ## Releasing a new version
 
-Update `VERSION` in the Makefile, commit, then publish everywhere:
+The version is derived from the latest git tag — there is no `VERSION` to edit.
+Cut a release by creating and pushing a signed tag, then publish everywhere:
 
+    $ git tag -s v0.7.0 -m "v0.7.0"
+    $ git push origin v0.7.0
     $ make publish
 
-This tags the release, creates a GitHub release, submits to Fedora COPR, and uploads to Ubuntu PPA.
+`make publish` creates the GitHub release, submits to Fedora COPR, and uploads to Ubuntu PPA, all using the tagged version. To cut it in one shot without tagging first, override: `make publish VERSION=0.7.0` creates and pushes the tag for you.
 
 Individual targets are also available:
 
