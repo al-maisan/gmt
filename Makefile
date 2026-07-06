@@ -12,8 +12,10 @@ TAG     := v$(VERSION)
 
 RPMBUILD_DIR := /tmp/gmt-rpmbuild
 TARBALL      := $(RPMBUILD_DIR)/SOURCES/gmt-$(VERSION).tar.gz
+SPEC_TEMPLATE := gmt-mail.spec
+SPEC_OUT      := $(RPMBUILD_DIR)/SPECS/gmt-mail.spec
 
-.PHONY: all build test vet lint fmt install clean srpm vendor tag release copr ppa
+.PHONY: all build test vet lint fmt install clean srpm vendor tag release copr ppa gen-spec
 
 all: test lint build
 
@@ -65,22 +67,26 @@ release: tag
 		echo "release: created $(TAG) (first release)"; \
 	fi
 
-srpm: vendor rpm-changelog
+srpm: vendor gen-spec
 	mkdir -p $(RPMBUILD_DIR)/{SOURCES,SPECS,SRPMS}
 	tar czf $(TARBALL) --transform 's,^\.,gmt-$(VERSION),' \
 		--exclude='./.git' --exclude='./gmt-mail.spec' \
 		--exclude='./ai' --exclude='./.claude' \
 		--exclude='./$(BINARY)' --exclude='./ppa' .
-	rpmbuild -bs gmt-mail.spec --define "_topdir $(RPMBUILD_DIR)"
+	rpmbuild -bs $(SPEC_OUT) --define "_topdir $(RPMBUILD_DIR)"
 	@echo "SRPM: $$(ls $(RPMBUILD_DIR)/SRPMS/gmt-mail-$(VERSION)-*.src.rpm)"
 
-rpm-changelog:
-	@sed -i 's/^Version:.*$$/Version:        $(VERSION)/' gmt-mail.spec
+# Generate the final spec into the build dir from the tracked template,
+# substituting @VERSION@ and splicing in the git-derived %changelog. The tracked
+# gmt-mail.spec is never modified, so it can never drift or dirty the tree.
+gen-spec:
+	@mkdir -p $(RPMBUILD_DIR)/SPECS
 	@./scripts/gen-rpm-changelog.sh > /tmp/rpm-changelog.tmp
-	@sed -i '/^%changelog/,$$d' gmt-mail.spec
-	@echo '%changelog' >> gmt-mail.spec
-	@cat /tmp/rpm-changelog.tmp >> gmt-mail.spec
+	@awk -v ver='$(VERSION)' -v clog=/tmp/rpm-changelog.tmp \
+		'{ gsub(/@VERSION@/, ver) } /^@CHANGELOG@$$/ { while ((getline l < clog) > 0) print l; next } { print }' \
+		$(SPEC_TEMPLATE) > $(SPEC_OUT)
 	@rm -f /tmp/rpm-changelog.tmp
+	@echo "spec: generated $(SPEC_OUT) (version $(VERSION))"
 
 copr: srpm
 	copr-cli build gmt-mail $$(ls $(RPMBUILD_DIR)/SRPMS/gmt-mail-$(VERSION)-*.src.rpm)
