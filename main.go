@@ -97,6 +97,12 @@ func main() {
 	requireFlag(*configPath, "-config-path")
 	requireFlag(*templatePath, "-template-path")
 
+	if *retries < 0 {
+		log.Printf("Error: -retries must be >= 0")
+		flag.Usage()
+		os.Exit(exitUsageError)
+	}
+
 	cfg, err := loadConfig(*configPath)
 	if err != nil {
 		log.Printf("Error: %v", err)
