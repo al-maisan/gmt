@@ -296,34 +296,6 @@ data = { fn = "Company" }
 	assert.Contains(t, err.Error(), "reserved placeholder %FN%")
 }
 
-func TestCheckAttachmentsValid(t *testing.T) {
-	tmpFile := t.TempDir() + "/test.txt"
-	require.NoError(t, os.WriteFile(tmpFile, []byte("content"), 0o644))
-	assert.NoError(t, checkAttachments([]string{tmpFile}))
-}
-
-func TestCheckAttachmentsEmpty(t *testing.T) {
-	assert.NoError(t, checkAttachments(nil))
-}
-
-func TestCheckAttachmentsMissing(t *testing.T) {
-	err := checkAttachments([]string{"/nonexistent/file.txt"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "attachment not found")
-}
-
-func TestCheckAttachmentsNotAccessible(t *testing.T) {
-	dir := t.TempDir()
-	path := dir + "/noperm.txt"
-	require.NoError(t, os.WriteFile(path, []byte("x"), 0o644))
-	require.NoError(t, os.Chmod(path, 0o000))
-	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
-
-	// On most systems os.Stat succeeds even without read permission,
-	// so this test just verifies the function doesn't panic.
-	_ = checkAttachments([]string{path})
-}
-
 func TestParseWithAttachments(t *testing.T) {
 	tmpFile := t.TempDir() + "/attach.txt"
 	require.NoError(t, os.WriteFile(tmpFile, []byte("x"), 0o644))
@@ -340,18 +312,17 @@ first = "Alice"
 	assert.Equal(t, []string{tmpFile}, cfg.Attachments)
 }
 
-func TestParseWithMissingAttachment(t *testing.T) {
+func TestParseWhitespaceSubject(t *testing.T) {
 	_, err := Parse([]byte(`
 [general]
 from = "a <a@a.com>"
-subject = "test"
-attachments = ["/nonexistent/file.txt"]
+subject = "   "
 [[recipients]]
 email = "a@b.com"
 first = "Alice"
 `))
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "attachment not found")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "subject must not be empty")
 }
 
 func TestSampleConfigParses(t *testing.T) {

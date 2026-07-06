@@ -78,8 +78,13 @@ func main() {
 	delay := flag.Duration("delay", 0, "delay between emails (e.g., 1s, 500ms)")
 	retries := flag.Int("retries", 1, "max retry attempts per failed send")
 	retryDelay := flag.Duration("retry-delay", 2*time.Second, "backoff between retries")
+	timeout := flag.Duration("timeout", 30*time.Second, "SMTP connect/send timeout (covers the full attachment upload)")
 
 	flag.Parse()
+
+	if actionFlagCount(*doVersion, *doSampleConfig, *doSampleTemplate, *doValidate, *doDryRun) > 1 {
+		log.Printf("Warning: multiple action flags set; only the first in precedence order takes effect")
+	}
 
 	if *doVersion {
 		fmt.Println(version())
@@ -99,6 +104,11 @@ func main() {
 
 	if *retries < 0 {
 		log.Printf("Error: -retries must be >= 0")
+		flag.Usage()
+		os.Exit(exitUsageError)
+	}
+	if *delay < 0 || *retryDelay < 0 || *timeout < 0 {
+		log.Printf("Error: -delay, -retry-delay and -timeout must be >= 0")
 		flag.Usage()
 		os.Exit(exitUsageError)
 	}
@@ -136,16 +146,11 @@ func main() {
 		os.Exit(exitSMTPError)
 	}
 
-	sender, err := email.NewSMTPSender(creds)
+	sender, err := email.NewSMTPSender(creds, *timeout)
 	if err != nil {
 		log.Printf("SMTP error: %v", err)
 		os.Exit(exitSMTPError)
 	}
-	defer func() {
-		if err := sender.Close(); err != nil {
-			log.Printf("Warning: failed to close SMTP connection: %v", err)
-		}
-	}()
 
 	opts := email.SendOptions{
 		Delay:      *delay,
@@ -155,11 +160,29 @@ func main() {
 	batch := email.NewBatchSender(os.Stdout, sender, cfg, opts)
 	fmt.Println("\nSending emails now..")
 	result := batch.SendAll(msgs)
+
+	// Close explicitly (not via defer) so the graceful SMTP QUIT runs even on
+	// the exitSendFailure path below — os.Exit does not run deferred calls.
+	if cerr := sender.Close(); cerr != nil {
+		log.Printf("Warning: failed to close SMTP connection: %v", cerr)
+	}
+
 	fmt.Printf("\nDone: %d sent, %d failed, %d total\n", result.Sent, result.Failed, result.Sent+result.Failed)
 
 	if result.Failed > 0 {
 		os.Exit(exitSendFailure)
 	}
+}
+
+// actionFlagCount returns how many mutually-exclusive action flags are set.
+func actionFlagCount(flags ...bool) int {
+	n := 0
+	for _, f := range flags {
+		if f {
+			n++
+		}
+	}
+	return n
 }
 
 func loadConfig(path string) (config.MailConfig, error) {
@@ -180,6 +203,9 @@ func prepMails(cfg *config.MailConfig, templatePath string) ([]email.Message, er
 	bs, err := os.ReadFile(templatePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read template file %q: %w", templatePath, err)
+	}
+	if len(strings.TrimSpace(string(bs))) == 0 {
+		return nil, fmt.Errorf("template file %q is empty", templatePath)
 	}
 
 	msgs, err := email.PrepMails(cfg, string(bs))

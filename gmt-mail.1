@@ -79,6 +79,11 @@ Backoff duration between retries (e.g.,
 .IR 5s ).
 Default is 2s.
 .TP
+.BI \-timeout " duration"
+SMTP connection and per-message send timeout, covering the full DATA and
+attachment upload. Raise it for large attachments over slow links. Default is
+30s.
+.TP
 .B \-sample\-config
 Print a sample configuration file to standard output and exit.
 .TP

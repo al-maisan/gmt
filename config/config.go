@@ -20,7 +20,6 @@ package config
 import (
 	_ "embed"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -89,8 +88,8 @@ func Parse(bs []byte) (MailConfig, error) {
 		return MailConfig{}, formatValidationError(err)
 	}
 
-	if err := checkAttachments(tc.General.Attachments); err != nil {
-		return MailConfig{}, err
+	if strings.TrimSpace(tc.General.Subject) == "" {
+		return MailConfig{}, fmt.Errorf("subject must not be empty or whitespace")
 	}
 
 	recipients, err := convertRecipients(tc.Recipients)
@@ -176,19 +175,6 @@ func convertRecipients(entries []tomlRecipient) ([]Recipient, error) {
 		})
 	}
 	return recipients, nil
-}
-
-// checkAttachments verifies that every path in attachments exists and is accessible.
-func checkAttachments(attachments []string) error {
-	for _, path := range attachments {
-		if _, err := os.Stat(path); err != nil {
-			if os.IsNotExist(err) {
-				return fmt.Errorf("attachment not found: %s", path)
-			}
-			return fmt.Errorf("attachment not accessible: %s: %w", path, err)
-		}
-	}
-	return nil
 }
 
 //go:embed samples/config.toml

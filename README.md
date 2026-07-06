@@ -182,6 +182,8 @@ Use `-dry-run` to preview all emails without sending. The output includes Cc and
             output sample template to stdout
       -template-path string
             path to the template file
+      -timeout duration
+            SMTP connect/send timeout (covers the full attachment upload) (default 30s)
       -validate
             validate config and template without sending
       -version
