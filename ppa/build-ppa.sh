@@ -89,8 +89,10 @@ for RELEASE in "${RELEASES[@]}"; do
     cp -a "$SCRIPT_DIR/debian" debian
 
     # Generate changelog from git log between previous tag and current tag
-    # Find previous released tag (not just any tag)
-    PREV_TAG=$(gh release list --limit 100 --json tagName --jq '.[].tagName' 2>/dev/null \
+    # Find previous released tag (not just any tag). Drop any ambient
+    # GITHUB_TOKEN so gh uses the keyring login (a narrow-scoped token would
+    # make this empty and mis-scope the changelog range).
+    PREV_TAG=$(env -u GITHUB_TOKEN gh release list --limit 100 --json tagName --jq '.[].tagName' 2>/dev/null \
         | grep -v "^${TAG}$" | head -1 || echo "")
     TIMESTAMP=$(date -R)
     {

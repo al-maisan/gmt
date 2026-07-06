@@ -4,13 +4,13 @@
 
 ## Installation
 
-### Ubuntu (PPA)
+### Ubuntu ([PPA](https://launchpad.net/~al-maisan/+archive/ubuntu/gmt-mail))
 
     $ sudo add-apt-repository ppa:al-maisan/gmt-mail
     $ sudo apt update
     $ sudo apt install gmt-mail
 
-### Fedora (COPR)
+### Fedora ([COPR](https://copr.fedorainfracloud.org/coprs/al-maisan/gmt-mail/))
 
     $ sudo dnf copr enable al-maisan/gmt-mail
     $ sudo dnf install gmt-mail
@@ -109,7 +109,7 @@ cc = ["merry@shire.org"]
 
 ## Template variables
 
-Templates support these placeholders (in both subject and body). Custom keys are matched in **uppercase** -- use `%ORG%` not `%org%`.
+Templates support these placeholders (in both subject and body). Custom keys are matched in **uppercase** -- use `%ORG%` not `%org%`. Because keys are case-folded, two data keys that differ only in case (e.g. `url` and `URL`) are rejected as a collision, and a custom key may not reuse a reserved name (`EA`, `FN`, `LN`).
 
 | Placeholder | Value                                    |
 |-------------|------------------------------------------|
@@ -157,7 +157,7 @@ Use `-dry-run` to preview all emails without sending. The output includes Cc and
 | Code | Meaning                          |
 |------|----------------------------------|
 | 0    | Success                          |
-| 1    | Usage error (missing flags)      |
+| 1    | Usage error (missing or invalid flags) |
 | 2    | Config or template file error    |
 | 3    | SMTP connection error            |
 | 4    | One or more emails failed to send|
@@ -189,7 +189,7 @@ Use `-dry-run` to preview all emails without sending. The output includes Cc and
       -version
             print version and exit
 
-Transient send failures are retried automatically (controlled by `-retries` and `-retry-delay`). Progress is shown as `[1/N]` for each message.
+Transient send failures are retried automatically (controlled by `-retries` and `-retry-delay`). If the SMTP connection is dropped mid-batch (e.g. a server idle-timeout or per-connection message cap), it is re-established before the next attempt so the rest of the batch is not lost. Large attachments over slow links may need a higher `-timeout`. Progress is shown as `[1/N]` for each message.
 
 ## Releasing a new version
 
@@ -201,6 +201,8 @@ Cut a release by creating and pushing a signed tag, then publish everywhere:
     $ make publish
 
 `make publish` creates the GitHub release, submits to Fedora COPR, and uploads to Ubuntu PPA, all using the tagged version. To cut it in one shot without tagging first, override: `make publish VERSION=0.7.0` creates and pushes the tag for you.
+
+> **Note:** both package changelogs (the RPM `%changelog` and the Debian `debian/changelog`) are generated from `git log` between **GitHub releases**, so a version appears in them only once a GitHub *release* exists for its tag. `make publish` (and `make release`) create the release *before* building packages, so a full `make publish` yields complete changelogs — but building packages standalone (`make srpm`/`make copr`/`make ppa`) before the release exists will omit that version.
 
 Individual targets are also available:
 

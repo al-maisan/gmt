@@ -10,6 +10,10 @@ DATE    := $(shell date -u +%Y-%m-%d)
 LDFLAGS := -X main.appVersion=$(VERSION) -X main.gitCommit=$(COMMIT) -X main.buildDate=$(DATE)
 TAG     := v$(VERSION)
 
+# Run gh with any ambient GITHUB_TOKEN removed so it uses the keyring login;
+# a narrow-scoped GITHUB_TOKEN in the environment cannot create releases.
+GH := env -u GITHUB_TOKEN gh
+
 RPMBUILD_DIR := /tmp/gmt-rpmbuild
 TARBALL      := $(RPMBUILD_DIR)/SOURCES/gmt-$(VERSION).tar.gz
 SPEC_TEMPLATE := gmt-mail.spec
@@ -54,17 +58,17 @@ tag:
 		echo "tag: pushed $(TAG)"; \
 	fi
 
-PREV_RELEASE := $(shell gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null)
+PREV_RELEASE := $(shell $(GH) release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null)
 
 release: tag
-	@if gh release view $(TAG) >/dev/null 2>&1; then \
+	@if $(GH) release view $(TAG) >/dev/null 2>&1; then \
 		echo "release: $(TAG) exists on GitHub"; \
 	elif [ -n "$(PREV_RELEASE)" ]; then \
-		gh release create $(TAG) --title "$(TAG)" --generate-notes --notes-start-tag $(PREV_RELEASE); \
-		echo "release: created $(TAG) (diff from $(PREV_RELEASE))"; \
+		$(GH) release create $(TAG) --title "$(TAG)" --generate-notes --notes-start-tag $(PREV_RELEASE) \
+			&& echo "release: created $(TAG) (diff from $(PREV_RELEASE))"; \
 	else \
-		gh release create $(TAG) --title "$(TAG)" --generate-notes; \
-		echo "release: created $(TAG) (first release)"; \
+		$(GH) release create $(TAG) --title "$(TAG)" --generate-notes \
+			&& echo "release: created $(TAG) (first release)"; \
 	fi
 
 srpm: vendor gen-spec
