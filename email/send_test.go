@@ -187,6 +187,8 @@ func (m *mockSender) Send(_ *mail.Msg) error {
 	return nil
 }
 
+func (m *mockSender) Reconnect() error { return nil }
+
 func (m *mockSender) Close() error {
 	m.closed = true
 	return nil
@@ -199,7 +201,7 @@ func TestNewSMTPSenderConnectionError(t *testing.T) {
 		User:     "user",
 		Password: "pass",
 	}
-	_, err := NewSMTPSender(creds)
+	_, err := NewSMTPSender(creds, 0)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to connect")
 }
@@ -316,6 +318,8 @@ func (f *failNthSender) Send(_ *mail.Msg) error {
 	return nil
 }
 
+func (f *failNthSender) Reconnect() error { return nil }
+
 func (f *failNthSender) Close() error { return nil }
 
 func TestSendAllRetrySuccess(t *testing.T) {
@@ -367,6 +371,59 @@ func TestCheckAttachments(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "/nonexistent/missing.pdf")
 	assert.Contains(t, err.Error(), "c@d.com")
+}
+
+// connDropSender fails the first send with a dropped-connection error, then
+// succeeds; it records how many times Reconnect was invoked.
+type connDropSender struct {
+	sends   int
+	reconns int
+}
+
+func (c *connDropSender) Send(_ *mail.Msg) error {
+	c.sends++
+	if c.sends == 1 {
+		return &mail.SendError{Reason: mail.ErrConnCheck}
+	}
+	return nil
+}
+func (c *connDropSender) Reconnect() error { c.reconns++; return nil }
+func (c *connDropSender) Close() error     { return nil }
+
+func TestSendAllReconnectsOnDroppedConnection(t *testing.T) {
+	sender := &connDropSender{}
+	cfg := config.MailConfig{From: "sender@example.com"}
+	msgs := []Message{{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello"}}
+
+	var buf bytes.Buffer
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{Retries: 1}).SendAll(msgs)
+	assert.Equal(t, 1, result.Sent)
+	assert.Equal(t, 0, result.Failed)
+	assert.Equal(t, 1, sender.reconns, "should re-dial after a dropped connection")
+	assert.Equal(t, 2, sender.sends)
+}
+
+// resetErrSender always returns a post-delivery RSET error — the server has
+// already accepted the message.
+type resetErrSender struct{ sends int }
+
+func (r *resetErrSender) Send(_ *mail.Msg) error {
+	r.sends++
+	return &mail.SendError{Reason: mail.ErrSMTPReset}
+}
+func (r *resetErrSender) Reconnect() error { return nil }
+func (r *resetErrSender) Close() error     { return nil }
+
+func TestSendAllDeliveredDespiteResetError(t *testing.T) {
+	sender := &resetErrSender{}
+	cfg := config.MailConfig{From: "sender@example.com"}
+	msgs := []Message{{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello"}}
+
+	var buf bytes.Buffer
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{Retries: 2}).SendAll(msgs)
+	assert.Equal(t, 1, result.Sent, "delivered message must count as sent, not failed")
+	assert.Equal(t, 0, result.Failed)
+	assert.Equal(t, 1, sender.sends, "must not retry an already-delivered message")
 }
 
 func TestSendAllNegativeRetriesStillSends(t *testing.T) {

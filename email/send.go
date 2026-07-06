@@ -18,6 +18,7 @@ package email
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -32,6 +33,8 @@ import (
 // Sender abstracts the ability to send an email message.
 type Sender interface {
 	Send(msg *mail.Msg) error
+	// Reconnect re-establishes the underlying connection after it has dropped.
+	Reconnect() error
 	Close() error
 }
 
@@ -90,15 +93,22 @@ func LoadSMTPCredentials() (SMTPCredentials, error) {
 }
 
 // NewSMTPSender creates a connected SMTP sender using the given credentials.
-// The caller must call Close when done.
-func NewSMTPSender(creds SMTPCredentials) (Sender, error) {
-	client, err := mail.NewClient(creds.Host,
+// A positive timeout bounds each connect and per-message send (covering the
+// full DATA/attachment stream); zero uses the go-mail default. The caller must
+// call Close when done.
+func NewSMTPSender(creds SMTPCredentials, timeout time.Duration) (Sender, error) {
+	opts := []mail.Option{
 		mail.WithPort(creds.Port),
 		mail.WithUsername(creds.User),
 		mail.WithPassword(creds.Password),
 		mail.WithSMTPAuth(mail.SMTPAuthPlain),
 		mail.WithTLSPolicy(mail.TLSMandatory),
-	)
+	}
+	if timeout > 0 {
+		opts = append(opts, mail.WithTimeout(timeout))
+	}
+
+	client, err := mail.NewClient(creds.Host, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SMTP client for %s:%d: %w", creds.Host, creds.Port, err)
 	}
@@ -176,6 +186,13 @@ type smtpSender struct {
 func (s *smtpSender) Send(msg *mail.Msg) error { return s.client.Send(msg) }
 func (s *smtpSender) Close() error             { return s.client.Close() }
 
+// Reconnect closes the (likely dead) connection best-effort and re-dials,
+// reusing the client's stored configuration.
+func (s *smtpSender) Reconnect() error {
+	_ = s.client.Close()
+	return s.client.DialWithContext(context.Background())
+}
+
 // sendOne prepares and sends a single message, with retries.
 func (sc *BatchSender) sendOne(m Message, prefix string) error {
 	recipient := fmt.Sprintf("%s <%s>", m.Name, m.Address)
@@ -205,8 +222,11 @@ func (sc *BatchSender) sendOne(m Message, prefix string) error {
 	return nil
 }
 
-// sendWithRetry attempts to send msg, retrying up to opts.Retries times
-// with opts.RetryDelay between attempts.
+// sendWithRetry attempts to send msg, retrying up to opts.Retries times with
+// opts.RetryDelay between attempts. When a failure looks like a dropped
+// connection it re-dials before the next attempt, so a server that closes the
+// connection mid-batch (idle timeout, per-connection message cap) does not doom
+// every remaining recipient.
 func (sc *BatchSender) sendWithRetry(msg *mail.Msg, prefix, recipient string) error {
 	var err error
 	// Always attempt at least once; a negative Retries must never silently
@@ -215,6 +235,11 @@ func (sc *BatchSender) sendWithRetry(msg *mail.Msg, prefix, recipient string) er
 	for attempt := range attempts {
 		if attempt > 0 {
 			logf(sc.w, "%s   retrying %s...\n", prefix, recipient)
+			if isConnectionError(err) {
+				if rcErr := sc.sender.Reconnect(); rcErr != nil {
+					logf(sc.w, "%s   reconnect failed: %v\n", prefix, rcErr)
+				}
+			}
 			if sc.opts.RetryDelay > 0 {
 				time.Sleep(sc.opts.RetryDelay)
 			}
@@ -223,9 +248,34 @@ func (sc *BatchSender) sendWithRetry(msg *mail.Msg, prefix, recipient string) er
 		if err == nil {
 			return nil
 		}
+		// The server accepted the message but a later step (e.g. RSET) failed:
+		// it was delivered, so do not count it as failed or re-send it.
+		if deliveredDespiteError(msg, err) {
+			return nil
+		}
 	}
 	logf(sc.w, "%s ! %s (failed to send: %v)\n", prefix, recipient, err)
 	return err
+}
+
+// isConnectionError reports whether err indicates the SMTP connection is dead
+// or temporarily unusable, so a reconnect should precede the next attempt.
+func isConnectionError(err error) bool {
+	var se *mail.SendError
+	if errors.As(err, &se) {
+		return se.Reason == mail.ErrConnCheck || se.IsTemp()
+	}
+	return false
+}
+
+// deliveredDespiteError reports whether the server actually accepted msg even
+// though Send returned an error (e.g. a post-delivery RSET failure).
+func deliveredDespiteError(msg *mail.Msg, err error) bool {
+	if msg.IsDelivered() {
+		return true
+	}
+	var se *mail.SendError
+	return errors.As(err, &se) && se.Reason == mail.ErrSMTPReset
 }
 
 // createMessage builds a single email message with the given headers and body.
