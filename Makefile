@@ -1,5 +1,10 @@
 BINARY  := gmt-mail
-VERSION := 0.6.2
+# VERSION is derived from the latest git tag (the single source of truth for a
+# release). Cut a release by creating the tag, e.g.:
+#   git tag -s v0.7.0 -m "v0.7.0" && git push origin v0.7.0
+# Override for a one-shot cut before the tag exists: make release VERSION=0.7.0
+GIT_VERSION := $(shell git describe --tags --abbrev=0 2>/dev/null)
+VERSION     := $(patsubst v%,%,$(or $(GIT_VERSION),v0.0.0))
 COMMIT  := $(shell git rev-parse --short HEAD)
 DATE    := $(shell date -u +%Y-%m-%d)
 LDFLAGS := -X main.appVersion=$(VERSION) -X main.gitCommit=$(COMMIT) -X main.buildDate=$(DATE)
