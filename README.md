@@ -24,7 +24,7 @@ Requires [Go](https://go.dev/) 1.25 or later.
     $ make build
     $ ./gmt-mail -h
 
-The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `vendor`, `clean`, `srpm`, `copr`, `ppa`, `test-ppa`, `test-copr`, `tag`, `release`, `publish`.
+The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `vendor`, `clean`, `srpm`, `copr`, `ppa`, `test-ppa`, `test-copr`, `man`, `test-man`, `tag`, `release`, `publish`.
 
 ## Quick start
 
@@ -222,6 +222,8 @@ Individual targets are also available:
 `make test-ppa` runs the tests for that upload detection.
 
 `make copr` targets every Fedora release that is both released (final images on fedoraproject.org) and still maintained (Bodhi), so new Fedora releases are picked up automatically and enabled in the COPR project as needed. It builds only for the releases that don't have the tagged version yet and does nothing otherwise. Force a rebuild with `make copr COPR_FORCE=1`, or pick releases with `make copr COPR_CHROOTS="fedora-44-x86_64"`. `make test-copr` runs the tests for this logic.
+
+The man page `gmt-mail.1` carries `@VERSION@`/`@DATE@` placeholders in its `.TH` header. The RPM spec and the Debian rules fill them in from the package version and its changelog date, so every package (`make copr`, `make ppa`, `make publish`) ships a man page with its own version and release date, without a manual bump. `make man` renders it to `/tmp/gmt-man/gmt-mail.1` for viewing (`man -l /tmp/gmt-man/gmt-mail.1`); `make test-man` checks the substitution.
 
 ## License
 
