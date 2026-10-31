@@ -15,6 +15,14 @@
     $ sudo dnf copr enable al-maisan/gmt-mail
     $ sudo dnf install gmt-mail
 
+### With Go
+
+Requires [Go](https://go.dev/) 1.26 or later.
+
+    $ go install github.com/al-maisan/gmt-mail@latest
+
+This installs `gmt-mail` to `$(go env GOPATH)/bin`. `-version` shows the module version.
+
 ### From source
 
 Requires [Go](https://go.dev/) 1.26 or later.
