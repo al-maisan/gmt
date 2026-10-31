@@ -1,0 +1,18 @@
+[general]
+from = '"Frodo Baggins" <frodo@shire.example>'
+subject = "Your seat at the %EVENT%, %FN%"
+
+[[recipients]]
+email = "sam@shire.example"
+first = "Samwise"
+data = { EVENT = "Long-expected Party", SEAT = "12" }
+
+[[recipients]]
+email = "merry@shire.example"
+first = "Meriadoc"
+data = { EVENT = "Long-expected Party", SEAT = "7" }
+
+[[recipients]]
+email = "pippin@shire.example"
+first = "Peregrin"
+data = { EVENT = "Long-expected Party", SEAT = "8" }

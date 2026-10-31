@@ -6,9 +6,78 @@
   </picture>
 </p>
 
-# Go mailing tool (gmt-mail)
+# gmt-mail
 
-`gmt-mail` is a simple utility that sends personalized emails in bulk using a configuration file and a template for the email body. It connects directly via SMTP with mandatory TLS.
+Send the same email to many people, each copy personalized, straight from the terminal. You keep the recipients and their details in a TOML file and the text in a template. `gmt-mail` fills in each person's values and sends every copy from your own SMTP account (Gmail, Fastmail, your company server, …) over TLS.
+
+![gmt-mail demo: validate, dry run, then send](docs/demo/demo.gif)
+
+## Example
+
+`config.toml`:
+
+```toml
+[general]
+from = '"Frodo Baggins" <frodo@shire.example>'
+subject = "Your seat at the %EVENT%, %FN%"
+
+[[recipients]]
+email = "sam@shire.example"
+first = "Samwise"
+data = { EVENT = "Long-expected Party", SEAT = "12" }
+
+[[recipients]]
+email = "merry@shire.example"
+first = "Meriadoc"
+data = { EVENT = "Long-expected Party", SEAT = "7" }
+```
+
+`template.eml`:
+
+```
+Hi %FN%,
+
+your seat at the %EVENT% is number %SEAT%.
+
+Cheers,
+Frodo
+```
+
+`gmt-mail -dry-run -config-path config.toml -template-path template.eml` shows what each person gets:
+
+```
+--
+"Samwise" <sam@shire.example>
+Subject: Your seat at the Long-expected Party, Samwise
+Hi Samwise,
+
+your seat at the Long-expected Party is number 12.
+
+Cheers,
+Frodo
+```
+
+Drop `-dry-run` to send. The files for this example and the demo are in [`docs/demo/`](docs/demo/).
+
+## Why gmt-mail?
+
+- **One binary, no setup.** No Python environment, mail client or web service. It runs the same on a laptop, a server or in CI.
+- **Safe to run.** `-validate` checks the config, the addresses, the attachments and every placeholder before anything is sent. `-dry-run` prints every message. Unknown config keys and leftover placeholders are errors, not silent mistakes.
+- **Secure by default.** TLS is mandatory (STARTTLS, or implicit TLS on port 465), with no plaintext fallback. The password comes from the environment and is never logged.
+- **Personal, not a newsletter.** Each person gets a normal email from your own address, with per-recipient Cc and attachments. Replies come back to you.
+- **Robust sending.** Retries, reconnects when the server drops the connection, an optional delay between messages, and a summary with a clear exit code.
+
+Compared with the usual alternatives:
+
+| | gmt-mail | Python mail-merge script | Thunderbird mail merge | Mailchimp & co. |
+|---|---|---|---|---|
+| Install | one binary | Python + code you maintain | Thunderbird + add-on | web account |
+| Scriptable / CI | yes | yes | no | via API |
+| Checks before sending | `-validate`, `-dry-run` | what you write | preview | preview |
+| Sent from | your SMTP account | your SMTP account | your mail account | their servers |
+| Your list stays with you | yes | yes | yes | no |
+
+`gmt-mail` is meant for tens to a few hundred personal messages. For large newsletters that need unsubscribe handling and bounce tracking, use an email service provider.
 
 ## Installation
 
