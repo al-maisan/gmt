@@ -19,8 +19,8 @@
 
 Requires [Go](https://go.dev/) 1.26 or later.
 
-    $ git clone https://github.com/al-maisan/gmt.git
-    $ cd gmt
+    $ git clone https://github.com/al-maisan/gmt-mail.git
+    $ cd gmt-mail
     $ make build
     $ ./gmt-mail -h
 
