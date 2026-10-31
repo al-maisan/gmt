@@ -22,11 +22,13 @@ build() {
   cd "$pkgname-$pkgver"
   export GOPATH="$srcdir/gopath"
   export CGO_CPPFLAGS="$CPPFLAGS" CGO_CFLAGS="$CFLAGS" CGO_CXXFLAGS="$CXXFLAGS" CGO_LDFLAGS="$LDFLAGS"
-  local date
+  local date mandate
   date=$(date -u -d "@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%F)
+  # man page date = release date: GitHub archives carry the tagged commit's time
+  mandate=$(date -u -r gmt-mail.1 +%F)
   go build -buildmode=pie -trimpath -mod=readonly -modcacherw \
     -ldflags "-linkmode=external -X main.appVersion=$pkgver -X main.buildDate=$date" -o gmt-mail .
-  sed -e "s/@VERSION@/$pkgver/g" -e "s/@DATE@/$date/g" gmt-mail.1 >gmt-mail.1.out
+  sed -e "s/@VERSION@/$pkgver/g" -e "s/@DATE@/$mandate/g" gmt-mail.1 >gmt-mail.1.out
 }
 
 check() {
