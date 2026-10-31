@@ -1,6 +1,6 @@
 pkgbase = gmt-mail
 	pkgdesc = Send personalized bulk emails (mail merge) from the terminal over SMTP with TLS
-	pkgver = 0.9.0
+	pkgver = 0.10.0
 	pkgrel = 1
 	url = https://github.com/al-maisan/gmt-mail
 	arch = x86_64
@@ -8,7 +8,7 @@ pkgbase = gmt-mail
 	license = GPL-3.0-or-later
 	makedepends = go
 	depends = glibc
-	source = gmt-mail-0.9.0.tar.gz::https://github.com/al-maisan/gmt-mail/archive/v0.9.0.tar.gz
-	sha256sums = 54e67abf51c7ac3251a50a9077e7e07bc723df39d44e3f0be8350b9be3c22a78
+	source = gmt-mail-0.10.0.tar.gz::https://github.com/al-maisan/gmt-mail/archive/v0.10.0.tar.gz
+	sha256sums = 3d4446fcdddf00422a900833cffb80a6777108df373574a467f249fe26700b44
 
 pkgname = gmt-mail

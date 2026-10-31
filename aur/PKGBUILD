@@ -1,7 +1,7 @@
 # Maintainer: Muharem Hrnjadovic <muharem@linux.com>
 # AUR package; bump pkgver and sha256sums for each release (see README).
 pkgname=gmt-mail
-pkgver=0.9.0
+pkgver=0.10.0
 pkgrel=1
 pkgdesc='Send personalized bulk emails (mail merge) from the terminal over SMTP with TLS'
 arch=('x86_64' 'aarch64')
@@ -10,7 +10,7 @@ license=('GPL-3.0-or-later')
 depends=('glibc')
 makedepends=('go')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
-sha256sums=('54e67abf51c7ac3251a50a9077e7e07bc723df39d44e3f0be8350b9be3c22a78')
+sha256sums=('3d4446fcdddf00422a900833cffb80a6777108df373574a467f249fe26700b44')
 
 prepare() {
   cd "$pkgname-$pkgver"
@@ -42,8 +42,5 @@ package() {
   install -Dm755 gmt-mail "$pkgdir/usr/bin/gmt-mail"
   install -Dm644 gmt-mail.1.out "$pkgdir/usr/share/man/man1/gmt-mail.1"
   install -Dm644 README.md .env.example -t "$pkgdir/usr/share/doc/$pkgname/"
-  # logos shown by the README (the v0.9.0 tarball has none)
-  if [ -d assets ]; then
-    install -Dm644 assets/logo.svg assets/logo-dark.svg -t "$pkgdir/usr/share/doc/$pkgname/assets/"
-  fi
+  install -Dm644 assets/logo.svg assets/logo-dark.svg -t "$pkgdir/usr/share/doc/$pkgname/assets/"
 }
