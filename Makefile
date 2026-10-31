@@ -19,7 +19,7 @@ TARBALL      := $(RPMBUILD_DIR)/SOURCES/gmt-$(VERSION).tar.gz
 SPEC_TEMPLATE := gmt-mail.spec
 SPEC_OUT      := $(RPMBUILD_DIR)/SPECS/gmt-mail.spec
 
-.PHONY: all build test vet lint fmt install clean srpm vendor tag release copr ppa gen-spec
+.PHONY: all build test vet lint fmt install clean srpm vendor tag release copr ppa test-ppa gen-spec
 
 all: test lint build
 
@@ -95,8 +95,13 @@ gen-spec:
 copr: srpm
 	copr-cli build gmt-mail $$(ls $(RPMBUILD_DIR)/SRPMS/gmt-mail-$(VERSION)-*.src.rpm)
 
+# Uploads only releases that don't have this version yet; force a rebuild of an
+# already-uploaded version with: make ppa PPA_REV=2
 ppa: tag vendor
-	ppa/build-ppa.sh
+	ppa/build-ppa.sh $(PPA_REV)
+
+test-ppa:
+	ppa/build-ppa_test.sh
 
 publish: release copr ppa
 	@echo "Published $(TAG) to GitHub, COPR, and PPA"

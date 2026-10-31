@@ -24,7 +24,7 @@ Requires [Go](https://go.dev/) 1.25 or later.
     $ make build
     $ ./gmt-mail -h
 
-The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `vendor`, `clean`, `srpm`, `copr`, `ppa`, `tag`, `release`, `publish`.
+The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `vendor`, `clean`, `srpm`, `copr`, `ppa`, `test-ppa`, `tag`, `release`, `publish`.
 
 ## Quick start
 
@@ -212,12 +212,14 @@ Individual targets are also available:
 | `release` | Tag + create GitHub release                    |
 | `srpm`    | Build a source RPM                             |
 | `copr`    | Build SRPM + submit to Fedora COPR             |
-| `ppa`     | Tag + build and upload to Ubuntu PPA           |
+| `ppa`     | Tag + build and upload to Ubuntu PPA (skips Ubuntu releases that already have this version) |
 | `publish` | All of the above                               |
 
-If only PPA packaging files changed, increment the PPA revision:
+`make ppa` asks Launchpad what is already uploaded and does nothing for an Ubuntu release that already has the tagged version, so re-running it without a new tag publishes nothing. If only PPA packaging files changed, force a rebuild with the next PPA revision:
 
-    $ ppa/build-ppa.sh 2
+    $ make ppa PPA_REV=2
+
+`make test-ppa` runs the tests for that upload detection.
 
 ## License
 

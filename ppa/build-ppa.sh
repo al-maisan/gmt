@@ -18,22 +18,58 @@ VERSION="${TAG#v}"
 # Ubuntu releases to target (add/remove as needed)
 RELEASES=("resolute")  # 26.04 LTS
 
-# Determine PPA revision — query Launchpad for existing uploads of this version
-# and auto-increment, or use explicit argument if provided.
+# uploaded_versions VERSION: read Launchpad's getPublishedSources JSON on stdin and
+# print the package versions uploaded for upstream VERSION (e.g. 0.8.0-1ppa1~resolute1).
+uploaded_versions() {
+    local v
+    grep -oP '"source_package_version":\s*"\K[^"]+' | while read -r v; do
+        if [[ "$v" == "$1-1ppa"* ]]; then echo "$v"; fi
+    done
+}
+
+# uploaded_for RELEASE: true if UPLOADED (newline-separated versions) has one for RELEASE.
+uploaded_for() {
+    grep -qE "^${VERSION//./\\.}-1ppa[0-9]+~$1[0-9]+$" <<<"$UPLOADED"
+}
+
+# next_rev: one above the highest ppa revision in UPLOADED, or 1.
+next_rev() {
+    local top
+    top=$(grep -oP "^${VERSION//./\\.}-1ppa\K[0-9]+" <<<"$UPLOADED" | sort -n | tail -1)
+    echo $(( ${top:-0} + 1 ))
+}
+
+# The functions above are sourced by build-ppa_test.sh; stop here in that case.
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then return 0; fi
+
+# Ask Launchpad what is already uploaded for this version. Fail loudly: guessing
+# "nothing uploaded" would build a fresh orig that Launchpad then rejects.
+LP_JSON=$(curl -fsS "https://api.launchpad.net/1.0/~${LP_USER}/+archive/ubuntu/${LP_PPA}?ws.op=getPublishedSources&source_name=gmt-mail&exact_match=true") \
+    || { echo "Error: cannot query Launchpad for existing uploads" >&2; exit 1; }
+UPLOADED=$(uploaded_versions "$VERSION" <<<"$LP_JSON")
+
+# Without an explicit revision, skip releases that already have this version, so an
+# unchanged tag is not re-published. Pass a revision to force a rebuild:
+#   make ppa PPA_REV=2   (or: ppa/build-ppa.sh 2)
 if [ -n "${1:-}" ]; then
     PPA_REV="$1"
+    TODO=("${RELEASES[@]}")
 else
-    # Find the highest ppa revision already uploaded for this version
-    EXISTING=$(curl -s "https://api.launchpad.net/1.0/~${LP_USER}/+archive/ubuntu/${LP_PPA}?ws.op=getPublishedSources&source_name=gmt-mail&exact_match=true" \
-        | grep -oP "\"source_package_version\": \"${VERSION}-1ppa\K[0-9]+" \
-        | sort -n | tail -1)
-    if [ -n "$EXISTING" ]; then
-        PPA_REV=$((EXISTING + 1))
-        echo "Found existing ppa${EXISTING} for ${VERSION}, using ppa${PPA_REV}"
-    else
-        PPA_REV=1
+    PPA_REV=$(next_rev)
+    TODO=()
+    for RELEASE in "${RELEASES[@]}"; do
+        if uploaded_for "$RELEASE"; then
+            echo "Skipping ${RELEASE}: ${VERSION} already uploaded as $(grep "~${RELEASE}" <<<"$UPLOADED" | paste -sd' ')"
+        else
+            TODO+=("$RELEASE")
+        fi
+    done
+    if [ ${#TODO[@]} -eq 0 ]; then
+        echo "Nothing to do. To force a rebuild: make ppa PPA_REV=${PPA_REV}"
+        exit 0
     fi
 fi
+RELEASES=("${TODO[@]}")
 
 # Verify the git tag exists
 cd "$SRC_DIR"
@@ -56,7 +92,7 @@ cd "$BUILD_DIR"
 # rebuild we must reuse the already-published orig rather than regenerate it —
 # otherwise the .dsc checksums won't match Launchpad's stored copy and the upload
 # is rejected.
-if [ "$PPA_REV" -gt 1 ]; then
+if [ -n "$UPLOADED" ]; then
     echo "Reusing published orig tarball for ${VERSION} (ppa${PPA_REV} rebuild)"
     curl -fSL -o "$ORIG" \
         "https://launchpad.net/~${LP_USER}/+archive/ubuntu/${LP_PPA}/+files/${ORIG}"
@@ -108,8 +144,8 @@ for RELEASE in "${RELEASES[@]}"; do
     } > debian/changelog
 
     # Build signed source package
-    # Use -sd (debian-only) for rebuilds to avoid orig tarball mismatch
-    if [ "$PPA_REV" -gt 1 ]; then
+    # Use -sd (debian-only) when the orig is already on Launchpad
+    if [ -n "$UPLOADED" ]; then
         SA_FLAG="-sd"
     else
         SA_FLAG="-sa"
