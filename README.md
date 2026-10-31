@@ -4,6 +4,22 @@
 
 ## Installation
 
+### Prebuilt binaries (Linux, macOS, Windows)
+
+Every [release](https://github.com/al-maisan/gmt-mail/releases) has archives for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64 and windows/amd64 (zip). Each holds the `gmt-mail` binary, the man page, README and LICENSE. `SHA256SUMS` is signed with the [maintainer's key](https://github.com/al-maisan.gpg). Example for Linux amd64 (set `V` to the latest release):
+
+    $ V=0.9.1 A=gmt-mail-$V-linux-amd64
+    $ U=https://github.com/al-maisan/gmt-mail/releases/download/v$V
+    $ curl -LO $U/$A.tar.gz -LO $U/SHA256SUMS -LO $U/SHA256SUMS.asc
+    $ curl -s https://github.com/al-maisan.gpg | gpg --import
+    $ gpg --verify SHA256SUMS.asc SHA256SUMS
+    $ sha256sum --ignore-missing -c SHA256SUMS
+    $ tar xzf $A.tar.gz
+    $ sudo install -m 0755 $A/gmt-mail /usr/local/bin/
+    $ sudo install -Dm 0644 $A/gmt-mail.1 /usr/local/share/man/man1/gmt-mail.1
+
+On macOS use `shasum -a 256 --ignore-missing -c SHA256SUMS`. macOS may block the unsigned binary on first run; allow it with `xattr -d com.apple.quarantine $A/gmt-mail`.
+
 ### Ubuntu ([PPA](https://launchpad.net/~al-maisan/+archive/ubuntu/gmt-mail))
 
     $ sudo add-apt-repository ppa:al-maisan/gmt-mail
@@ -32,7 +48,7 @@ Requires [Go](https://go.dev/) 1.26 or later.
     $ make build
     $ ./gmt-mail -h
 
-The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `vendor`, `clean`, `srpm`, `copr`, `ppa`, `test-ppa`, `test-copr`, `man`, `test-man`, `tag`, `release`, `publish`.
+The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `vendor`, `clean`, `srpm`, `copr`, `ppa`, `test-ppa`, `test-copr`, `man`, `test-man`, `tag`, `dist`, `test-dist`, `release`, `publish`.
 
 ## Quick start
 
@@ -210,7 +226,7 @@ Cut a release by creating and pushing a signed tag, then publish everywhere:
     $ git push origin v0.7.0
     $ make publish
 
-`make publish` creates the GitHub release, submits to Fedora COPR, and uploads to Ubuntu PPA, all using the tagged version. To cut it in one shot without tagging first, override: `make publish VERSION=0.7.0` creates and pushes the tag for you.
+`make publish` creates the GitHub release with prebuilt archives, submits to Fedora COPR, and uploads to Ubuntu PPA, all using the tagged version. To cut it in one shot without tagging first, override: `make publish VERSION=0.7.0` creates and pushes the tag for you.
 
 > **Note:** both package changelogs (the RPM `%changelog` and the Debian `debian/changelog`) are generated from `git log` between **GitHub releases**, so a version appears in them only once a GitHub *release* exists for its tag. `make publish` (and `make release`) create the release *before* building packages, so a full `make publish` yields complete changelogs — but building packages standalone (`make srpm`/`make copr`/`make ppa`) before the release exists will omit that version.
 
@@ -219,7 +235,8 @@ Individual targets are also available:
 | Target    | Description                                    |
 |-----------|------------------------------------------------|
 | `tag`     | Create and push a signed git tag               |
-| `release` | Tag + create GitHub release                    |
+| `dist`    | Build the release archives + `SHA256SUMS` and sign it (needs a clean checkout of the tag) |
+| `release` | Tag + `dist` + create the GitHub release with the archives (uploads them to an existing release that has none) |
 | `srpm`    | Build a source RPM                             |
 | `copr`    | Build SRPM + submit to Fedora COPR for every supported Fedora that lacks this version |
 | `ppa`     | Tag + build and upload to Ubuntu PPA (skips Ubuntu releases that already have this version) |
@@ -234,6 +251,8 @@ Individual targets are also available:
 `make copr` targets every Fedora release that is both released (final images on fedoraproject.org) and still maintained (Bodhi), so new Fedora releases are picked up automatically and enabled in the COPR project as needed. It builds only for the releases that don't have the tagged version yet and does nothing otherwise. Force a rebuild with `make copr COPR_FORCE=1`, or pick releases with `make copr COPR_CHROOTS="fedora-44-x86_64"`. `make test-copr` runs the tests for this logic.
 
 The man page `gmt-mail.1` carries `@VERSION@`/`@DATE@` placeholders in its `.TH` header. The RPM spec and the Debian rules fill them in from the package version and its changelog date, so every package (`make copr`, `make ppa`, `make publish`) ships a man page with its own version and release date, without a manual bump. `make man` renders it to `~/.cache/gmt-mail/man/gmt-mail.1` for viewing (`man -l ~/.cache/gmt-mail/man/gmt-mail.1`); `make test-man` checks the substitution.
+
+`make dist` cross-compiles the binaries (same `-ldflags` as `make build`, plus `-trimpath`) and packs each with LICENSE, README and the man page into `~/.cache/gmt-mail/dist/<version>/`. The archives are reproducible: the same tag built with the same Go version gives the same `SHA256SUMS` (the Go version is embedded in the binaries). Signing `SHA256SUMS` uses `SIGNING_KEY` (default: git's `user.signingkey`). `make test-dist` runs its tests. `make dist DIST_TARGETS="linux/amd64"` limits the targets for a local build; a `DIST_TARGETS` environment variable is ignored, so a release always ships every target.
 
 ## License
 
