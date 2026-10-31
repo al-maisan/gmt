@@ -24,9 +24,17 @@ SPEC_OUT      := $(RPMBUILD_DIR)/SPECS/gmt-mail.spec
 # gmt-mail.1 carries @VERSION@/@DATE@; the RPM spec and debian/rules fill them in from
 # the package version and changelog date. `make man` renders it for local viewing.
 MAN_OUT  := $(BUILD_ROOT)/man/gmt-mail.1
+# Release archives + SHA256SUMS(.asc); signed with SIGNING_KEY (default: git's user.signingkey).
+DIST_DIR    := $(BUILD_ROOT)/dist/$(VERSION)
+SIGNING_KEY ?= $(shell git config user.signingkey)
+# := ignores an ambient DIST_TARGETS, so a release always ships every target.
+DIST_TARGETS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
+DIST_ASSETS  := $(foreach t,$(DIST_TARGETS),gmt-mail-$(VERSION)-$(subst /,-,$(t)).$(if $(filter windows/%,$(t)),zip,tar.gz)) \
+	SHA256SUMS SHA256SUMS.asc
+DIST_FILES   := $(addprefix $(DIST_DIR)/,$(DIST_ASSETS))
 MAN_DATE := $(or $(shell git log -1 --format=%cs $(TAG) 2>/dev/null),$(DATE))
 
-.PHONY: all build test vet lint fmt install clean srpm vendor tag release copr ppa test-ppa test-copr gen-spec man test-man
+.PHONY: all build test vet lint fmt install clean srpm vendor tag release dist test-dist copr ppa test-ppa test-copr gen-spec man test-man
 
 all: test lint build
 
@@ -67,16 +75,46 @@ tag:
 
 PREV_RELEASE := $(shell $(GH) release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null)
 
+# Creates the GitHub release with the dist archives; an existing release that lacks
+# any of them (none yet, or an interrupted upload) gets all of them (re)uploaded,
+# and a draft left by an interrupted `gh release create` is published.
+# Archives are built only when they are needed.
 release: tag
 	@if $(GH) release view $(TAG) >/dev/null 2>&1; then \
-		echo "release: $(TAG) exists on GitHub"; \
+		have=" $$($(GH) release view $(TAG) --json assets --jq '[.assets[].name] | join(" ")') "; missing=; \
+		for a in $(DIST_ASSETS); do case "$$have" in *" $$a "*) ;; *) missing="$$missing $$a";; esac; done; \
+		if [ -z "$$missing" ]; then \
+			echo "release: $(TAG) exists on GitHub with all assets"; \
+		else \
+			echo "release: $(TAG) lacks:$$missing"; \
+			$(MAKE) --no-print-directory dist && $(GH) release upload --clobber $(TAG) $(DIST_FILES) \
+				&& echo "release: uploaded assets to $(TAG)" || exit 1; \
+		fi; \
+		if [ "$$($(GH) release view $(TAG) --json isDraft --jq .isDraft)" = true ]; then \
+			$(GH) release edit $(TAG) --draft=false && echo "release: published draft $(TAG)"; \
+		fi; \
 	elif [ -n "$(PREV_RELEASE)" ]; then \
-		$(GH) release create $(TAG) --title "$(TAG)" --generate-notes --notes-start-tag $(PREV_RELEASE) \
+		$(MAKE) --no-print-directory dist && \
+		$(GH) release create $(TAG) --title "$(TAG)" --generate-notes --notes-start-tag $(PREV_RELEASE) $(DIST_FILES) \
 			&& echo "release: created $(TAG) (diff from $(PREV_RELEASE))"; \
 	else \
-		$(GH) release create $(TAG) --title "$(TAG)" --generate-notes \
+		$(MAKE) --no-print-directory dist && \
+		$(GH) release create $(TAG) --title "$(TAG)" --generate-notes $(DIST_FILES) \
 			&& echo "release: created $(TAG) (first release)"; \
 	fi
+
+# Builds the release archives from the tagged commit (a clean checkout of $(TAG)),
+# dated with the tag's commit date so a rebuild gives the same archives,
+# then signs SHA256SUMS (one key touch).
+dist:
+	@[ "$$(git rev-parse HEAD)" = "$$(git rev-parse -q --verify '$(TAG)^{commit}')" ] && [ -z "$$(git status --porcelain)" ] \
+		|| { echo "dist: HEAD must be a clean checkout of $(TAG)" >&2; exit 1; }
+	DIST_TARGETS="$(DIST_TARGETS)" scripts/build-dist.sh $(VERSION) $(COMMIT) $(MAN_DATE) $(DIST_DIR)
+	gpg --batch --yes --armor --detach-sign $(if $(SIGNING_KEY),--local-user $(SIGNING_KEY)) $(DIST_DIR)/SHA256SUMS
+	@echo "dist: signed $(DIST_DIR)/SHA256SUMS.asc"
+
+test-dist:
+	scripts/build-dist_test.sh
 
 srpm: vendor gen-spec
 	mkdir -p $(RPMBUILD_DIR)/{SOURCES,SPECS,SRPMS}
