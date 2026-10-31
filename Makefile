@@ -18,8 +18,12 @@ RPMBUILD_DIR := /tmp/gmt-rpmbuild
 TARBALL      := $(RPMBUILD_DIR)/SOURCES/gmt-$(VERSION).tar.gz
 SPEC_TEMPLATE := gmt-mail.spec
 SPEC_OUT      := $(RPMBUILD_DIR)/SPECS/gmt-mail.spec
+# gmt-mail.1 carries @VERSION@/@DATE@; the RPM spec and debian/rules fill them in from
+# the package version and changelog date. `make man` renders it for local viewing.
+MAN_OUT  := /tmp/gmt-man/gmt-mail.1
+MAN_DATE := $(or $(shell git log -1 --format=%cs $(TAG) 2>/dev/null),$(DATE))
 
-.PHONY: all build test vet lint fmt install clean srpm vendor tag release copr ppa test-ppa gen-spec
+.PHONY: all build test vet lint fmt install clean srpm vendor tag release copr ppa test-ppa test-copr gen-spec man test-man
 
 all: test lint build
 
@@ -92,8 +96,21 @@ gen-spec:
 	@rm -f /tmp/rpm-changelog.tmp
 	@echo "spec: generated $(SPEC_OUT) (version $(VERSION))"
 
-copr: srpm
-	copr-cli build gmt-mail $$(ls $(RPMBUILD_DIR)/SRPMS/gmt-mail-$(VERSION)-*.src.rpm)
+man:
+	@mkdir -p $(dir $(MAN_OUT))
+	@sed -e 's/@VERSION@/$(VERSION)/g' -e 's/@DATE@/$(MAN_DATE)/g' gmt-mail.1 > $(MAN_OUT)
+	@echo "man: rendered $(MAN_OUT) (version $(VERSION), $(MAN_DATE)); view with: man -l $(MAN_OUT)"
+
+test-man: man gen-spec
+	scripts/man_test.sh $(MAN_OUT) $(SPEC_OUT) $(VERSION)
+
+# Builds for every released, still-maintained Fedora that doesn't have this version
+# yet (builds the SRPM only then). COPR_FORCE=1 rebuilds; COPR_CHROOTS="..." overrides.
+copr:
+	scripts/copr-build.sh $(VERSION) $(RPMBUILD_DIR)/SRPMS
+
+test-copr:
+	scripts/copr-build_test.sh
 
 # Uploads only releases that don't have this version yet; force a rebuild of an
 # already-uploaded version with: make ppa PPA_REV=2
