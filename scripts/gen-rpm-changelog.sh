@@ -1,9 +1,16 @@
 #!/bin/bash
 # Generate RPM %changelog from GitHub releases.
 # Each release produces one changelog entry with commits since the previous release.
-set -e
+set -eo pipefail
 
 MAINTAINER="Muharem Hrnjadovic <muharem@linux.com>"
+
+# rpm_escape: escape '%' on stdin as '%%'. rpm expands macros in %changelog, so
+# a commit subject like "%(cmd)" would otherwise run cmd during the build.
+rpm_escape() { sed 's/%/%%/g'; }
+
+# The function above is sourced by gen-rpm-changelog_test.sh; stop here in that case.
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then return 0; fi
 
 # List released tags newest first (only tags with actual GitHub releases).
 # Drop any ambient GITHUB_TOKEN so gh uses the keyring login; a narrow-scoped
@@ -32,4 +39,4 @@ for i in "${!TAGS[@]}"; do
         git log --format="- %s" "${TAG}" --no-merges --max-count=10
     fi
     echo ""
-done
+done | rpm_escape

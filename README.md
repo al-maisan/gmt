@@ -52,11 +52,11 @@ Copy `.env.example` to `.env` and fill in:
 
 For Gmail you must use an [App Password](https://myaccount.google.com/apppasswords) (requires 2-Step Verification). Other providers (Outlook, Yahoo, etc.) are documented in `.env.example`.
 
-TLS is enforced -- credentials are never sent in plaintext.
+TLS is enforced -- credentials are never sent in plaintext. Port 465 uses implicit TLS (SMTPS); any other port (e.g. 587) requires STARTTLS.
 
 ## Configuration file
 
-The config file uses [TOML](https://toml.io/) format with a `[general]` section and one or more `[[recipients]]` entries.
+The config file uses [TOML](https://toml.io/) format with a `[general]` section and one or more `[[recipients]]` entries. Unknown keys are rejected and all addresses are checked when the file is parsed, so `-validate` catches typos before anything is sent.
 
 ### `[general]` section
 
@@ -82,6 +82,8 @@ Each recipient is a TOML table with these fields:
 | `cc_extra`           | no       | Append to global Cc for this recipient         |
 | `attachments`        | no       | Replace global attachments for this recipient  |
 | `attachments_extra`  | no       | Append to global attachments for this recipient|
+
+Each `email` must be unique. A recipient may set `cc` or `cc_extra`, not both (same for `attachments` / `attachments_extra`). Attachments must be readable regular files.
 
 Example:
 
@@ -109,7 +111,7 @@ cc = ["merry@shire.org"]
 
 ## Template variables
 
-Templates support these placeholders (in both subject and body). Custom keys are matched in **uppercase** -- use `%ORG%` not `%org%`. Because keys are case-folded, two data keys that differ only in case (e.g. `url` and `URL`) are rejected as a collision, and a custom key may not reuse a reserved name (`EA`, `FN`, `LN`).
+Templates support these placeholders (in both subject and body). Custom keys must start with a letter and contain only letters, digits and `_`; they are matched in **uppercase** -- use `%ORG%` not `%org%`. Because keys are case-folded, two data keys that differ only in case (e.g. `url` and `URL`) are rejected as a collision, and a custom key may not reuse a reserved name (`EA`, `FN`, `LN`).
 
 | Placeholder | Value                                    |
 |-------------|------------------------------------------|
@@ -183,7 +185,7 @@ Use `-dry-run` to preview all emails without sending. The output includes Cc and
       -template-path string
             path to the template file
       -timeout duration
-            SMTP connect/send timeout (covers the full attachment upload) (default 30s)
+            SMTP connect/send timeout, must be > 0 (covers the full attachment upload) (default 30s)
       -validate
             validate config and template without sending
       -version
@@ -223,7 +225,7 @@ Individual targets are also available:
 
 `make copr` targets every Fedora release that is both released (final images on fedoraproject.org) and still maintained (Bodhi), so new Fedora releases are picked up automatically and enabled in the COPR project as needed. It builds only for the releases that don't have the tagged version yet and does nothing otherwise. Force a rebuild with `make copr COPR_FORCE=1`, or pick releases with `make copr COPR_CHROOTS="fedora-44-x86_64"`. `make test-copr` runs the tests for this logic.
 
-The man page `gmt-mail.1` carries `@VERSION@`/`@DATE@` placeholders in its `.TH` header. The RPM spec and the Debian rules fill them in from the package version and its changelog date, so every package (`make copr`, `make ppa`, `make publish`) ships a man page with its own version and release date, without a manual bump. `make man` renders it to `/tmp/gmt-man/gmt-mail.1` for viewing (`man -l /tmp/gmt-man/gmt-mail.1`); `make test-man` checks the substitution.
+The man page `gmt-mail.1` carries `@VERSION@`/`@DATE@` placeholders in its `.TH` header. The RPM spec and the Debian rules fill them in from the package version and its changelog date, so every package (`make copr`, `make ppa`, `make publish`) ships a man page with its own version and release date, without a manual bump. `make man` renders it to `~/.cache/gmt-mail/man/gmt-mail.1` for viewing (`man -l ~/.cache/gmt-mail/man/gmt-mail.1`); `make test-man` checks the substitution.
 
 ## License
 

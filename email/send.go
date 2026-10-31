@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	netmail "net/mail"
 	"os"
 	"strconv"
 	"strings"
@@ -28,6 +29,7 @@ import (
 
 	"github.com/al-maisan/gmt/config"
 	mail "github.com/wneessen/go-mail"
+	"github.com/wneessen/go-mail/smtp"
 )
 
 // Sender abstracts the ability to send an email message.
@@ -92,9 +94,13 @@ func LoadSMTPCredentials() (SMTPCredentials, error) {
 	return SMTPCredentials{Host: host, Port: port, User: user, Password: password}, nil
 }
 
+// smtpsPort is the SMTPS port, which speaks implicit TLS instead of STARTTLS.
+const smtpsPort = 465
+
 // NewSMTPSender creates a connected SMTP sender using the given credentials.
-// A positive timeout bounds each connect and per-message send (covering the
-// full DATA/attachment stream); zero uses the go-mail default. The caller must
+// Port 465 uses implicit TLS; any other port requires STARTTLS. A positive
+// timeout bounds each connect and per-message send (covering the full
+// DATA/attachment stream); zero uses the go-mail default. The caller must
 // call Close when done.
 func NewSMTPSender(creds SMTPCredentials, timeout time.Duration) (Sender, error) {
 	opts := []mail.Option{
@@ -103,6 +109,9 @@ func NewSMTPSender(creds SMTPCredentials, timeout time.Duration) (Sender, error)
 		mail.WithPassword(creds.Password),
 		mail.WithSMTPAuth(mail.SMTPAuthPlain),
 		mail.WithTLSPolicy(mail.TLSMandatory),
+	}
+	if creds.Port == smtpsPort {
+		opts = append(opts, mail.WithSSL())
 	}
 	if timeout > 0 {
 		opts = append(opts, mail.WithTimeout(timeout))
@@ -113,11 +122,31 @@ func NewSMTPSender(creds SMTPCredentials, timeout time.Duration) (Sender, error)
 		return nil, fmt.Errorf("failed to create SMTP client for %s:%d: %w", creds.Host, creds.Port, err)
 	}
 
-	if err := client.DialWithContext(context.Background()); err != nil {
+	s := &smtpSender{client: client}
+	if err := s.dial(); err != nil {
 		return nil, fmt.Errorf("failed to connect to %s:%d: %w", creds.Host, creds.Port, err)
 	}
+	return s, nil
+}
 
-	return &smtpSender{client: client}, nil
+// checkAttachment verifies that path is a readable regular file. go-mail only
+// reads attachments once DATA has started, so anything else would fail mid-send
+// and leave the SMTP session stuck.
+// The type is checked before opening because opening a FIFO blocks until a
+// writer appears.
+func checkAttachment(path string) error {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if !fi.Mode().IsRegular() {
+		return fmt.Errorf("not a regular file")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	return f.Close()
 }
 
 // CheckAttachments verifies that every resolved attachment across all messages
@@ -126,7 +155,7 @@ func NewSMTPSender(creds SMTPCredentials, timeout time.Duration) (Sender, error)
 func CheckAttachments(msgs []Message) error {
 	for _, m := range msgs {
 		for _, path := range m.Attachments {
-			if _, err := os.Stat(path); err != nil {
+			if err := checkAttachment(path); err != nil {
 				return fmt.Errorf("attachment %q for recipient %s: %w", path, m.Address, err)
 			}
 		}
@@ -178,19 +207,39 @@ func logf(w io.Writer, format string, args ...any) {
 	fmt.Fprintf(w, format, args...) //nolint:errcheck
 }
 
-// smtpSender wraps a go-mail Client to implement Sender.
+// smtpSender wraps a go-mail Client to implement Sender. It holds the SMTP
+// connection itself so Close can force the socket shut when QUIT fails.
 type smtpSender struct {
 	client *mail.Client
+	conn   *smtp.Client
 }
 
-func (s *smtpSender) Send(msg *mail.Msg) error { return s.client.Send(msg) }
-func (s *smtpSender) Close() error             { return s.client.Close() }
+// dial opens a new connection using the client's stored configuration.
+func (s *smtpSender) dial() error {
+	conn, err := s.client.DialToSMTPClientWithContext(context.Background())
+	if err != nil {
+		return err
+	}
+	s.conn = conn
+	return nil
+}
 
-// Reconnect closes the (likely dead) connection best-effort and re-dials,
-// reusing the client's stored configuration.
+func (s *smtpSender) Send(msg *mail.Msg) error { return s.client.SendWithSMTPClient(s.conn, msg) }
+
+// Close ends the session with QUIT. go-mail leaves the socket open when QUIT
+// fails (the normal case on a dead connection), so close it directly then.
+func (s *smtpSender) Close() error {
+	if err := s.client.CloseWithSMTPClient(s.conn); err != nil {
+		_ = s.conn.Close()
+		return err
+	}
+	return nil
+}
+
+// Reconnect closes the (likely dead) connection best-effort and re-dials.
 func (s *smtpSender) Reconnect() error {
-	_ = s.client.Close()
-	return s.client.DialWithContext(context.Background())
+	_ = s.Close()
+	return s.dial()
 }
 
 // sendOne prepares and sends a single message, with retries.
@@ -253,6 +302,19 @@ func (sc *BatchSender) sendWithRetry(msg *mail.Msg, prefix, recipient string) er
 		if deliveredDespiteError(msg, err) {
 			return nil
 		}
+		// The server may have accepted the message and only its final reply
+		// was lost: re-sending could deliver it twice. Re-dial so the next
+		// recipient gets a working connection.
+		if deliveryUnknown(err) {
+			logf(sc.w, "%s ! %s (may have been delivered, not retried: %v)\n", prefix, recipient, err)
+			if rcErr := sc.sender.Reconnect(); rcErr != nil {
+				logf(sc.w, "%s   reconnect failed: %v\n", prefix, rcErr)
+			}
+			return err
+		}
+		if isPermanentError(err) {
+			break
+		}
 	}
 	logf(sc.w, "%s ! %s (failed to send: %v)\n", prefix, recipient, err)
 	return err
@@ -260,12 +322,28 @@ func (sc *BatchSender) sendWithRetry(msg *mail.Msg, prefix, recipient string) er
 
 // isConnectionError reports whether err indicates the SMTP connection is dead
 // or temporarily unusable, so a reconnect should precede the next attempt.
+// A send error without an SMTP reply code is a network error or timeout (e.g.
+// mid-DATA), which leaves the session unusable.
 func isConnectionError(err error) bool {
 	var se *mail.SendError
 	if errors.As(err, &se) {
-		return se.Reason == mail.ErrConnCheck || se.IsTemp()
+		return se.Reason == mail.ErrConnCheck || se.IsTemp() || se.ErrorCode() == 0
 	}
 	return false
+}
+
+// isPermanentError reports whether the server rejected the message with a
+// permanent (5xx) reply, which a retry cannot fix.
+func isPermanentError(err error) bool {
+	var se *mail.SendError
+	return errors.As(err, &se) && se.ErrorCode() >= 500
+}
+
+// deliveryUnknown reports whether err left the outcome unknown: the connection
+// failed (no SMTP reply code) after the message data was fully sent.
+func deliveryUnknown(err error) bool {
+	var se *mail.SendError
+	return errors.As(err, &se) && se.Reason == mail.ErrSMTPDataClose && se.ErrorCode() == 0
 }
 
 // deliveredDespiteError reports whether the server actually accepted msg even
@@ -284,9 +362,17 @@ func createMessage(from, toName, toAddr string, cc []string, replyTo, subject, b
 	if err := m.From(from); err != nil {
 		return nil, fmt.Errorf("invalid From address %q: %w", from, err)
 	}
-	if err := m.AddToFormat(toName, toAddr); err != nil {
+	// Build the To address from parts so net/mail quotes/encodes the display
+	// name; formatting it into a string first breaks on names containing '"'.
+	to, err := netmail.ParseAddress(toAddr)
+	if err != nil {
 		return nil, fmt.Errorf("invalid To address %q: %w", toAddr, err)
 	}
+	if to.Name != "" {
+		return nil, fmt.Errorf("invalid To address %q: must be a bare address", toAddr)
+	}
+	to.Name = toName
+	m.AddToMailAddress(to)
 	if len(cc) > 0 {
 		if err := m.Cc(cc...); err != nil {
 			return nil, fmt.Errorf("invalid Cc address(es) %v: %w", cc, err)
@@ -303,10 +389,10 @@ func createMessage(from, toName, toAddr string, cc []string, replyTo, subject, b
 }
 
 // attachFiles adds the given file paths as attachments to msg, verifying
-// each file exists before attaching.
+// each is a readable regular file before attaching.
 func attachFiles(msg *mail.Msg, attachments []string) error {
 	for _, path := range attachments {
-		if _, err := os.Stat(path); err != nil {
+		if err := checkAttachment(path); err != nil {
 			return fmt.Errorf("attachment %s: %w", path, err)
 		}
 		msg.AttachFile(path)
