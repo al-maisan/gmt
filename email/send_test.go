@@ -19,6 +19,8 @@ package email
 import (
 	"bytes"
 	"fmt"
+	"net"
+	"net/textproto"
 	"os"
 	"strings"
 	"testing"
@@ -27,6 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	mail "github.com/wneessen/go-mail"
+	"github.com/wneessen/go-mail/smtp"
 )
 
 func TestCreateMessage(t *testing.T) {
@@ -493,4 +496,153 @@ func TestLoadSMTPCredentialsValid(t *testing.T) {
 	assert.Equal(t, 587, creds.Port)
 	assert.Equal(t, "user@example.com", creds.User)
 	assert.Equal(t, "secret", creds.Password)
+}
+
+func TestCreateMessageNameWithQuotes(t *testing.T) {
+	msg, err := createMessage("s@s.com", `A" <evil@x.com>, "B`, "a@b.com", nil, "", "s", "b")
+	require.NoError(t, err)
+	rcpts, err := msg.GetRecipients()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"<a@b.com>"}, rcpts, "a quote in the name must not add recipients")
+}
+
+func TestCreateMessageToWithDisplayName(t *testing.T) {
+	_, err := createMessage("s@s.com", "A", "X <a@b.com>", nil, "", "s", "b")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must be a bare address")
+}
+
+func TestCheckAttachmentRejectsNonRegular(t *testing.T) {
+	dir := t.TempDir()
+	err := CheckAttachments([]Message{{Address: "a@b.com", Attachments: []string{dir}}})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not a regular file")
+
+	msg, err := createMessage("s@s.com", "A", "a@b.com", nil, "", "s", "b")
+	require.NoError(t, err)
+	assert.Error(t, attachFiles(msg, []string{dir}))
+}
+
+func TestCheckAttachmentRejectsUnreadable(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root can read any file")
+	}
+	f := t.TempDir() + "/secret.txt"
+	require.NoError(t, os.WriteFile(f, []byte("x"), 0o000))
+	assert.Error(t, CheckAttachments([]Message{{Address: "a@b.com", Attachments: []string{f}}}))
+}
+
+// lostDataReplySender fails the first send like a connection lost after the
+// message data was sent (final reply never arrived), then succeeds.
+type lostDataReplySender struct{ connDropSender }
+
+func (l *lostDataReplySender) Send(_ *mail.Msg) error {
+	l.sends++
+	if l.sends == 1 {
+		return &mail.SendError{Reason: mail.ErrSMTPDataClose}
+	}
+	return nil
+}
+
+func TestSendAllNoResendWhenDeliveryUnknown(t *testing.T) {
+	sender := &lostDataReplySender{}
+	cfg := config.MailConfig{From: "sender@example.com"}
+	msgs := []Message{
+		{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello"},
+		{Name: "Jane", Address: "ja@example.com", Subject: "Hi", Body: "Hello"},
+	}
+
+	var buf bytes.Buffer
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{Retries: 1}).SendAll(msgs)
+	assert.Equal(t, 1, result.Failed)
+	assert.Equal(t, 1, result.Sent)
+	assert.Equal(t, 2, sender.sends, "a message that may have been delivered must not be re-sent")
+	assert.Equal(t, 1, sender.reconns, "must re-dial for the next recipient")
+	assert.Contains(t, buf.String(), "may have been delivered")
+	assert.NotContains(t, buf.String(), "retrying")
+}
+
+// dropMidDataSender fails the first send like a connection lost mid-DATA (no
+// SMTP reply code), then succeeds.
+type dropMidDataSender struct{ connDropSender }
+
+func (d *dropMidDataSender) Send(_ *mail.Msg) error {
+	d.sends++
+	if d.sends == 1 {
+		return &mail.SendError{Reason: mail.ErrWriteContent}
+	}
+	return nil
+}
+
+func TestSendAllReconnectsAfterMidDataDrop(t *testing.T) {
+	sender := &dropMidDataSender{}
+	cfg := config.MailConfig{From: "sender@example.com"}
+	msgs := []Message{{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello"}}
+
+	var buf bytes.Buffer
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{Retries: 1}).SendAll(msgs)
+	assert.Equal(t, 1, result.Sent)
+	assert.Equal(t, 1, sender.reconns, "a mid-DATA network error must trigger a reconnect")
+}
+
+// fakeSMTP runs a scripted SMTP server on conn: it greets, then answers each
+// command with reply(cmd); an empty reply drops the connection.
+func fakeSMTP(conn net.Conn, reply func(cmd string) string) {
+	defer conn.Close() //nolint:errcheck
+	tp := textproto.NewConn(conn)
+	if tp.PrintfLine("220 fake ESMTP") != nil {
+		return
+	}
+	for {
+		line, err := tp.ReadLine()
+		if err != nil {
+			return
+		}
+		r := reply(strings.ToUpper(line))
+		if r == "" || tp.PrintfLine("%s", r) != nil {
+			return
+		}
+	}
+}
+
+// newFakeSMTPSender returns an smtpSender connected to a fakeSMTP server.
+func newFakeSMTPSender(t *testing.T, reply func(cmd string) string) *smtpSender {
+	t.Helper()
+	clientConn, serverConn := net.Pipe()
+	go fakeSMTP(serverConn, reply)
+	conn, err := smtp.NewClient(clientConn, "localhost")
+	require.NoError(t, err)
+	client, err := mail.NewClient("localhost")
+	require.NoError(t, err)
+	return &smtpSender{client: client, conn: conn}
+}
+
+func TestSendAllNoRetryOnPermanentError(t *testing.T) {
+	rcpts := 0
+	sender := newFakeSMTPSender(t, func(cmd string) string {
+		if strings.HasPrefix(cmd, "RCPT") {
+			rcpts++
+			return "550 5.1.1 no such user"
+		}
+		return "250 ok"
+	})
+	cfg := config.MailConfig{From: "sender@example.com"}
+	msgs := []Message{{Name: "John", Address: "jd@example.com", Subject: "Hi", Body: "Hello"}}
+
+	var buf bytes.Buffer
+	result := NewBatchSender(&buf, sender, cfg, SendOptions{Retries: 2}).SendAll(msgs)
+	assert.Equal(t, 1, result.Failed)
+	assert.Equal(t, 1, rcpts, "a permanent 5xx rejection must not be retried")
+	assert.NotContains(t, buf.String(), "retrying")
+}
+
+func TestSMTPSenderCloseDropsSocketWhenQuitFails(t *testing.T) {
+	sender := newFakeSMTPSender(t, func(cmd string) string {
+		if strings.HasPrefix(cmd, "QUIT") {
+			return "" // connection dies before replying
+		}
+		return "250 ok"
+	})
+	assert.Error(t, sender.Close())
+	assert.False(t, sender.conn.HasConnection(), "socket must be closed even though QUIT failed")
 }

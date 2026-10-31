@@ -9,7 +9,8 @@ LP_PPA="gmt-mail"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC_DIR="$(dirname "$SCRIPT_DIR")"
-BUILD_DIR="/tmp/gmt-ppa-build"
+# Per-user build dir (a fixed /tmp path could be pre-created by another user)
+BUILD_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/gmt-mail/ppa-build"
 
 # Derive version from the latest git tag (the single source of truth)
 TAG=$(git -C "$SRC_DIR" describe --tags --abbrev=0)

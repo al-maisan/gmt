@@ -82,8 +82,8 @@ Default is 2s.
 .TP
 .BI \-timeout " duration"
 SMTP connection and per-message send timeout, covering the full DATA and
-attachment upload. Raise it for large attachments over slow links. Default is
-30s.
+attachment upload. Raise it for large attachments over slow links. Must be
+greater than zero. Default is 30s.
 .TP
 .B \-sample\-config
 Print a sample configuration file to standard output and exit.
@@ -102,6 +102,10 @@ The configuration file uses TOML format with a
 section and one or more
 .B [[recipients]]
 entries.
+Unknown keys are rejected, and all addresses are checked when the file is
+parsed, so
+.B \-validate
+catches typos before anything is sent.
 .SS [general]
 .TP
 .B from
@@ -123,13 +127,13 @@ Reply-To address. Optional.
 .TP
 .B attachments
 List of file paths to attach to every email.
-Files are verified at configuration parse time.
+Each must be a readable regular file; this is checked before sending.
 Optional.
 .SS [[recipients]]
 Each entry defines one recipient with the following fields:
 .TP
 .B email
-Recipient email address. Required.
+Recipient email address. Required; must be unique across recipients.
 .TP
 .B first
 First name. Required.
@@ -139,16 +143,21 @@ Last name. Optional.
 .TP
 .B data
 Inline table of custom key-value pairs for template variables.
-Keys are converted to uppercase for template matching.
+Keys must start with a letter and contain only letters, digits and
+underscores; they are converted to uppercase for template matching.
 .TP
 .B cc
 Replace the global Cc list for this recipient.
+Cannot be combined with
+.BR cc_extra .
 .TP
 .B cc_extra
 Append to the global Cc list for this recipient.
 .TP
 .B attachments
 Replace the global attachments for this recipient.
+Cannot be combined with
+.BR attachments_extra .
 .TP
 .B attachments_extra
 Append to the global attachments for this recipient.
@@ -193,8 +202,8 @@ Recipient's email address.
 .BI % KEY %
 Any custom key defined in the recipient's data (uppercase).
 .PP
-Unresolved placeholders are left as-is in the output and a warning is logged
-for each one.
+An unresolved placeholder is an error: nothing is sent and the exit status
+is 2.
 .SH ENVIRONMENT
 SMTP credentials are loaded from environment variables.
 If a
@@ -229,6 +238,7 @@ or
 .PP
 All SMTP connections use mandatory TLS; credentials are never transmitted in
 plaintext.
+Port 465 uses implicit TLS (SMTPS); any other port requires STARTTLS.
 .SH EXIT STATUS
 .TP
 .B 0

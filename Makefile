@@ -14,13 +14,16 @@ TAG     := v$(VERSION)
 # a narrow-scoped GITHUB_TOKEN in the environment cannot create releases.
 GH := env -u GITHUB_TOKEN gh
 
-RPMBUILD_DIR := /tmp/gmt-rpmbuild
+# Per-user build dir: a fixed /tmp path could be pre-created by another user on a
+# shared host to tamper with the spec/tarball before rpmbuild and upload.
+BUILD_ROOT   := $(or $(XDG_CACHE_HOME),$(HOME)/.cache)/gmt-mail
+RPMBUILD_DIR := $(BUILD_ROOT)/rpmbuild
 TARBALL      := $(RPMBUILD_DIR)/SOURCES/gmt-$(VERSION).tar.gz
 SPEC_TEMPLATE := gmt-mail.spec
 SPEC_OUT      := $(RPMBUILD_DIR)/SPECS/gmt-mail.spec
 # gmt-mail.1 carries @VERSION@/@DATE@; the RPM spec and debian/rules fill them in from
 # the package version and changelog date. `make man` renders it for local viewing.
-MAN_OUT  := /tmp/gmt-man/gmt-mail.1
+MAN_OUT  := $(BUILD_ROOT)/man/gmt-mail.1
 MAN_DATE := $(or $(shell git log -1 --format=%cs $(TAG) 2>/dev/null),$(DATE))
 
 .PHONY: all build test vet lint fmt install clean srpm vendor tag release copr ppa test-ppa test-copr gen-spec man test-man
@@ -89,11 +92,11 @@ srpm: vendor gen-spec
 # gmt-mail.spec is never modified, so it can never drift or dirty the tree.
 gen-spec:
 	@mkdir -p $(RPMBUILD_DIR)/SPECS
-	@./scripts/gen-rpm-changelog.sh > /tmp/rpm-changelog.tmp
-	@awk -v ver='$(VERSION)' -v clog=/tmp/rpm-changelog.tmp \
+	@./scripts/gen-rpm-changelog.sh > $(RPMBUILD_DIR)/rpm-changelog.tmp
+	@awk -v ver='$(VERSION)' -v clog=$(RPMBUILD_DIR)/rpm-changelog.tmp \
 		'{ gsub(/@VERSION@/, ver) } /^@CHANGELOG@$$/ { while ((getline l < clog) > 0) print l; next } { print }' \
 		$(SPEC_TEMPLATE) > $(SPEC_OUT)
-	@rm -f /tmp/rpm-changelog.tmp
+	@rm -f $(RPMBUILD_DIR)/rpm-changelog.tmp
 	@echo "spec: generated $(SPEC_OUT) (version $(VERSION))"
 
 man:
@@ -111,6 +114,7 @@ copr:
 
 test-copr:
 	scripts/copr-build_test.sh
+	scripts/gen-rpm-changelog_test.sh
 
 # Uploads only releases that don't have this version yet; force a rebuild of an
 # already-uploaded version with: make ppa PPA_REV=2
@@ -125,4 +129,4 @@ publish: release copr ppa
 
 clean:
 	rm -f $(BINARY)
-	rm -rf $(RPMBUILD_DIR)
+	rm -rf $(BUILD_ROOT)

@@ -20,6 +20,8 @@ package config
 import (
 	_ "embed"
 	"fmt"
+	"net/mail"
+	"regexp"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -80,8 +82,17 @@ type MailConfig struct {
 // Parse decodes TOML-formatted configuration bytes into a MailConfig.
 func Parse(bs []byte) (MailConfig, error) {
 	var tc tomlConfig
-	if _, err := toml.Decode(string(bs), &tc); err != nil {
+	md, err := toml.Decode(string(bs), &tc)
+	if err != nil {
 		return MailConfig{}, fmt.Errorf("TOML syntax error: %w", err)
+	}
+	// A misspelled key (e.g. "atachments") would otherwise be silently dropped.
+	if undecoded := md.Undecoded(); len(undecoded) > 0 {
+		keys := make([]string, len(undecoded))
+		for i, k := range undecoded {
+			keys[i] = k.String()
+		}
+		return MailConfig{}, fmt.Errorf("unknown key(s): %s", strings.Join(keys, ", "))
 	}
 
 	if err := validate.Struct(tc); err != nil {
@@ -90,6 +101,10 @@ func Parse(bs []byte) (MailConfig, error) {
 
 	if strings.TrimSpace(tc.General.Subject) == "" {
 		return MailConfig{}, fmt.Errorf("subject must not be empty or whitespace")
+	}
+
+	if err := checkGeneralAddresses(tc.General); err != nil {
+		return MailConfig{}, err
 	}
 
 	recipients, err := convertRecipients(tc.Recipients)
@@ -143,16 +158,87 @@ func formatValidationError(err error) error {
 // silently shadowed during substitution, so it is rejected at parse time.
 var reservedDataKeys = map[string]struct{}{"EA": {}, "FN": {}, "LN": {}}
 
+// reDataKey matches valid data keys; upper-cased they form a %KEY% placeholder
+// that the template engine can detect when it is left unresolved.
+var reDataKey = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`)
+
+// checkAddress parses s the same way the mailer does at send time, so a bad
+// address is reported by -validate instead of failing every send.
+func checkAddress(field, s string) error {
+	if _, err := mail.ParseAddress(s); err != nil {
+		return fmt.Errorf("invalid address in '%s': %q: %w", field, s, err)
+	}
+	return nil
+}
+
+// checkAddresses runs checkAddress on every entry of list.
+func checkAddresses(field string, list []string) error {
+	for _, s := range list {
+		if err := checkAddress(field, s); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkGeneralAddresses validates the [general] from, reply_to and cc values.
+func checkGeneralAddresses(g tomlGeneral) error {
+	if err := checkAddress("from", g.From); err != nil {
+		return err
+	}
+	if g.ReplyTo != "" {
+		if err := checkAddress("reply_to", g.ReplyTo); err != nil {
+			return err
+		}
+	}
+	return checkAddresses("cc", g.Cc)
+}
+
+// checkRecipient validates a recipient's addresses and rejects ambiguous
+// override combinations (a replace list together with its _extra list).
+func checkRecipient(e tomlRecipient) error {
+	if a, err := mail.ParseAddress(e.Email); err != nil || a.Name != "" || a.Address != e.Email {
+		return fmt.Errorf("recipient %q: email must be a bare address", e.Email)
+	}
+	if len(e.Cc) > 0 && len(e.CcExtra) > 0 {
+		return fmt.Errorf("recipient %q: set either 'cc' or 'cc_extra', not both", e.Email)
+	}
+	if len(e.Attachments) > 0 && len(e.AttachmentsExtra) > 0 {
+		return fmt.Errorf("recipient %q: set either 'attachments' or 'attachments_extra', not both", e.Email)
+	}
+	if err := checkAddresses("cc", e.Cc); err != nil {
+		return fmt.Errorf("recipient %q: %w", e.Email, err)
+	}
+	if err := checkAddresses("cc_extra", e.CcExtra); err != nil {
+		return fmt.Errorf("recipient %q: %w", e.Email, err)
+	}
+	return nil
+}
+
 // convertRecipients transforms TOML recipient entries into Recipient structs.
 // Data keys are upper-cased to match %KEY% placeholders; it returns an error if
-// two keys collide after folding, or a key collides with a reserved placeholder,
-// since either case would silently drop or nondeterministically pick a value.
+// a key is malformed, two keys collide after folding, or a key collides with a
+// reserved placeholder, since these would silently drop or nondeterministically
+// pick a value. Duplicate recipient addresses are rejected to avoid double sends.
 func convertRecipients(entries []tomlRecipient) ([]Recipient, error) {
 	recipients := make([]Recipient, 0, len(entries))
+	seen := make(map[string]struct{}, len(entries))
 
 	for _, e := range entries {
+		if err := checkRecipient(e); err != nil {
+			return nil, err
+		}
+		addr := strings.ToLower(e.Email)
+		if _, dup := seen[addr]; dup {
+			return nil, fmt.Errorf("duplicate recipient %q", e.Email)
+		}
+		seen[addr] = struct{}{}
+
 		data := make(map[string]string, len(e.Data))
 		for k, v := range e.Data {
+			if !reDataKey.MatchString(k) {
+				return nil, fmt.Errorf("recipient %q: invalid data key %q: must start with a letter and contain only letters, digits and '_'", e.Email, k)
+			}
 			key := strings.ToUpper(k)
 			if _, ok := reservedDataKeys[key]; ok {
 				return nil, fmt.Errorf("recipient %q: data key %q collides with reserved placeholder %%%s%%", e.Email, k, key)

@@ -343,3 +343,47 @@ func TestSampleTemplateNotEmpty(t *testing.T) {
 	assert.Contains(t, tmpl, "%FN%")
 	assert.Contains(t, tmpl, "%LN%")
 }
+
+func TestParseRejects(t *testing.T) {
+	const general = "[general]\nfrom = \"a <a@a.com>\"\nsubject = \"s\"\n"
+	tests := []struct {
+		name, input, want string
+	}{
+		{"unknown general key", general + "atachments = [\"x.pdf\"]\n[[recipients]]\nemail = \"a@b.com\"\nfirst = \"A\"\n", "unknown key(s): general.atachments"},
+		{"unknown recipient key", general + "[[recipients]]\nemail = \"a@b.com\"\nfirst = \"A\"\nattachment = [\"x.pdf\"]\n", "unknown key(s): recipients.attachment"},
+		{"cc and cc_extra", general + "[[recipients]]\nemail = \"a@b.com\"\nfirst = \"A\"\ncc = [\"c@d.com\"]\ncc_extra = [\"e@f.com\"]\n", "either 'cc' or 'cc_extra'"},
+		{"attachments and attachments_extra", general + "[[recipients]]\nemail = \"a@b.com\"\nfirst = \"A\"\nattachments = [\"x\"]\nattachments_extra = [\"y\"]\n", "either 'attachments' or 'attachments_extra'"},
+		{"invalid from", "[general]\nfrom = \"not an address\"\nsubject = \"s\"\n[[recipients]]\nemail = \"a@b.com\"\nfirst = \"A\"\n", "invalid address in 'from'"},
+		{"invalid reply_to", general + "reply_to = \"bad\"\n[[recipients]]\nemail = \"a@b.com\"\nfirst = \"A\"\n", "invalid address in 'reply_to'"},
+		{"invalid general cc", general + "cc = [\"bad cc\"]\n[[recipients]]\nemail = \"a@b.com\"\nfirst = \"A\"\n", "invalid address in 'cc'"},
+		{"invalid recipient cc", general + "[[recipients]]\nemail = \"a@b.com\"\nfirst = \"A\"\ncc = [\"bad\"]\n", "invalid address in 'cc'"},
+		{"invalid recipient cc_extra", general + "[[recipients]]\nemail = \"a@b.com\"\nfirst = \"A\"\ncc_extra = [\"bad\"]\n", "invalid address in 'cc_extra'"},
+		{"empty data key", general + "[[recipients]]\nemail = \"a@b.com\"\nfirst = \"A\"\ndata = { \"\" = \"x\" }\n", "invalid data key \"\""},
+		{"data key with percent", general + "[[recipients]]\nemail = \"a@b.com\"\nfirst = \"A\"\ndata = { \"A%B\" = \"x\" }\n", "invalid data key \"A%B\""},
+		{"data key with dash", general + "[[recipients]]\nemail = \"a@b.com\"\nfirst = \"A\"\ndata = { \"my-key\" = \"x\" }\n", "invalid data key \"my-key\""},
+		{"duplicate recipient", general + "[[recipients]]\nemail = \"a@b.com\"\nfirst = \"A\"\n[[recipients]]\nemail = \"A@B.com\"\nfirst = \"B\"\n", "duplicate recipient \"A@B.com\""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Parse([]byte(tt.input))
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.want)
+		})
+	}
+}
+
+func TestParseAcceptsValidAddressesAndKeys(t *testing.T) {
+	cfg := parseTestConfig(t, []byte(`
+[general]
+from = '"Frodo Baggins" <rts@example.com>'
+reply_to = "reply@example.com"
+cc = ["Gandalf <g@example.com>"]
+subject = "s"
+[[recipients]]
+email = "a@b.com"
+first = "A"
+cc_extra = ["x@y.com"]
+data = { org_2 = "EFF" }
+`))
+	assert.Equal(t, "EFF", cfg.Recipients[0].Data["ORG_2"])
+}

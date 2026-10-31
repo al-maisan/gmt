@@ -78,7 +78,7 @@ func main() {
 	delay := flag.Duration("delay", 0, "delay between emails (e.g., 1s, 500ms)")
 	retries := flag.Int("retries", 1, "max retry attempts per failed send")
 	retryDelay := flag.Duration("retry-delay", 2*time.Second, "backoff between retries")
-	timeout := flag.Duration("timeout", 30*time.Second, "SMTP connect/send timeout (covers the full attachment upload)")
+	timeout := flag.Duration("timeout", 30*time.Second, "SMTP connect/send timeout, must be > 0 (covers the full attachment upload)")
 
 	flag.Parse()
 
@@ -107,8 +107,13 @@ func main() {
 		flag.Usage()
 		os.Exit(exitUsageError)
 	}
-	if *delay < 0 || *retryDelay < 0 || *timeout < 0 {
-		log.Printf("Error: -delay, -retry-delay and -timeout must be >= 0")
+	if *delay < 0 || *retryDelay < 0 {
+		log.Printf("Error: -delay and -retry-delay must be >= 0")
+		flag.Usage()
+		os.Exit(exitUsageError)
+	}
+	if *timeout <= 0 {
+		log.Printf("Error: -timeout must be > 0")
 		flag.Usage()
 		os.Exit(exitUsageError)
 	}
