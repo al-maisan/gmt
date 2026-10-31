@@ -22,6 +22,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -45,7 +47,43 @@ var (
 	buildDate  = "unknown"
 )
 
-func version() string { return appVersion + "-" + gitCommit + " (" + buildDate + ")" }
+func version() string {
+	v, c, d := appVersion, gitCommit, buildDate
+	if bi, ok := debug.ReadBuildInfo(); ok && v == "dev" {
+		v, c, d = fromBuildInfo(bi, v, c, d)
+	}
+	return v + "-" + c + " (" + d + ")"
+}
+
+// rePseudo matches a Go pseudo-version (vX.Y.Z-[pre.]yyyymmddhhmmss-commit),
+// which `go build` in a clone and `go install …@commit` stamp.
+var rePseudo = regexp.MustCompile(`^v\d+\.\d+\.\d+-(?:.*\.)?(\d{14})-([0-9a-f]{12})(\+dirty)?$`)
+
+// fromBuildInfo fills in the version, commit and date from the Go build info
+// for builds without -ldflags (`go install …@version`, plain `go build`).
+// A pseudo-version is not a release, so it keeps the version "dev" and only
+// supplies the commit and date.
+func fromBuildInfo(bi *debug.BuildInfo, v, c, d string) (string, string, string) {
+	for _, s := range bi.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			c = s.Value[:min(7, len(s.Value))]
+		case "vcs.time":
+			d = s.Value[:min(10, len(s.Value))]
+		}
+	}
+	mv := bi.Main.Version
+	if m := rePseudo.FindStringSubmatch(mv); m != nil {
+		ts := m[1]
+		c, d = m[2][:7]+m[3], ts[:4]+"-"+ts[4:6]+"-"+ts[6:8]
+	} else if mv != "" && mv != "(devel)" {
+		v = strings.TrimPrefix(mv, "v")
+		if base, ok := strings.CutSuffix(v, "+dirty"); ok {
+			v, c = base, c+"+dirty"
+		}
+	}
+	return v, c, d
+}
 
 func help() {
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), "\n%s, version %s\nThis tool sends emails in bulk based on a template and a config file\n\n", filepath.Base(os.Args[0]), version())
