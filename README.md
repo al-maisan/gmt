@@ -1,3 +1,11 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/logo.svg">
+    <img src="assets/logo.svg" alt="gmt-mail logo" width="200">
+  </picture>
+</p>
+
 # Go mailing tool (gmt-mail)
 
 `gmt-mail` is a simple utility that sends personalized emails in bulk using a configuration file and a template for the email body. It connects directly via SMTP with mandatory TLS.

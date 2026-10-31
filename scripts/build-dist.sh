@@ -3,7 +3,8 @@
 # Usage: build-dist.sh VERSION COMMIT DATE OUT_DIR   (called by `make dist`)
 #
 # One archive per target (tar.gz, zip for Windows) holding the binary, LICENSE,
-# README.md and the man page. Binaries use the same -ldflags as `make build`.
+# README.md with its logos (assets/) and the man page. Binaries use the same
+# -ldflags as `make build`.
 # Archives are reproducible: the same source, arguments and Go toolchain give the
 # same SHA256SUMS (the Go version is embedded in the binaries).
 # DIST_TARGETS="linux/amd64 ..." overrides the target list.
@@ -34,6 +35,7 @@ for target in $TARGETS; do
     (cd "$SRC" && CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -mod=readonly -trimpath \
         -ldflags "$LDFLAGS" -o "$dir/$exe" .)
     cp "$SRC/LICENSE" "$SRC/README.md" "$dir/"
+    install -Dm644 -t "$dir/assets" "$SRC/assets/logo.svg" "$SRC/assets/logo-dark.svg"
     sed -e "s/@VERSION@/$VERSION/g" -e "s/@DATE@/$DATE/g" "$SRC/gmt-mail.1" >"$dir/gmt-mail.1"
     chmod -R u=rwX,go=rX "$dir" # modes must not depend on the umask
     find "$dir" -exec touch -h -d "@$EPOCH" {} +

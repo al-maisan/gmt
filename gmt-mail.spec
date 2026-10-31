@@ -43,6 +43,7 @@ sed -e 's/@VERSION[@]/%{version}/g' -e "s/@DATE[@]/$(date -u -d @${SOURCE_DATE_E
     gmt-mail.1 > %{buildroot}%{_mandir}/man1/gmt-mail.1
 install -Dpm 0644 .env.example %{buildroot}%{_docdir}/%{name}/.env.example
 install -Dpm 0644 README.md %{buildroot}%{_docdir}/%{name}/README.md
+install -Dpm 0644 -t %{buildroot}%{_docdir}/%{name}/assets assets/logo.svg assets/logo-dark.svg
 
 %files
 %license LICENSE
