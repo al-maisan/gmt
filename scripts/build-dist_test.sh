@@ -18,8 +18,10 @@ cd "$TMP/a" || exit 1
 
 check "archives" "gmt-mail-1.2.3-linux-amd64.tar.gz gmt-mail-1.2.3-windows-amd64.zip SHA256SUMS" "$(ls | sort -f | paste -sd' ')"
 check "checksums verify" "0" "$(sha256sum --quiet -c SHA256SUMS >/dev/null 2>&1; echo $?)"
-check "tar contents" "gmt-mail-1.2.3-linux-amd64/ gmt-mail-1.2.3-linux-amd64/LICENSE gmt-mail-1.2.3-linux-amd64/README.md gmt-mail-1.2.3-linux-amd64/gmt-mail gmt-mail-1.2.3-linux-amd64/gmt-mail.1" \
+check "tar contents" "gmt-mail-1.2.3-linux-amd64/ gmt-mail-1.2.3-linux-amd64/LICENSE gmt-mail-1.2.3-linux-amd64/README.md gmt-mail-1.2.3-linux-amd64/assets/ gmt-mail-1.2.3-linux-amd64/assets/logo-dark.svg gmt-mail-1.2.3-linux-amd64/assets/logo.svg gmt-mail-1.2.3-linux-amd64/gmt-mail gmt-mail-1.2.3-linux-amd64/gmt-mail.1" \
     "$(tar tzf gmt-mail-1.2.3-linux-amd64.tar.gz | paste -sd' ')"
+check "zip has the logos" "gmt-mail-1.2.3-windows-amd64/assets/logo-dark.svg gmt-mail-1.2.3-windows-amd64/assets/logo.svg" \
+    "$(unzip -Z1 gmt-mail-1.2.3-windows-amd64.zip | grep '\.svg$' | LC_ALL=C sort | paste -sd' ')"
 check "zip has the .exe" "gmt-mail-1.2.3-windows-amd64/gmt-mail.exe" \
     "$(unzip -Z1 gmt-mail-1.2.3-windows-amd64.zip | grep '\.exe$')"
 
