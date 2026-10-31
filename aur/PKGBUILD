@@ -42,4 +42,8 @@ package() {
   install -Dm755 gmt-mail "$pkgdir/usr/bin/gmt-mail"
   install -Dm644 gmt-mail.1.out "$pkgdir/usr/share/man/man1/gmt-mail.1"
   install -Dm644 README.md .env.example -t "$pkgdir/usr/share/doc/$pkgname/"
+  # logos shown by the README (the v0.9.0 tarball has none)
+  if [ -d assets ]; then
+    install -Dm644 assets/logo.svg assets/logo-dark.svg -t "$pkgdir/usr/share/doc/$pkgname/assets/"
+  fi
 }
