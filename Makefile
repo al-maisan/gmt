@@ -18,7 +18,7 @@ GH := env -u GITHUB_TOKEN gh
 # shared host to tamper with the spec/tarball before rpmbuild and upload.
 BUILD_ROOT   := $(or $(XDG_CACHE_HOME),$(HOME)/.cache)/gmt-mail
 RPMBUILD_DIR := $(BUILD_ROOT)/rpmbuild
-TARBALL      := $(RPMBUILD_DIR)/SOURCES/gmt-$(VERSION).tar.gz
+TARBALL      := $(RPMBUILD_DIR)/SOURCES/gmt-mail-$(VERSION).tar.gz
 SPEC_TEMPLATE := gmt-mail.spec
 SPEC_OUT      := $(RPMBUILD_DIR)/SPECS/gmt-mail.spec
 # gmt-mail.1 carries @VERSION@/@DATE@; the RPM spec and debian/rules fill them in from
@@ -80,7 +80,7 @@ release: tag
 
 srpm: vendor gen-spec
 	mkdir -p $(RPMBUILD_DIR)/{SOURCES,SPECS,SRPMS}
-	tar czf $(TARBALL) --transform 's,^\.,gmt-$(VERSION),' \
+	tar czf $(TARBALL) --transform 's,^\.,gmt-mail-$(VERSION),' \
 		--exclude='./.git' --exclude='./gmt-mail.spec' \
 		--exclude='./ai' --exclude='./.claude' \
 		--exclude='./$(BINARY)' --exclude='./ppa' .

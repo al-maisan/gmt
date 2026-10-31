@@ -1,4 +1,4 @@
-module github.com/al-maisan/gmt
+module github.com/al-maisan/gmt-mail
 
 go 1.26.0
 

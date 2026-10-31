@@ -1,7 +1,7 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: gmt
+Upstream-Name: gmt-mail
 Upstream-Contact: Muharem Hrnjadovic <muharem@linux.com>
-Source: https://github.com/al-maisan/gmt
+Source: https://github.com/al-maisan/gmt-mail
 
 Files: *
 Copyright: 2019-2025 Muharem Hrnjadovic <muharem@linux.com>

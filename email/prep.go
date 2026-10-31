@@ -1,4 +1,4 @@
-// gmt sends emails in bulk based on a template and a config file.
+// gmt-mail sends emails in bulk based on a template and a config file.
 // Copyright (C) 2019-2025  "Muharem Hrnjadovic" <muharem@linux.com>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -24,7 +24,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/al-maisan/gmt/config"
+	"github.com/al-maisan/gmt-mail/config"
 )
 
 // rePlaceholder matches template variables in the form %KEY% where KEY is

@@ -1,4 +1,4 @@
-// gmt sends emails in bulk based on a template and a config file.
+// gmt-mail sends emails in bulk based on a template and a config file.
 // Copyright (C) 2019-2025  "Muharem Hrnjadovic" <muharem@linux.com>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Package config handles parsing of gmt TOML configuration files.
+// Package config handles parsing of gmt-mail TOML configuration files.
 package config
 
 import (
@@ -271,7 +271,7 @@ var sampleTemplateContent string
 
 // SampleConfig returns a commented example configuration file.
 func SampleConfig(version string) string {
-	return "# gmt version " + version + "\n" + sampleConfigContent
+	return "# gmt-mail version " + version + "\n" + sampleConfigContent
 }
 
 // SampleTemplate returns an example email template demonstrating placeholder usage.
