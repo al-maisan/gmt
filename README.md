@@ -97,6 +97,10 @@ Every [release](https://github.com/al-maisan/gmt-mail/releases) has archives for
 
 On macOS use `shasum -a 256 --ignore-missing -c SHA256SUMS`. macOS may block the unsigned binary on first run; allow it with `xattr -d com.apple.quarantine $A/gmt-mail`.
 
+### macOS and Linux ([Homebrew](https://github.com/al-maisan/homebrew-tap))
+
+    $ brew install al-maisan/tap/gmt-mail
+
 ### Ubuntu ([PPA](https://launchpad.net/~al-maisan/+archive/ubuntu/gmt-mail))
 
     $ sudo add-apt-repository ppa:al-maisan/gmt-mail
@@ -125,7 +129,7 @@ Requires [Go](https://go.dev/) 1.26 or later.
     $ make build
     $ ./gmt-mail -h
 
-The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `vendor`, `clean`, `srpm`, `copr`, `ppa`, `test-ppa`, `test-copr`, `man`, `test-man`, `tag`, `dist`, `test-dist`, `release`, `publish`.
+The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `vendor`, `clean`, `srpm`, `copr`, `ppa`, `test-ppa`, `test-copr`, `man`, `test-man`, `tag`, `dist`, `test-dist`, `release`, `brew`, `test-brew`, `publish`.
 
 ## Quick start
 
@@ -303,7 +307,7 @@ Cut a release by creating and pushing a signed tag, then publish everywhere:
     $ git push origin v0.7.0
     $ make publish
 
-`make publish` creates the GitHub release with prebuilt archives, submits to Fedora COPR, and uploads to Ubuntu PPA, all using the tagged version. To cut it in one shot without tagging first, override: `make publish VERSION=0.7.0` creates and pushes the tag for you.
+`make publish` creates the GitHub release with prebuilt archives, submits to Fedora COPR, uploads to Ubuntu PPA and bumps the Homebrew formula, all using the tagged version. To cut it in one shot without tagging first, override: `make publish VERSION=0.7.0` creates and pushes the tag for you.
 
 > **Note:** both package changelogs (the RPM `%changelog` and the Debian `debian/changelog`) are generated from `git log` between **GitHub releases**, so a version appears in them only once a GitHub *release* exists for its tag. `make publish` (and `make release`) create the release *before* building packages, so a full `make publish` yields complete changelogs — but building packages standalone (`make srpm`/`make copr`/`make ppa`) before the release exists will omit that version.
 
@@ -317,7 +321,10 @@ Individual targets are also available:
 | `srpm`    | Build a source RPM                             |
 | `copr`    | Build SRPM + submit to Fedora COPR for every supported Fedora that lacks this version |
 | `ppa`     | Tag + build and upload to Ubuntu PPA (skips Ubuntu releases that already have this version) |
+| `brew`    | Bump the formula in [al-maisan/homebrew-tap](https://github.com/al-maisan/homebrew-tap) to this version and push it (no-op if it is already there) |
 | `publish` | All of the above                               |
+
+`make brew` clones the tap, sets the formula's `url` and `sha256` to the tagged source archive, commits and pushes over SSH (`BREW_TAP_URL` overrides the remote; with signed commits that is two key touches). It never moves the formula to an older version. The formula builds from source, so it needs no release binaries. `make test-brew` runs its tests.
 
 `make ppa` asks Launchpad what is already uploaded and does nothing for an Ubuntu release that already has the tagged version, so re-running it without a new tag publishes nothing. If only PPA packaging files changed, force a rebuild with the next PPA revision:
 

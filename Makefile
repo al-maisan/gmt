@@ -34,7 +34,7 @@ DIST_ASSETS  := $(foreach t,$(DIST_TARGETS),gmt-mail-$(VERSION)-$(subst /,-,$(t)
 DIST_FILES   := $(addprefix $(DIST_DIR)/,$(DIST_ASSETS))
 MAN_DATE := $(or $(shell git log -1 --format=%cs $(TAG) 2>/dev/null),$(DATE))
 
-.PHONY: all build test vet lint fmt install clean srpm vendor tag release dist test-dist copr ppa test-ppa test-copr gen-spec man test-man
+.PHONY: all build test vet lint fmt install clean srpm vendor tag release dist test-dist copr ppa brew test-ppa test-copr test-brew gen-spec man test-man
 
 all: test lint build
 
@@ -162,8 +162,16 @@ ppa: tag vendor
 test-ppa:
 	ppa/build-ppa_test.sh
 
-publish: release copr ppa
-	@echo "Published $(TAG) to GitHub, COPR, and PPA"
+# Bumps the Homebrew formula in al-maisan/homebrew-tap to this version (no-op if
+# it is already there); needs the tag on GitHub.
+brew:
+	scripts/brew-update.sh $(VERSION)
+
+test-brew:
+	scripts/brew-update_test.sh
+
+publish: release copr ppa brew
+	@echo "Published $(TAG) to GitHub, COPR, PPA and Homebrew"
 
 clean:
 	rm -f $(BINARY)
