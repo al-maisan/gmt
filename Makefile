@@ -19,7 +19,7 @@ TARBALL      := $(RPMBUILD_DIR)/SOURCES/gmt-$(VERSION).tar.gz
 SPEC_TEMPLATE := gmt-mail.spec
 SPEC_OUT      := $(RPMBUILD_DIR)/SPECS/gmt-mail.spec
 
-.PHONY: all build test vet lint fmt install clean srpm vendor tag release copr ppa test-ppa gen-spec
+.PHONY: all build test vet lint fmt install clean srpm vendor tag release copr ppa test-ppa test-copr gen-spec
 
 all: test lint build
 
@@ -92,8 +92,13 @@ gen-spec:
 	@rm -f /tmp/rpm-changelog.tmp
 	@echo "spec: generated $(SPEC_OUT) (version $(VERSION))"
 
-copr: srpm
-	copr-cli build gmt-mail $$(ls $(RPMBUILD_DIR)/SRPMS/gmt-mail-$(VERSION)-*.src.rpm)
+# Builds for every released, still-maintained Fedora that doesn't have this version
+# yet (builds the SRPM only then). COPR_FORCE=1 rebuilds; COPR_CHROOTS="..." overrides.
+copr:
+	scripts/copr-build.sh $(VERSION) $(RPMBUILD_DIR)/SRPMS
+
+test-copr:
+	scripts/copr-build_test.sh
 
 # Uploads only releases that don't have this version yet; force a rebuild of an
 # already-uploaded version with: make ppa PPA_REV=2

@@ -24,7 +24,7 @@ Requires [Go](https://go.dev/) 1.25 or later.
     $ make build
     $ ./gmt-mail -h
 
-The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `vendor`, `clean`, `srpm`, `copr`, `ppa`, `test-ppa`, `tag`, `release`, `publish`.
+The Makefile embeds the version, git commit hash, and build date into the binary. Targets: `all`, `build`, `test`, `vet`, `lint`, `fmt`, `install`, `vendor`, `clean`, `srpm`, `copr`, `ppa`, `test-ppa`, `test-copr`, `tag`, `release`, `publish`.
 
 ## Quick start
 
@@ -211,7 +211,7 @@ Individual targets are also available:
 | `tag`     | Create and push a signed git tag               |
 | `release` | Tag + create GitHub release                    |
 | `srpm`    | Build a source RPM                             |
-| `copr`    | Build SRPM + submit to Fedora COPR             |
+| `copr`    | Build SRPM + submit to Fedora COPR for every supported Fedora that lacks this version |
 | `ppa`     | Tag + build and upload to Ubuntu PPA (skips Ubuntu releases that already have this version) |
 | `publish` | All of the above                               |
 
@@ -220,6 +220,8 @@ Individual targets are also available:
     $ make ppa PPA_REV=2
 
 `make test-ppa` runs the tests for that upload detection.
+
+`make copr` targets every Fedora release that is both released (final images on fedoraproject.org) and still maintained (Bodhi), so new Fedora releases are picked up automatically and enabled in the COPR project as needed. It builds only for the releases that don't have the tagged version yet and does nothing otherwise. Force a rebuild with `make copr COPR_FORCE=1`, or pick releases with `make copr COPR_CHROOTS="fedora-44-x86_64"`. `make test-copr` runs the tests for this logic.
 
 ## License
 
