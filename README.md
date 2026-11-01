@@ -112,6 +112,14 @@ On macOS use `shasum -a 256 --ignore-missing -c SHA256SUMS`. macOS may block the
     $ sudo dnf copr enable al-maisan/gmt-mail
     $ sudo dnf install gmt-mail
 
+### Arch Linux ([AUR](https://aur.archlinux.org/packages/gmt-mail))
+
+    $ yay -S gmt-mail
+
+Or without an AUR helper:
+
+    $ git clone https://aur.archlinux.org/gmt-mail.git && cd gmt-mail && makepkg -si
+
 ### With Go
 
 Requires [Go](https://go.dev/) 1.26 or later.
@@ -325,6 +333,8 @@ Individual targets are also available:
 | `publish` | All of the above                               |
 
 `make brew` clones the tap, sets the formula's `url` and `sha256` to the tagged source archive, commits and pushes over SSH (`BREW_TAP_URL` overrides the remote; with signed commits that is two key touches). It never moves the formula to an older version. The formula builds from source, so it needs no release binaries. `make test-brew` runs its tests.
+
+For the AUR, `aur/PKGBUILD` is the source of truth. After a release, set `pkgver` (and `pkgrel=1`) and the new `sha256sums` (`curl -sL https://github.com/al-maisan/gmt-mail/archive/vX.Y.Z.tar.gz | sha256sum`), regenerate `aur/.SRCINFO` with `makepkg --printsrcinfo > .SRCINFO` (on Arch, or in an `archlinux` container), then copy both files into a clone of `ssh://aur@aur.archlinux.org/gmt-mail.git` and push.
 
 `make ppa` asks Launchpad what is already uploaded and does nothing for an Ubuntu release that already has the tagged version, so re-running it without a new tag publishes nothing. If only PPA packaging files changed, force a rebuild with the next PPA revision:
 

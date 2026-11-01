@@ -1,0 +1,46 @@
+# Maintainer: Muharem Hrnjadovic <muharem@linux.com>
+# AUR package; bump pkgver and sha256sums for each release (see README).
+pkgname=gmt-mail
+pkgver=0.10.0
+pkgrel=1
+pkgdesc='Send personalized bulk emails (mail merge) from the terminal over SMTP with TLS'
+arch=('x86_64' 'aarch64')
+url='https://github.com/al-maisan/gmt-mail'
+license=('GPL-3.0-or-later')
+depends=('glibc')
+makedepends=('go')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+sha256sums=('3d4446fcdddf00422a900833cffb80a6777108df373574a467f249fe26700b44')
+
+prepare() {
+  cd "$pkgname-$pkgver"
+  export GOPATH="$srcdir/gopath"
+  go mod download -modcacherw
+}
+
+build() {
+  cd "$pkgname-$pkgver"
+  export GOPATH="$srcdir/gopath"
+  export CGO_CPPFLAGS="$CPPFLAGS" CGO_CFLAGS="$CFLAGS" CGO_CXXFLAGS="$CXXFLAGS" CGO_LDFLAGS="$LDFLAGS"
+  local date mandate
+  date=$(date -u -d "@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%F)
+  # man page date = release date: GitHub archives carry the tagged commit's time
+  mandate=$(date -u -r gmt-mail.1 +%F)
+  go build -buildmode=pie -trimpath -mod=readonly -modcacherw \
+    -ldflags "-linkmode=external -X main.appVersion=$pkgver -X main.buildDate=$date" -o gmt-mail .
+  sed -e "s/@VERSION@/$pkgver/g" -e "s/@DATE@/$mandate/g" gmt-mail.1 >gmt-mail.1.out
+}
+
+check() {
+  cd "$pkgname-$pkgver"
+  export GOPATH="$srcdir/gopath"
+  go test -mod=readonly ./...
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm755 gmt-mail "$pkgdir/usr/bin/gmt-mail"
+  install -Dm644 gmt-mail.1.out "$pkgdir/usr/share/man/man1/gmt-mail.1"
+  install -Dm644 README.md .env.example -t "$pkgdir/usr/share/doc/$pkgname/"
+  install -Dm644 assets/logo.svg assets/logo-dark.svg -t "$pkgdir/usr/share/doc/$pkgname/assets/"
+}
